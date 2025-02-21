@@ -5,10 +5,11 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ImagePlus } from "lucide-react";
+import { BottomNav } from "@/components/BottomNav";
 
 const PostItem = () => {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 pb-16">
       <TopBar title="Post New Item" />
       <main className="container mx-auto px-4 py-6">
         <Card className="p-6">
@@ -45,6 +46,7 @@ const PostItem = () => {
           </form>
         </Card>
       </main>
+      <BottomNav />
     </div>
   );
 };

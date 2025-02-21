@@ -4,10 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ItemGrid } from "@/components/ItemGrid";
 import { LogOut, Settings } from "lucide-react";
+import { BottomNav } from "@/components/BottomNav";
 
 const Profile = () => {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 pb-16">
       <TopBar title="Profile" />
       <main className="container mx-auto px-4 py-6 space-y-6">
         <Card className="p-6">
@@ -41,6 +42,7 @@ const Profile = () => {
           <ItemGrid />
         </div>
       </main>
+      <BottomNav />
     </div>
   );
 };

@@ -1,12 +1,48 @@
 
-import { StoriesBar } from "@/components/StoriesBar";
-import { Feed } from "@/components/Feed";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { ArrowLeft } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const Index = () => {
   return (
-    <div className="min-h-screen bg-gray-50 py-4 space-y-6">
-      <StoriesBar />
-      <Feed />
+    <div className="min-h-screen bg-gray-50 p-4">
+      <div className="max-w-md mx-auto">
+        <Card className="p-6">
+          <div className="mb-6">
+            <img 
+              src="/lovable-uploads/e6019a3b-61c9-4472-b3d8-808cef7cf0f2.png" 
+              alt="Capp Logo"
+              className="w-24 h-auto mx-auto"
+            />
+          </div>
+          <form className="space-y-4">
+            <div>
+              <Input 
+                type="email" 
+                placeholder="Email" 
+                className="w-full"
+              />
+            </div>
+            <div>
+              <Input 
+                type="password" 
+                placeholder="Password" 
+                className="w-full"
+              />
+            </div>
+            <Button className="w-full" asChild>
+              <Link to="/home">Sign In</Link>
+            </Button>
+            <div className="text-center">
+              <Link to="/signup" className="text-sm text-muted-foreground hover:underline">
+                Don't have an account? Sign up
+              </Link>
+            </div>
+          </form>
+        </Card>
+      </div>
     </div>
   );
 };

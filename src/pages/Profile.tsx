@@ -3,8 +3,9 @@ import { TopBar } from "@/components/TopBar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ItemGrid } from "@/components/ItemGrid";
-import { LogOut, Settings } from "lucide-react";
+import { LogOut, Settings, ImagePlus } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
+import { Link } from "react-router-dom";
 
 const Profile = () => {
   return (
@@ -26,15 +27,25 @@ const Profile = () => {
               <Settings className="h-4 w-4" />
             </Button>
           </div>
-          
-          <div className="mt-6 pt-6 border-t">
-            <Button variant="outline" className="w-full" asChild>
-              <div>
-                <LogOut className="mr-2 h-4 w-4" />
-                Sign Out
-              </div>
-            </Button>
-          </div>
+        </Card>
+
+        <Link to="/post">
+          <Card className="aspect-square flex flex-col items-center justify-center p-6 hover:bg-accent transition-colors cursor-pointer">
+            <ImagePlus className="h-12 w-12 mb-4 text-primary" />
+            <h3 className="text-lg font-semibold text-center">Post Your Item</h3>
+            <p className="text-sm text-muted-foreground text-center mt-2">
+              List something for sale
+            </p>
+          </Card>
+        </Link>
+        
+        <Card className="p-6">
+          <Button variant="outline" className="w-full" asChild>
+            <div>
+              <LogOut className="mr-2 h-4 w-4" />
+              Sign Out
+            </div>
+          </Button>
         </Card>
 
         <div>

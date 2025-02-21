@@ -1,6 +1,9 @@
 
 import { Card } from "@/components/ui/card";
 import { Link } from "react-router-dom";
+import { BookmarkPlus, MessageSquare } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/use-toast";
 
 const SAMPLE_ITEMS = [
   {
@@ -18,11 +21,45 @@ const SAMPLE_ITEMS = [
 ];
 
 export function ItemGrid() {
+  const { toast } = useToast();
+
+  const handleSave = (e: React.MouseEvent, itemId: number) => {
+    e.preventDefault(); // Prevent navigation
+    toast({
+      description: "Item saved for later",
+    });
+  };
+
+  const handleContact = (e: React.MouseEvent, itemId: number) => {
+    e.preventDefault(); // Prevent navigation
+    toast({
+      description: "Opening chat with seller...",
+    });
+  };
+
   return (
     <div className="grid grid-cols-2 gap-4">
       {SAMPLE_ITEMS.map((item) => (
         <Link key={item.id} to={`/items/${item.id}`}>
-          <Card className="overflow-hidden">
+          <Card className="overflow-hidden relative group">
+            <div className="absolute top-2 right-2 flex gap-2">
+              <Button
+                variant="secondary"
+                size="icon"
+                className="opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={(e) => handleSave(e, item.id)}
+              >
+                <BookmarkPlus className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="secondary"
+                size="icon"
+                className="opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={(e) => handleContact(e, item.id)}
+              >
+                <MessageSquare className="h-4 w-4" />
+              </Button>
+            </div>
             <img
               src={item.image}
               alt={item.title}

@@ -1,5 +1,4 @@
 
-import { Button } from "@/components/ui/button";
 import { ItemGrid } from "@/components/ItemGrid";
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";

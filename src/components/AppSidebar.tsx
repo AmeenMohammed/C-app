@@ -1,0 +1,68 @@
+
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+} from "@/components/ui/sidebar";
+import { 
+  Settings, 
+  CreditCard, 
+  LayoutGrid,
+  MessageSquare,
+  Bell,
+  Heart,
+  HelpCircle
+} from "lucide-react";
+
+const menuItems = [
+  {
+    label: "Main",
+    items: [
+      { title: "Browse", icon: LayoutGrid, url: "/home" },
+      { title: "Messages", icon: MessageSquare, url: "#" },
+      { title: "Notifications", icon: Bell, url: "#" },
+      { title: "Saved Items", icon: Heart, url: "#" },
+    ],
+  },
+  {
+    label: "Account",
+    items: [
+      { title: "Settings", icon: Settings, url: "#" },
+      { title: "Payment Methods", icon: CreditCard, url: "#" },
+      { title: "Help & Support", icon: HelpCircle, url: "#" },
+    ],
+  },
+];
+
+export function AppSidebar() {
+  return (
+    <Sidebar>
+      <SidebarContent>
+        {menuItems.map((group, index) => (
+          <SidebarGroup key={index}>
+            <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {group.items.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild>
+                      <a href={item.url} className="flex items-center gap-2">
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.title}</span>
+                      </a>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ))}
+      </SidebarContent>
+    </Sidebar>
+  );
+}

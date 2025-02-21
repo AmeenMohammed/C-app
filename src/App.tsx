@@ -13,6 +13,12 @@ import PostItem from "./pages/PostItem";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import SignUp from "./pages/SignUp";
+import Messages from "./pages/Messages";
+import Notifications from "./pages/Notifications";
+import SavedItems from "./pages/SavedItems";
+import Settings from "./pages/Settings";
+import PaymentMethods from "./pages/PaymentMethods";
+import HelpSupport from "./pages/HelpSupport";
 
 const queryClient = new QueryClient();
 
@@ -34,6 +40,12 @@ const App = () => (
                 <Route path="/post" element={<PostItem />} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/signup" element={<SignUp />} />
+                <Route path="/messages" element={<Messages />} />
+                <Route path="/notifications" element={<Notifications />} />
+                <Route path="/saved-items" element={<SavedItems />} />
+                <Route path="/settings" element={<Settings />} />
+                <Route path="/payment-methods" element={<PaymentMethods />} />
+                <Route path="/help-support" element={<HelpSupport />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </main>

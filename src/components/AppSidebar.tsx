@@ -24,17 +24,17 @@ const menuItems = [
     label: "Main",
     items: [
       { title: "Browse", icon: LayoutGrid, url: "/home" },
-      { title: "Messages", icon: MessageSquare, url: "#" },
-      { title: "Notifications", icon: Bell, url: "#" },
-      { title: "Saved Items", icon: Heart, url: "#" },
+      { title: "Messages", icon: MessageSquare, url: "/messages" },
+      { title: "Notifications", icon: Bell, url: "/notifications" },
+      { title: "Saved Items", icon: Heart, url: "/saved-items" },
     ],
   },
   {
     label: "Account",
     items: [
-      { title: "Settings", icon: Settings, url: "#" },
-      { title: "Payment Methods", icon: CreditCard, url: "#" },
-      { title: "Help & Support", icon: HelpCircle, url: "#" },
+      { title: "Settings", icon: Settings, url: "/settings" },
+      { title: "Payment Methods", icon: CreditCard, url: "/payment-methods" },
+      { title: "Help & Support", icon: HelpCircle, url: "/help-support" },
     ],
   },
 ];

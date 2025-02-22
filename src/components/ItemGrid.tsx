@@ -38,36 +38,36 @@ export function ItemGrid() {
   };
 
   return (
-    <div className="grid grid-cols-2 gap-4">
+    <div className="grid grid-cols-3 gap-2">
       {SAMPLE_ITEMS.map((item) => (
         <Link key={item.id} to={`/items/${item.id}`}>
           <Card className="overflow-hidden relative group">
-            <div className="absolute top-2 right-2 flex gap-2">
+            <div className="absolute top-1 right-1 flex gap-1 z-10">
               <Button
                 variant="secondary"
                 size="icon"
-                className="opacity-0 group-hover:opacity-100 transition-opacity"
+                className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
                 onClick={(e) => handleSave(e, item.id)}
               >
-                <BookmarkPlus className="h-4 w-4" />
+                <BookmarkPlus className="h-3 w-3" />
               </Button>
               <Button
                 variant="secondary"
                 size="icon"
-                className="opacity-0 group-hover:opacity-100 transition-opacity"
+                className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
                 onClick={(e) => handleContact(e, item.id)}
               >
-                <MessageSquare className="h-4 w-4" />
+                <MessageSquare className="h-3 w-3" />
               </Button>
             </div>
             <img
               src={item.image}
               alt={item.title}
-              className="w-full aspect-square object-cover"
+              className="w-full h-24 object-cover"
             />
-            <div className="p-3">
-              <h3 className="font-medium text-sm">{item.title}</h3>
-              <p className="text-sm text-muted-foreground">${item.price}</p>
+            <div className="p-2">
+              <h3 className="font-medium text-xs truncate">{item.title}</h3>
+              <p className="text-xs text-muted-foreground">${item.price}</p>
             </div>
           </Card>
         </Link>

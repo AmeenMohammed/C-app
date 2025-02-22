@@ -60,11 +60,13 @@ export function ItemGrid() {
                 <MessageSquare className="h-3 w-3" />
               </Button>
             </div>
-            <img
-              src={item.image}
-              alt={item.title}
-              className="w-full h-24 object-cover"
-            />
+            <div className="relative pb-[100%]">
+              <img
+                src={item.image}
+                alt={item.title}
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+            </div>
             <div className="p-2">
               <h3 className="font-medium text-xs truncate">{item.title}</h3>
               <p className="text-xs text-muted-foreground">${item.price}</p>

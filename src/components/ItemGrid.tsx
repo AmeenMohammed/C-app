@@ -38,7 +38,7 @@ export function ItemGrid() {
   };
 
   return (
-    <div className="grid grid-cols-3 gap-2">
+    <div className="grid grid-cols-4 gap-2">
       {SAMPLE_ITEMS.map((item) => (
         <Link key={item.id} to={`/items/${item.id}`}>
           <Card className="overflow-hidden relative group">
@@ -67,7 +67,7 @@ export function ItemGrid() {
                 className="absolute inset-0 w-full h-full object-cover"
               />
             </div>
-            <div className="p-2">
+            <div className="p-1">
               <h3 className="font-medium text-xs truncate">{item.title}</h3>
               <p className="text-xs text-muted-foreground">${item.price}</p>
             </div>

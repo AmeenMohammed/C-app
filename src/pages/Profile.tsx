@@ -29,15 +29,14 @@ const Profile = () => {
           </div>
         </Card>
 
-        <Link to="/post">
-          <Card className="aspect-square flex flex-col items-center justify-center p-6 hover:bg-accent transition-colors cursor-pointer">
-            <ImagePlus className="h-12 w-12 mb-4 text-primary" />
-            <h3 className="text-lg font-semibold text-center">Post Your Item</h3>
-            <p className="text-sm text-muted-foreground text-center mt-2">
-              List something for sale
-            </p>
-          </Card>
-        </Link>
+        <div className="grid grid-cols-4 gap-1.5">
+          <Link to="/post">
+            <Card className="aspect-square flex flex-col items-center justify-center p-2 hover:bg-accent transition-colors cursor-pointer">
+              <ImagePlus className="h-6 w-6 text-primary mb-1" />
+              <span className="text-xs text-center">Post Item</span>
+            </Card>
+          </Link>
+        </div>
         
         <Card className="p-6">
           <Button variant="outline" className="w-full" asChild>

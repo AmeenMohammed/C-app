@@ -38,26 +38,26 @@ export function ItemGrid() {
   };
 
   return (
-    <div className="grid grid-cols-4 gap-2">
+    <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-7 lg:grid-cols-8 gap-1">
       {SAMPLE_ITEMS.map((item) => (
         <Link key={item.id} to={`/items/${item.id}`}>
           <Card className="overflow-hidden relative group">
-            <div className="absolute top-1 right-1 flex gap-1 z-10">
+            <div className="absolute top-0.5 right-0.5 flex gap-0.5 z-10">
               <Button
                 variant="secondary"
                 size="icon"
-                className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity"
                 onClick={(e) => handleSave(e, item.id)}
               >
-                <BookmarkPlus className="h-3 w-3" />
+                <BookmarkPlus className="h-2 w-2" />
               </Button>
               <Button
                 variant="secondary"
                 size="icon"
-                className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity"
                 onClick={(e) => handleContact(e, item.id)}
               >
-                <MessageSquare className="h-3 w-3" />
+                <MessageSquare className="h-2 w-2" />
               </Button>
             </div>
             <div className="relative pb-[100%]">
@@ -67,9 +67,9 @@ export function ItemGrid() {
                 className="absolute inset-0 w-full h-full object-cover"
               />
             </div>
-            <div className="p-1">
-              <h3 className="font-medium text-xs truncate">{item.title}</h3>
-              <p className="text-xs text-muted-foreground">${item.price}</p>
+            <div className="p-0.5">
+              <h3 className="font-medium text-[10px] leading-tight truncate">{item.title}</h3>
+              <p className="text-[10px] leading-tight text-muted-foreground">${item.price}</p>
             </div>
           </Card>
         </Link>

@@ -5,19 +5,20 @@ import { BottomNav } from "@/components/BottomNav";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState } from "react";
 import { MapPin, ExternalLink, Sofa, Pill, ShoppingBag, Car, Laptop, Camera, Baby, Book, Shirt } from "lucide-react";
 
 const categories = [
-  { id: 'all', label: 'All', icon: ShoppingBag },
-  { id: 'furniture', label: 'Furniture', icon: Sofa },
-  { id: 'medicine', label: 'Medicine', icon: Pill },
-  { id: 'electronics', label: 'Electronics', icon: Laptop },
-  { id: 'vehicles', label: 'Vehicles', icon: Car },
-  { id: 'cameras', label: 'Cameras', icon: Camera },
-  { id: 'baby', label: 'Baby Items', icon: Baby },
-  { id: 'books', label: 'Books', icon: Book },
-  { id: 'fashion', label: 'Fashion', icon: Shirt },
+  { id: 'all', label: 'All', icon: ShoppingBag, description: 'All shopping items' },
+  { id: 'furniture', label: 'Furniture', icon: Sofa, description: 'Home and office furniture' },
+  { id: 'medicine', label: 'Medicine', icon: Pill, description: 'Medical and health items' },
+  { id: 'electronics', label: 'Electronics', icon: Laptop, description: 'Electronic devices' },
+  { id: 'vehicles', label: 'Vehicles', icon: Car, description: 'Cars and vehicles' },
+  { id: 'cameras', label: 'Cameras', icon: Camera, description: 'Cameras and photography gear' },
+  { id: 'baby', label: 'Baby Items', icon: Baby, description: 'Baby products and accessories' },
+  { id: 'books', label: 'Books', icon: Book, description: 'Books and publications' },
+  { id: 'fashion', label: 'Fashion', icon: Shirt, description: 'Clothing and accessories' },
 ];
 
 const Home = () => {
@@ -47,20 +48,28 @@ const Home = () => {
         <div className="container mx-auto px-4">
           <ScrollArea className="w-full whitespace-nowrap">
             <div className="flex space-x-1 py-2">
-              {categories.map((category) => {
-                const Icon = category.icon;
-                return (
-                  <Button
-                    key={category.id}
-                    variant={selectedCategory === category.id ? "default" : "outline"}
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => setSelectedCategory(category.id)}
-                  >
-                    <Icon className="h-4 w-4" />
-                  </Button>
-                );
-              })}
+              <TooltipProvider>
+                {categories.map((category) => {
+                  const Icon = category.icon;
+                  return (
+                    <Tooltip key={category.id}>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant={selectedCategory === category.id ? "default" : "outline"}
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => setSelectedCategory(category.id)}
+                        >
+                          <Icon className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{category.description}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  );
+                })}
+              </TooltipProvider>
             </div>
             <ScrollBar orientation="horizontal" />
           </ScrollArea>

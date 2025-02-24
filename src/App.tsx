@@ -19,6 +19,7 @@ import SavedItems from "./pages/SavedItems";
 import Settings from "./pages/Settings";
 import PaymentMethods from "./pages/PaymentMethods";
 import HelpSupport from "./pages/HelpSupport";
+import Channels from "./pages/Channels";
 
 const queryClient = new QueryClient();
 
@@ -36,6 +37,7 @@ const App = () => (
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/home" element={<Home />} />
+                <Route path="/channels" element={<Channels />} />
                 <Route path="/items/:id" element={<ItemDetails />} />
                 <Route path="/post" element={<PostItem />} />
                 <Route path="/profile" element={<Profile />} />

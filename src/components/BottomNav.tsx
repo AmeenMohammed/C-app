@@ -1,5 +1,5 @@
 
-import { Home, PlusSquare, User } from "lucide-react";
+import { Home, PlusSquare, User, Hash } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
@@ -19,6 +19,16 @@ export function BottomNav() {
           >
             <Home className="h-6 w-6" />
             <span className="text-xs">Home</span>
+          </Link>
+          <Link 
+            to="/channels" 
+            className={cn(
+              "flex flex-col items-center space-y-1",
+              location.pathname === "/channels" ? "text-primary" : "text-muted-foreground"
+            )}
+          >
+            <Hash className="h-6 w-6" />
+            <span className="text-xs">Channels</span>
           </Link>
           <Link 
             to="/post" 

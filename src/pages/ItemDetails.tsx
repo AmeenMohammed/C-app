@@ -2,19 +2,13 @@
 import { TopBar } from "@/components/TopBar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { TrendingUp } from "lucide-react";
-import { toast } from "@/components/ui/use-toast";
+import { Pencil } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const ItemDetails = () => {
   // In a real app, this would be determined by comparing the current user's ID with the item owner's ID
   const isOwner = true;
-
-  const handlePromoteItem = () => {
-    toast({
-      title: "Promotion Started",
-      description: "Your item will be moved to the top after payment confirmation.",
-    });
-  };
+  const navigate = useNavigate();
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -32,7 +26,14 @@ const ItemDetails = () => {
                 <h1 className="text-2xl font-semibold">Vintage Camera</h1>
                 <p className="text-xl font-semibold text-primary">$299</p>
               </div>
-              {!isOwner && <Button>Contact Seller</Button>}
+              {isOwner ? (
+                <Button onClick={() => navigate('/edit-item')} variant="outline">
+                  <Pencil className="h-4 w-4 mr-2" />
+                  Edit Item
+                </Button>
+              ) : (
+                <Button>Contact Seller</Button>
+              )}
             </div>
             <div>
               <h2 className="font-semibold mb-2">Description</h2>
@@ -56,22 +57,6 @@ const ItemDetails = () => {
             </div>
           </div>
         </Card>
-
-        {isOwner && (
-          <Card 
-            className="w-full flex items-center gap-4 p-4 hover:bg-accent transition-colors cursor-pointer bg-gradient-to-r from-primary/5 to-primary/10"
-            onClick={handlePromoteItem}
-          >
-            <TrendingUp className="h-8 w-8 text-primary" />
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm font-medium">Move to Top</h3>
-                <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded">10 EGP</span>
-              </div>
-              <p className="text-xs text-muted-foreground">Promote your items for more visibility</p>
-            </div>
-          </Card>
-        )}
       </main>
     </div>
   );

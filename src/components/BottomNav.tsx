@@ -1,5 +1,5 @@
 
-import { Home, PlusSquare, User, Hash } from "lucide-react";
+import { Home, PlusSquare, User, Hash, MessageSquare } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
@@ -39,6 +39,16 @@ export function BottomNav() {
           >
             <PlusSquare className="h-6 w-6" />
             <span className="text-xs">Post</span>
+          </Link>
+          <Link 
+            to="/messages" 
+            className={cn(
+              "flex flex-col items-center space-y-1",
+              location.pathname === "/messages" ? "text-primary" : "text-muted-foreground"
+            )}
+          >
+            <MessageSquare className="h-6 w-6" />
+            <span className="text-xs">Chat</span>
           </Link>
           <Link 
             to="/profile" 

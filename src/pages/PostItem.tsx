@@ -4,14 +4,22 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ImagePlus } from "lucide-react";
+import { ImagePlus, TrendingUp } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
+import { toast } from "@/components/ui/use-toast";
 
 const PostItem = () => {
+  const handlePromoteItem = () => {
+    toast({
+      title: "Promotion Started",
+      description: "Your item will be moved to the top after payment confirmation.",
+    });
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 pb-16">
       <TopBar title="Post New Item" />
-      <main className="container mx-auto px-4 py-6">
+      <main className="container mx-auto px-4 py-6 space-y-6">
         <Card className="p-6">
           <form className="space-y-6">
             <div className="space-y-2">
@@ -41,6 +49,20 @@ const PostItem = () => {
                 className="min-h-[100px]"
               />
             </div>
+
+            <Card 
+              className="w-full flex items-center gap-4 p-4 hover:bg-accent transition-colors cursor-pointer bg-gradient-to-r from-primary/5 to-primary/10"
+              onClick={handlePromoteItem}
+            >
+              <TrendingUp className="h-8 w-8 text-primary" />
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-medium">Move to Top</h3>
+                  <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded">10 EGP</span>
+                </div>
+                <p className="text-xs text-muted-foreground">Promote your items for more visibility</p>
+              </div>
+            </Card>
 
             <Button className="w-full">Post Item</Button>
           </form>

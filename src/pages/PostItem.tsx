@@ -4,26 +4,21 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ImagePlus, TrendingUp, MapPin } from "lucide-react";
+import { ImagePlus, TrendingUp, MapPin, ExternalLink } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
 import { toast } from "@/components/ui/use-toast";
 import { useState } from "react";
+import { Slider } from "@/components/ui/slider";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 const PostItem = () => {
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [range, setRange] = useState([10]); // Default 10km radius
 
   const handlePromoteItem = () => {
     setShowPaymentDialog(true);
@@ -35,6 +30,20 @@ const PostItem = () => {
       title: "Processing Payment",
       description: `Processing payment via ${method}...`,
     });
+  };
+
+  const openGoogleMaps = () => {
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        const url = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
+        window.open(url, '_blank');
+      },
+      (error) => {
+        console.error("Error getting location:", error);
+        window.open('https://www.google.com/maps', '_blank');
+      }
+    );
   };
 
   return (
@@ -65,33 +74,27 @@ const PostItem = () => {
 
             <div className="space-y-2">
               <label className="text-sm font-medium">Location Range</label>
-              <div className="flex items-center gap-4">
-                <div className="flex-1">
-                  <Select>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select area" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="cairo">Cairo</SelectItem>
-                      <SelectItem value="giza">Giza</SelectItem>
-                      <SelectItem value="alexandria">Alexandria</SelectItem>
-                      <SelectItem value="sharm">Sharm El Sheikh</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex-1">
-                  <Select>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Range (km)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="5">5 km</SelectItem>
-                      <SelectItem value="10">10 km</SelectItem>
-                      <SelectItem value="20">20 km</SelectItem>
-                      <SelectItem value="50">50 km</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div className="flex items-center gap-2 mt-2">
+                <MapPin className="h-4 w-4 text-primary" />
+                <Slider
+                  value={range}
+                  onValueChange={setRange}
+                  max={50}
+                  min={1}
+                  step={1}
+                  className="flex-1"
+                />
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  onClick={openGoogleMaps}
+                  className="h-8 w-8"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                </Button>
+                <span className="text-sm text-muted-foreground min-w-[3rem] text-right">
+                  {range[0]}km
+                </span>
               </div>
             </div>
 

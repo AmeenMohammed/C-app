@@ -7,7 +7,7 @@ export function BottomNav() {
   const location = useLocation();
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 border-t bg-white">
+    <div className="fixed bottom-0 left-0 right-0 border-t bg-white z-50">
       <div className="container mx-auto px-4">
         <div className="flex justify-around py-3">
           <Link 

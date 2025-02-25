@@ -2,10 +2,11 @@
 import { TopBar } from "@/components/TopBar";
 import { Button } from "@/components/ui/button";
 import { HelpCircle, Mail, MessageCircle, Phone } from "lucide-react";
+import { BottomNav } from "@/components/BottomNav";
 
 const HelpSupport = () => {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 pb-16">
       <TopBar title="Help & Support" showBackButton={true} />
       <main className="container mx-auto px-4 py-6">
         <div className="space-y-6">
@@ -32,6 +33,7 @@ const HelpSupport = () => {
           </div>
         </div>
       </main>
+      <BottomNav />
     </div>
   );
 };

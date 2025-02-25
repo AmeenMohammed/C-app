@@ -1,10 +1,11 @@
 
 import { TopBar } from "@/components/TopBar";
 import { Bell } from "lucide-react";
+import { BottomNav } from "@/components/BottomNav";
 
 const Notifications = () => {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 pb-16">
       <TopBar title="Notifications" showBackButton={true} />
       <main className="container mx-auto px-4 py-6">
         <div className="rounded-lg bg-white p-6 shadow">
@@ -14,6 +15,7 @@ const Notifications = () => {
           <p className="text-center text-gray-600">No new notifications</p>
         </div>
       </main>
+      <BottomNav />
     </div>
   );
 };

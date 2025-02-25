@@ -2,7 +2,6 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const Index = () => {
@@ -12,7 +11,7 @@ const Index = () => {
         <Card className="p-6">
           <div className="mb-6">
             <img 
-              src="/lovable-uploads/e6019a3b-61c9-4472-b3d8-808cef7cf0f2.png" 
+              src="/lovable-uploads/3377430e-f8c5-449c-a4cc-b797f7e85b18.png" 
               alt="Capp Logo"
               className="w-24 h-auto mx-auto"
             />

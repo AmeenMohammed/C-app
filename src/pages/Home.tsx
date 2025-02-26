@@ -91,8 +91,9 @@ const Home = () => {
               max={50}
               min={1}
               step={1}
-              className="w-full"
+              className="flex-1"
             />
+            <span className="text-sm text-muted-foreground min-w-[3rem]">{range}km</span>
             <Button 
               variant="ghost" 
               size="icon"

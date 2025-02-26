@@ -215,6 +215,31 @@ const Channels = () => {
                     ))}
                   </div>
                 </ScrollArea>
+
+                <div className="fixed bottom-16 left-0 right-0 bg-white shadow-lg border-t p-2">
+                  <div className="container mx-auto">
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-4 w-4 text-primary" />
+                      <Slider
+                        value={range}
+                        onValueChange={setRange}
+                        max={50}
+                        min={1}
+                        step={1}
+                        className="w-full"
+                      />
+                      <span className="text-sm min-w-[3rem]">{range}km</span>
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        onClick={openGoogleMaps}
+                        className="h-8 w-8"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </TabsContent>
 
@@ -343,33 +368,6 @@ const Channels = () => {
             </div>
           </div>
         </main>
-      )}
-
-      {!activeChannel && (
-        <div className="fixed bottom-16 left-0 right-0 bg-white shadow-lg border-t p-2">
-          <div className="container mx-auto">
-            <div className="flex items-center gap-2">
-              <MapPin className="h-4 w-4 text-primary" />
-              <Slider
-                value={range}
-                onValueChange={setRange}
-                max={50}
-                min={1}
-                step={1}
-                className="w-full"
-              />
-              <span className="text-sm min-w-[3rem]">{range}km</span>
-              <Button 
-                variant="ghost" 
-                size="icon"
-                onClick={openGoogleMaps}
-                className="h-8 w-8"
-              >
-                <ExternalLink className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </div>
       )}
       
       <BottomNav />

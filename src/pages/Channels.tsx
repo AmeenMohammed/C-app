@@ -121,7 +121,7 @@ const Channels = () => {
   return (
     <div className="min-h-screen bg-gray-50 pb-16">
       <TopBar 
-        title={activeChannel ? activeChannel.name : "Channels"} 
+        title={activeChannel ? activeChannel.name : "My Chat"} 
         showBackButton={!!activeChannel}
         onBackClick={() => setActiveChannel(null)}
       />

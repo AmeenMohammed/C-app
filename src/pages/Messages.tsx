@@ -175,7 +175,7 @@ const Messages = () => {
                       </p>
                     </div>
                     {conversation.unread && (
-                      <div className="h-2 w-2 bg-primary rounded-full"></div>
+                      <div className="h-2 w-2 bg-blue-500 rounded-full"></div>
                     )}
                   </div>
                 </div>
@@ -202,8 +202,8 @@ const Messages = () => {
                       <div
                         className={`rounded-lg px-4 py-2 max-w-[80vw] ${
                           message.isMine
-                            ? 'bg-primary text-primary-foreground'
-                            : 'bg-secondary'
+                            ? 'bg-gray-900 text-white'
+                            : 'bg-gray-100 text-gray-900'
                         }`}
                       >
                         {message.text}

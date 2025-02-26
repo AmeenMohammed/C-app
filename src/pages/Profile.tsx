@@ -56,7 +56,7 @@ const Profile = () => {
   return (
     <div className="min-h-screen bg-gray-50 pb-16">
       <TopBar title="Profile" />
-      <main className="container mx-auto px-4 py-6 space-y-6">
+      <main className="container mx-auto px-4 py-6 space-y-8">
         <Card className="p-6">
           <div className="flex items-start gap-6 mb-3">
             <div className="relative">

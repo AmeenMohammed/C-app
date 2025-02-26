@@ -3,7 +3,7 @@ import { BottomNav } from "@/components/BottomNav";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Lock, Globe, MapPin, ExternalLink, Users, Send, Smile } from "lucide-react";
+import { Lock, Globe, MapPin, ExternalLink, Users, Send, Smile, Search } from "lucide-react";
 import { useState } from "react";
 import { Slider } from "@/components/ui/slider";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -239,13 +239,16 @@ const Channels = () => {
 
             <TabsContent value="discover" className="mt-4">
               <div className="space-y-4">
-                <Input
-                  type="search"
-                  placeholder="Search channels..."
-                  value={discoverSearchQuery}
-                  onChange={(e) => setDiscoverSearchQuery(e.target.value)}
-                  className="w-full"
-                />
+                <div className="relative">
+                  <Input
+                    type="search"
+                    placeholder="Search channels..."
+                    value={discoverSearchQuery}
+                    onChange={(e) => setDiscoverSearchQuery(e.target.value)}
+                    className="w-full pl-10"
+                  />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                </div>
                 
                 <ScrollArea className="h-[calc(100vh-280px)]">
                   <div className="space-y-4">
@@ -315,13 +318,16 @@ const Channels = () => {
 
             <TabsContent value="joined" className="mt-4">
               <div className="space-y-4">
-                <Input
-                  type="search"
-                  placeholder="Search joined channels..."
-                  value={joinedSearchQuery}
-                  onChange={(e) => setJoinedSearchQuery(e.target.value)}
-                  className="w-full"
-                />
+                <div className="relative">
+                  <Input
+                    type="search"
+                    placeholder="Search joined channels..."
+                    value={joinedSearchQuery}
+                    onChange={(e) => setJoinedSearchQuery(e.target.value)}
+                    className="w-full pl-10"
+                  />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                </div>
                 
                 <ScrollArea className="h-[calc(100vh-280px)]">
                   <div className="space-y-4">

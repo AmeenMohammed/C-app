@@ -39,6 +39,33 @@ export type Database = {
         }
         Relationships: []
       }
+      user_ratings: {
+        Row: {
+          comment: string | null
+          created_at: string
+          id: string
+          rated_user_id: string
+          rater_id: string
+          rating: number
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          id?: string
+          rated_user_id: string
+          rater_id: string
+          rating: number
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          id?: string
+          rated_user_id?: string
+          rater_id?: string
+          rating?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -56,6 +83,15 @@ export type Database = {
           three_star_count: number
           two_star_count: number
           one_star_count: number
+        }[]
+      }
+      get_user_average_rating: {
+        Args: {
+          user_uuid: string
+        }
+        Returns: {
+          average_rating: number
+          total_ratings: number
         }[]
       }
     }

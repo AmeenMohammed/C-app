@@ -39,6 +39,7 @@ const SellerProfile = () => {
   const [ratings, setRatings] = useState<SellerRatings | null>(null);
   const [selectedRating, setSelectedRating] = useState(0);
   const [review, setReview] = useState("");
+  const [canRate, setCanRate] = useState(false);
 
   useEffect(() => {
     const fetchSellerDetails = async () => {
@@ -52,6 +53,19 @@ const SellerProfile = () => {
         console.error('Error fetching ratings:', ratingError);
       } else {
         setRatings(ratingData[0]);
+      }
+
+      // Check if user can rate this seller
+      const { data: canRateData, error: canRateError } = await supabase
+        .rpc('can_rate_seller', { 
+          buyer_uuid: (await supabase.auth.getUser()).data.user?.id,
+          seller_uuid: id 
+        });
+
+      if (canRateError) {
+        console.error('Error checking if user can rate:', canRateError);
+      } else {
+        setCanRate(canRateData || false);
       }
 
       // TODO: Fetch seller profile details once profiles table is implemented
@@ -68,32 +82,74 @@ const SellerProfile = () => {
   }, [id]);
 
   const handleSubmitRating = async () => {
-    if (!id || selectedRating === 0) return;
+    if (!id || selectedRating === 0 || !canRate) return;
 
-    const { error } = await supabase
+    const user = (await supabase.auth.getUser()).data.user;
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to rate sellers.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Get the purchase that hasn't been rated yet
+    const { data: purchases } = await supabase
+      .from('purchases')
+      .select('id')
+      .eq('buyer_id', user.id)
+      .eq('seller_id', id)
+      .eq('has_rated', false)
+      .limit(1)
+      .single();
+
+    if (!purchases) {
+      toast({
+        title: "Error",
+        description: "You need to make a purchase before rating this seller.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Insert the rating
+    const { error: ratingError } = await supabase
       .from('item_ratings')
       .insert({
         seller_id: id,
-        buyer_id: 'current-user-id', // TODO: Replace with actual user ID
-        item_id: 'item-id', // TODO: Replace with actual item ID
+        buyer_id: user.id,
+        item_id: purchases.id,
         rating: selectedRating,
         review,
       });
 
-    if (error) {
+    if (ratingError) {
       toast({
         title: "Error",
         description: "Failed to submit rating. Please try again.",
         variant: "destructive",
       });
-    } else {
-      toast({
-        title: "Success",
-        description: "Rating submitted successfully!",
-      });
-      setSelectedRating(0);
-      setReview("");
+      return;
     }
+
+    // Update the purchase to mark it as rated
+    const { error: updateError } = await supabase
+      .from('purchases')
+      .update({ has_rated: true })
+      .eq('id', purchases.id);
+
+    if (updateError) {
+      console.error('Error updating purchase:', updateError);
+    }
+
+    toast({
+      title: "Success",
+      description: "Rating submitted successfully!",
+    });
+    setSelectedRating(0);
+    setReview("");
+    setCanRate(false);
   };
 
   const renderStars = (rating: number) => {
@@ -144,8 +200,12 @@ const SellerProfile = () => {
 
             <Dialog>
               <DialogTrigger asChild>
-                <Button variant="outline" className="w-full">
-                  Rate Seller
+                <Button 
+                  variant="outline" 
+                  className="w-full" 
+                  disabled={!canRate}
+                >
+                  {canRate ? 'Rate This Seller' : 'Make a Purchase to Rate'}
                 </Button>
               </DialogTrigger>
               <DialogContent>

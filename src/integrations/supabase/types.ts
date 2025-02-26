@@ -39,6 +39,33 @@ export type Database = {
         }
         Relationships: []
       }
+      purchases: {
+        Row: {
+          buyer_id: string
+          created_at: string
+          has_rated: boolean | null
+          id: string
+          item_id: string
+          seller_id: string
+        }
+        Insert: {
+          buyer_id: string
+          created_at?: string
+          has_rated?: boolean | null
+          id?: string
+          item_id: string
+          seller_id: string
+        }
+        Update: {
+          buyer_id?: string
+          created_at?: string
+          has_rated?: boolean | null
+          id?: string
+          item_id?: string
+          seller_id?: string
+        }
+        Relationships: []
+      }
       user_ratings: {
         Row: {
           comment: string | null
@@ -71,6 +98,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_rate_seller: {
+        Args: {
+          buyer_uuid: string
+          seller_uuid: string
+        }
+        Returns: boolean
+      }
       get_seller_ratings: {
         Args: {
           seller_uuid: string

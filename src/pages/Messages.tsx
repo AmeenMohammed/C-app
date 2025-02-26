@@ -1,7 +1,6 @@
 
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Send, Smile } from "lucide-react";
 import { useState, useEffect } from "react";
@@ -25,7 +24,6 @@ const Messages = () => {
   const [searchParams] = useSearchParams();
   const channelId = searchParams.get("channel");
   const [messages, setMessages] = useState<Message[]>([]);
-  const [newMessage, setNewMessage] = useState("");
 
   // In a real app, you would fetch the channel details and messages here
   useEffect(() => {
@@ -46,26 +44,14 @@ const Messages = () => {
 
   const sendMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    if (newMessage.trim()) {
-      setMessages([...messages, { 
-        text: newMessage, 
-        isMine: true,
-        user: {
-          name: "John Doe",
-          avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=John"
-        }
-      }]);
-      setNewMessage("");
-    }
   };
 
   const onEmojiClick = (emojiData: EmojiClickData) => {
-    setNewMessage(prev => prev + emojiData.emoji);
   };
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <TopBar title="Channel Chat" showBackButton={true} />
+      <TopBar title="My Messages" showBackButton={true} />
       
       <main className="flex-1 container mx-auto px-4 py-6 overflow-hidden flex flex-col">
         <ScrollArea className="flex-1 mb-4">
@@ -110,31 +96,6 @@ const Messages = () => {
           </div>
         </ScrollArea>
       </main>
-      
-      <div className="sticky bottom-16 bg-background border-t p-4 mx-auto w-full">
-        <form onSubmit={sendMessage} className="container mx-auto flex items-center gap-2">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button type="button" size="icon" variant="ghost">
-                <Smile className="h-5 w-5 text-muted-foreground" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="p-0 w-full" side="top">
-              <EmojiPicker onEmojiClick={onEmojiClick} />
-            </PopoverContent>
-          </Popover>
-          
-          <Input
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            placeholder="Type a message..."
-            className="flex-1"
-          />
-          <Button type="submit" size="icon">
-            <Send className="h-4 w-4" />
-          </Button>
-        </form>
-      </div>
       
       <BottomNav />
     </div>

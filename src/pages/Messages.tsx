@@ -1,3 +1,4 @@
+
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,7 @@ interface Conversation {
   lastMessage: string;
   timestamp: string;
   unread?: boolean;
+  unreadCount?: number;
 }
 
 const Messages = () => {
@@ -43,7 +45,8 @@ const Messages = () => {
       },
       lastMessage: "Does it come with the original leather case?",
       timestamp: "10:30 AM",
-      unread: true
+      unread: true,
+      unreadCount: 2
     },
     {
       id: "mike",
@@ -73,7 +76,8 @@ const Messages = () => {
       },
       lastMessage: "Is the price negotiable?",
       timestamp: "3 days ago",
-      unread: true
+      unread: true,
+      unreadCount: 1
     }
   ]);
 
@@ -166,10 +170,19 @@ const Messages = () => {
                     </Avatar>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
-                        <h3 className="font-medium text-sm truncate">{conversation.user.name}</h3>
-                        <span className="text-xs text-muted-foreground ml-2">{conversation.timestamp}</span>
+                        <h3 className={`text-sm truncate ${conversation.unread ? 'font-bold' : 'font-medium'}`}>
+                          {conversation.user.name}
+                        </h3>
+                        <div className="flex items-center gap-2">
+                          {conversation.unread && conversation.unreadCount && (
+                            <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+                              {conversation.unreadCount}
+                            </span>
+                          )}
+                          <span className="text-xs text-muted-foreground">{conversation.timestamp}</span>
+                        </div>
                       </div>
-                      <p className="text-xs text-muted-foreground truncate">
+                      <p className={`text-xs text-muted-foreground truncate ${conversation.unread ? 'font-semibold' : ''}`}>
                         {conversation.lastMessage}
                       </p>
                     </div>

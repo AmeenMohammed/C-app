@@ -233,7 +233,7 @@ const Channels = () => {
                     <EmojiPicker 
                       onEmojiClick={onEmojiClick}
                       skinTonesDisabled
-                      emojiStyle="native"
+                      emojiStyle="apple"
                     />
                   </PopoverContent>
                 </Popover>

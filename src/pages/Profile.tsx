@@ -1,3 +1,4 @@
+
 import { TopBar } from "@/components/TopBar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -57,7 +58,7 @@ const Profile = () => {
       <TopBar title="Profile" />
       <main className="container mx-auto px-4 py-6 space-y-6">
         <Card className="p-6">
-          <div className="flex items-center space-x-4 mb-3">
+          <div className="flex items-center gap-4 mb-3">
             <div className="relative">
               <img
                 src={profile.photoUrl}
@@ -82,33 +83,36 @@ const Profile = () => {
                 </>
               )}
             </div>
-            <div className="flex-1">
-              {isEditing ? (
-                <Input 
-                  value={profile.name}
-                  onChange={(e) => setProfile({...profile, name: e.target.value})}
-                  className="mb-1"
-                  placeholder="Your name"
-                />
-              ) : (
-                <h2 className="text-xl font-semibold">{profile.name}</h2>
-              )}
-              <p className="text-muted-foreground">Member since 2024</p>
-            </div>
-            <div className="flex gap-2">
-              <Button 
-                variant={isEditing ? "default" : "outline"} 
-                onClick={() => isEditing ? handleSave() : setIsEditing(true)}
-              >
-                {isEditing ? "Save" : "Edit"}
-              </Button>
-              {!isEditing && (
-                <Link to="/settings">
-                  <Button variant="outline" size="icon">
-                    <Settings className="h-4 w-4" />
-                  </Button>
-                </Link>
-              )}
+            <div className="flex-1 flex items-center justify-between">
+              <div>
+                {isEditing ? (
+                  <Input 
+                    value={profile.name}
+                    onChange={(e) => setProfile({...profile, name: e.target.value})}
+                    placeholder="Your name"
+                  />
+                ) : (
+                  <div>
+                    <h2 className="text-xl font-semibold">{profile.name}</h2>
+                    <p className="text-sm text-muted-foreground">Member since 2024</p>
+                  </div>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Button 
+                  variant={isEditing ? "default" : "outline"} 
+                  onClick={() => isEditing ? handleSave() : setIsEditing(true)}
+                >
+                  {isEditing ? "Save" : "Edit"}
+                </Button>
+                {!isEditing && (
+                  <Link to="/settings">
+                    <Button variant="outline" size="icon">
+                      <Settings className="h-4 w-4" />
+                    </Button>
+                  </Link>
+                )}
+              </div>
             </div>
           </div>
 

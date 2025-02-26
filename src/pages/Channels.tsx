@@ -230,7 +230,11 @@ const Channels = () => {
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="p-0 w-full" side="top" align="end">
-                    <EmojiPicker onEmojiClick={onEmojiClick} />
+                    <EmojiPicker 
+                      onEmojiClick={onEmojiClick}
+                      skinTonesDisabled
+                      emojiStyle="native"
+                    />
                   </PopoverContent>
                 </Popover>
                 

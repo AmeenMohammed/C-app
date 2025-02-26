@@ -101,7 +101,7 @@ const SellerProfile = () => {
         </Card>
 
         <div>
-          <h3 className="text-lg font-semibold mb-4">Seller's Items</h3>
+          <h3 className="text-lg font-semibold mb-4">{seller.name}'s Items</h3>
           <ItemGrid />
         </div>
       </main>

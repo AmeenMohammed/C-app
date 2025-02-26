@@ -3,25 +3,52 @@ import { TopBar } from "@/components/TopBar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ItemGrid } from "@/components/ItemGrid";
-import { Settings, ImagePlus, Phone, MapPin } from "lucide-react";
+import { Settings, ImagePlus, Phone, MapPin, Mail, Eye, EyeOff, Camera } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
 import { Link } from "react-router-dom";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { useState } from "react";
+import { useState, useRef } from "react";
 
 const Profile = () => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [profile, setProfile] = useState({
     name: "John Doe",
     bio: "Hello! I'm a passionate seller on this platform.",
+    email: "john.doe@example.com",
     telephone: "+1 (234) 567-8900",
-    location: "New York, NY"
+    location: "New York, NY",
+    isEmailPublic: false,
+    isPhonePublic: false,
+    photoUrl: "https://images.unsplash.com/photo-1649972904349-6e44c42644a7"
   });
 
   const handleSave = () => {
     setIsEditing(false);
     // TODO: Implement save to backend
+  };
+
+  const toggleVisibility = (field: 'email' | 'phone') => {
+    setProfile(prev => ({
+      ...prev,
+      [field === 'email' ? 'isEmailPublic' : 'isPhonePublic']: 
+      field === 'email' ? !prev.isEmailPublic : !prev.isPhonePublic
+    }));
+  };
+
+  const handlePhotoClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handlePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Create a temporary URL for preview
+      const url = URL.createObjectURL(file);
+      setProfile(prev => ({ ...prev, photoUrl: url }));
+      // TODO: Implement photo upload to backend
+    }
   };
 
   return (
@@ -30,11 +57,30 @@ const Profile = () => {
       <main className="container mx-auto px-4 py-6 space-y-6">
         <Card className="p-6">
           <div className="flex items-center space-x-4 mb-6">
-            <img
-              src="https://images.unsplash.com/photo-1649972904349-6e44c42644a7"
-              alt="Profile"
-              className="w-20 h-20 rounded-full object-cover"
-            />
+            <div className="relative">
+              <img
+                src={profile.photoUrl}
+                alt="Profile"
+                className="w-20 h-20 rounded-full object-cover"
+              />
+              {isEditing && (
+                <>
+                  <button
+                    onClick={handlePhotoClick}
+                    className="absolute bottom-0 right-0 p-1 bg-primary rounded-full text-white hover:bg-primary/90 transition-colors"
+                  >
+                    <Camera className="h-4 w-4" />
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handlePhotoChange}
+                    className="hidden"
+                  />
+                </>
+              )}
+            </div>
             <div className="flex-1">
               {isEditing ? (
                 <Input 
@@ -81,16 +127,58 @@ const Profile = () => {
             </div>
 
             <div className="flex items-center gap-2">
+              <Mail className="h-4 w-4 text-muted-foreground" />
+              <div className="flex-1">
+                {isEditing ? (
+                  <Input
+                    value={profile.email}
+                    onChange={(e) => setProfile({...profile, email: e.target.value})}
+                    placeholder="Your email address"
+                    type="email"
+                  />
+                ) : (
+                  <span className="text-sm">{profile.email}</span>
+                )}
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => toggleVisibility('email')}
+                className="ml-2"
+              >
+                {profile.isEmailPublic ? (
+                  <Eye className="h-4 w-4" />
+                ) : (
+                  <EyeOff className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+
+            <div className="flex items-center gap-2">
               <Phone className="h-4 w-4 text-muted-foreground" />
-              {isEditing ? (
-                <Input
-                  value={profile.telephone}
-                  onChange={(e) => setProfile({...profile, telephone: e.target.value})}
-                  placeholder="Your phone number"
-                />
-              ) : (
-                <span className="text-sm">{profile.telephone}</span>
-              )}
+              <div className="flex-1">
+                {isEditing ? (
+                  <Input
+                    value={profile.telephone}
+                    onChange={(e) => setProfile({...profile, telephone: e.target.value})}
+                    placeholder="Your phone number"
+                  />
+                ) : (
+                  <span className="text-sm">{profile.telephone}</span>
+                )}
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => toggleVisibility('phone')}
+                className="ml-2"
+              >
+                {profile.isPhonePublic ? (
+                  <Eye className="h-4 w-4" />
+                ) : (
+                  <EyeOff className="h-4 w-4" />
+                )}
+              </Button>
             </div>
 
             <div className="flex items-center gap-2">

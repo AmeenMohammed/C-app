@@ -1,9 +1,8 @@
-
 import { TopBar } from "@/components/TopBar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ItemGrid } from "@/components/ItemGrid";
-import { Settings, ImagePlus, Phone, MapPin, Mail, Eye, EyeOff, Camera } from "lucide-react";
+import { Settings, ImagePlus, Phone, MapPin, Mail, Eye, EyeOff, Camera, ExternalLink } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
 import { Link } from "react-router-dom";
 import { Textarea } from "@/components/ui/textarea";
@@ -44,11 +43,13 @@ const Profile = () => {
   const handlePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      // Create a temporary URL for preview
       const url = URL.createObjectURL(file);
       setProfile(prev => ({ ...prev, photoUrl: url }));
-      // TODO: Implement photo upload to backend
     }
+  };
+
+  const getGoogleMapsUrl = (location: string) => {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
   };
 
   return (
@@ -181,16 +182,47 @@ const Profile = () => {
               </Button>
             </div>
 
-            <div className="flex items-center gap-2">
-              <MapPin className="h-4 w-4 text-muted-foreground" />
-              {isEditing ? (
-                <Input
-                  value={profile.location}
-                  onChange={(e) => setProfile({...profile, location: e.target.value})}
-                  placeholder="Your location"
-                />
-              ) : (
-                <span className="text-sm">{profile.location}</span>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-muted-foreground" />
+                {isEditing ? (
+                  <Input
+                    value={profile.location}
+                    onChange={(e) => setProfile({...profile, location: e.target.value})}
+                    placeholder="Your location"
+                  />
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm">{profile.location}</span>
+                    <a 
+                      href={getGoogleMapsUrl(profile.location)} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-primary hover:text-primary/80 transition-colors"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+                  </div>
+                )}
+              </div>
+              {!isEditing && profile.location && (
+                <div className="relative w-full h-32 rounded-lg overflow-hidden mt-2">
+                  <img 
+                    src={`https://maps.googleapis.com/maps/api/staticmap?center=${encodeURIComponent(profile.location)}&zoom=13&size=400x200&maptype=roadmap&markers=color:red%7C${encodeURIComponent(profile.location)}&key=YOUR_API_KEY`}
+                    alt="Location map"
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-black/5 hover:bg-black/10 transition-colors">
+                    <a 
+                      href={getGoogleMapsUrl(profile.location)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="absolute inset-0 flex items-center justify-center text-primary"
+                    >
+                      <span className="sr-only">Open in Google Maps</span>
+                    </a>
+                  </div>
+                </div>
               )}
             </div>
           </div>

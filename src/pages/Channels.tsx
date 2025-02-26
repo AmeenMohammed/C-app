@@ -171,7 +171,7 @@ const Channels = () => {
       ) : (
         // Channel Chat View
         <main className="flex-1 container mx-auto px-4 py-6 overflow-hidden flex flex-col h-[calc(100vh-160px)]">
-          <ScrollArea className="flex-1 mb-4">
+          <ScrollArea className="flex-1 mb-16">
             <div className="space-y-4 pb-4">
               {activeChannel.messages?.map((message, index) => (
                 <div
@@ -213,30 +213,32 @@ const Channels = () => {
             </div>
           </ScrollArea>
 
-          <div className="sticky bottom-0 bg-background border-t p-4">
-            <form onSubmit={sendMessage} className="flex items-center gap-2">
-              <Input
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                placeholder="Type a message..."
-                className="flex-1"
-              />
-              
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button type="button" size="icon" variant="ghost">
-                    <Smile className="h-5 w-5 text-muted-foreground" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="p-0 w-full" side="top" align="end">
-                  <EmojiPicker onEmojiClick={onEmojiClick} />
-                </PopoverContent>
-              </Popover>
-              
-              <Button type="submit" size="icon">
-                <Send className="h-4 w-4" />
-              </Button>
-            </form>
+          <div className="fixed bottom-16 left-0 right-0 bg-white shadow-lg border-t">
+            <div className="container mx-auto p-3">
+              <form onSubmit={sendMessage} className="flex items-center gap-2">
+                <Input
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  placeholder="Type a message..."
+                  className="flex-1 bg-gray-50 border-0 focus-visible:ring-1"
+                />
+                
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button type="button" size="icon" variant="ghost">
+                      <Smile className="h-5 w-5 text-muted-foreground" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="p-0 w-full" side="top" align="end">
+                    <EmojiPicker onEmojiClick={onEmojiClick} />
+                  </PopoverContent>
+                </Popover>
+                
+                <Button type="submit" size="icon">
+                  <Send className="h-4 w-4" />
+                </Button>
+              </form>
+            </div>
           </div>
         </main>
       )}

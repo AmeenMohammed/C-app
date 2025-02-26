@@ -38,7 +38,7 @@ const ItemDetails = () => {
               <h2 className="font-semibold mb-2">Seller</h2>
               <Link 
                 to={`/seller/${sellerId}`}
-                className="flex items-center space-x-3 group hover:bg-accent rounded-lg p-2 transition-colors"
+                className="flex items-center space-x-3 transition-all duration-200 hover:bg-accent/40 rounded-lg p-2"
               >
                 <img
                   src="https://images.unsplash.com/photo-1649972904349-6e44c42644a7"

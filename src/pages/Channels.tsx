@@ -28,6 +28,8 @@ interface Channel {
   description: string;
   members: number;
   isPrivate: boolean;
+  isJoined?: boolean;
+  unreadCount?: number;
   messages?: Message[];
 }
 
@@ -39,6 +41,8 @@ const SAMPLE_CHANNELS: Channel[] = [
     description: "Buy and sell items in your area",
     members: 1234,
     isPrivate: false,
+    isJoined: true,
+    unreadCount: 3,
     messages: [
       { text: "Welcome to the Local Marketplace!", isMine: false },
       { 
@@ -57,7 +61,26 @@ const SAMPLE_CHANNELS: Channel[] = [
     description: "For vintage item enthusiasts",
     members: 567,
     isPrivate: true,
+    isJoined: true,
+    unreadCount: 1
   },
+  {
+    id: 3,
+    name: "Tech Gadgets Exchange",
+    description: "Trade and discuss latest tech gadgets",
+    members: 892,
+    isPrivate: false,
+    isJoined: true,
+    messages: []
+  },
+  {
+    id: 4,
+    name: "Premium Sellers",
+    description: "Exclusive channel for verified sellers",
+    members: 234,
+    isPrivate: true,
+    isJoined: false
+  }
 ];
 
 const Channels = () => {
@@ -140,28 +163,44 @@ const Channels = () => {
           <ScrollArea className="h-[calc(100vh-220px)]">
             <div className="space-y-4">
               {filteredChannels.map(channel => (
-                <Card key={channel.id} className="p-4">
+                <Card 
+                  key={channel.id} 
+                  className={`p-4 cursor-pointer hover:border-2 hover:border-red-500 transition-all ${
+                    channel.isJoined && channel.unreadCount ? 'border-2 border-red-500' : ''
+                  }`}
+                  onClick={() => handleJoinChannel(channel)}
+                >
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <h3 className="font-medium">{channel.name}</h3>
+                        <h3 className={`text-sm ${channel.isJoined && channel.unreadCount ? 'font-bold' : 'font-medium'}`}>
+                          {channel.name}
+                        </h3>
                         {channel.isPrivate ? (
                           <Lock className="h-4 w-4 text-muted-foreground" />
                         ) : (
                           <Globe className="h-4 w-4 text-muted-foreground" />
                         )}
+                        {channel.isJoined && channel.unreadCount && (
+                          <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+                            {channel.unreadCount}
+                          </span>
+                        )}
                       </div>
-                      <p className="text-sm text-muted-foreground">{channel.description}</p>
+                      <p className={`text-sm text-muted-foreground ${
+                        channel.isJoined && channel.unreadCount ? 'font-semibold' : ''
+                      }`}>
+                        {channel.description}
+                      </p>
                       <div className="flex items-center gap-2 mt-1">
                         <Users className="h-4 w-4 text-muted-foreground" />
                         <span className="text-xs text-muted-foreground">{channel.members} members</span>
                       </div>
                     </div>
                     <Button 
-                      variant={channel.isPrivate ? "outline" : "default"}
-                      onClick={() => handleJoinChannel(channel)}
+                      variant={channel.isJoined ? "outline" : channel.isPrivate ? "outline" : "default"}
                     >
-                      {channel.isPrivate ? "Request Join" : "Join"}
+                      {channel.isJoined ? "Joined" : channel.isPrivate ? "Request Join" : "Join"}
                     </Button>
                   </div>
                 </Card>

@@ -11,6 +11,7 @@ import Home from "./pages/Home";
 import ItemDetails from "./pages/ItemDetails";
 import PostItem from "./pages/PostItem";
 import Profile from "./pages/Profile";
+import SellerProfile from "./pages/SellerProfile";
 import NotFound from "./pages/NotFound";
 import SignUp from "./pages/SignUp";
 import Messages from "./pages/Messages";
@@ -39,6 +40,7 @@ const App = () => (
                 <Route path="/items/:id" element={<ItemDetails />} />
                 <Route path="/post" element={<PostItem />} />
                 <Route path="/profile" element={<Profile />} />
+                <Route path="/seller/:id" element={<SellerProfile />} />
                 <Route path="/signup" element={<SignUp />} />
                 <Route path="/messages" element={<Messages />} />
                 <Route path="/notifications" element={<Notifications />} />

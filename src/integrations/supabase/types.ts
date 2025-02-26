@@ -9,13 +9,55 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      item_ratings: {
+        Row: {
+          buyer_id: string
+          created_at: string
+          id: string
+          item_id: string
+          rating: number
+          review: string | null
+          seller_id: string
+        }
+        Insert: {
+          buyer_id: string
+          created_at?: string
+          id?: string
+          item_id: string
+          rating: number
+          review?: string | null
+          seller_id: string
+        }
+        Update: {
+          buyer_id?: string
+          created_at?: string
+          id?: string
+          item_id?: string
+          rating?: number
+          review?: string | null
+          seller_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_seller_ratings: {
+        Args: {
+          seller_uuid: string
+        }
+        Returns: {
+          average_rating: number
+          total_ratings: number
+          five_star_count: number
+          four_star_count: number
+          three_star_count: number
+          two_star_count: number
+          one_star_count: number
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

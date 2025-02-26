@@ -2,14 +2,14 @@
 import { TopBar } from "@/components/TopBar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Pencil, ShoppingCart } from "lucide-react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Pencil, ShoppingCart, Star } from "lucide-react";
+import { useLocation, useNavigate, Link } from "react-router-dom";
 
 const ItemDetails = () => {
   const location = useLocation();
-  // Check if we're coming from the profile page
   const isOwner = location.state?.fromProfile ?? false;
   const navigate = useNavigate();
+  const sellerId = "mock-seller-id"; // TODO: Replace with actual seller ID
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -36,17 +36,26 @@ const ItemDetails = () => {
             </div>
             <div>
               <h2 className="font-semibold mb-2">Seller</h2>
-              <div className="flex items-center space-x-3">
+              <Link 
+                to={`/seller/${sellerId}`}
+                className="flex items-center space-x-3 group hover:bg-accent rounded-lg p-2 transition-colors"
+              >
                 <img
                   src="https://images.unsplash.com/photo-1649972904349-6e44c42644a7"
                   alt="Seller"
                   className="w-12 h-12 rounded-full object-cover"
                 />
-                <div>
-                  <p className="font-medium">John Doe</p>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="font-medium">John Doe</p>
+                    <div className="flex items-center text-sm text-muted-foreground">
+                      <Star className="h-4 w-4 fill-primary text-primary mr-1" />
+                      4.5
+                    </div>
+                  </div>
                   <p className="text-sm text-muted-foreground">Member since 2024</p>
                 </div>
-              </div>
+              </Link>
             </div>
             {isOwner ? (
               <Button onClick={() => navigate('/edit-item')} variant="outline" className="w-full">

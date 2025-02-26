@@ -57,7 +57,7 @@ const Profile = () => {
       <TopBar title="Profile" />
       <main className="container mx-auto px-4 py-6 space-y-6">
         <Card className="p-6">
-          <div className="flex items-center gap-4 mb-3">
+          <div className="flex items-start gap-4 mb-3">
             <div className="relative">
               <img
                 src={profile.photoUrl}
@@ -82,36 +82,34 @@ const Profile = () => {
                 </>
               )}
             </div>
-            <div className="flex-1 flex items-center justify-between">
-              <div>
-                {isEditing ? (
-                  <Input 
-                    value={profile.name}
-                    onChange={(e) => setProfile({...profile, name: e.target.value})}
-                    placeholder="Your name"
-                  />
-                ) : (
-                  <div>
-                    <h2 className="text-xl font-semibold">{profile.name}</h2>
-                    <p className="text-sm text-muted-foreground">Member since 2024</p>
-                  </div>
-                )}
-              </div>
-              <div className="flex gap-2">
-                <Button 
-                  variant={isEditing ? "default" : "outline"} 
-                  onClick={() => isEditing ? handleSave() : setIsEditing(true)}
-                >
-                  {isEditing ? "Save" : "Edit"}
-                </Button>
-                {!isEditing && (
-                  <Link to="/settings">
-                    <Button variant="outline" size="icon">
-                      <Settings className="h-4 w-4" />
-                    </Button>
-                  </Link>
-                )}
-              </div>
+            <div className="flex-1">
+              {isEditing ? (
+                <Input 
+                  value={profile.name}
+                  onChange={(e) => setProfile({...profile, name: e.target.value})}
+                  placeholder="Your name"
+                />
+              ) : (
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xl font-semibold">{profile.name}</h2>
+                  <span className="text-sm text-muted-foreground">· Member since 2024</span>
+                </div>
+              )}
+            </div>
+            <div className="flex gap-2 flex-shrink-0">
+              <Button 
+                variant={isEditing ? "default" : "outline"} 
+                onClick={() => isEditing ? handleSave() : setIsEditing(true)}
+              >
+                {isEditing ? "Save" : "Edit"}
+              </Button>
+              {!isEditing && (
+                <Link to="/settings">
+                  <Button variant="outline" size="icon">
+                    <Settings className="h-4 w-4" />
+                  </Button>
+                </Link>
+              )}
             </div>
           </div>
 

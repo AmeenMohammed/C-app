@@ -30,12 +30,6 @@ interface Channel {
   messages?: Message[];
 }
 
-interface TopBarProps {
-  title: string;
-  showBackButton?: boolean;
-  onBackClick?: () => void;
-}
-
 // Sample data - in a real app this would come from an API
 const SAMPLE_CHANNELS: Channel[] = [
   {

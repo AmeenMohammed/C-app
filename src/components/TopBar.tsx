@@ -12,10 +12,19 @@ import {
 interface TopBarProps {
   title: string;
   showBackButton?: boolean;
+  onBackClick?: () => void;  // Added this prop
 }
 
-export function TopBar({ title, showBackButton = true }: TopBarProps) {
+export function TopBar({ title, showBackButton = true, onBackClick }: TopBarProps) {
   const navigate = useNavigate();
+
+  const handleBack = () => {
+    if (onBackClick) {
+      onBackClick();
+    } else {
+      navigate(-1);
+    }
+  };
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -26,7 +35,7 @@ export function TopBar({ title, showBackButton = true }: TopBarProps) {
       <div className="container mx-auto px-4 h-14 flex items-center justify-between">
         <div className="flex items-center">
           {showBackButton && (
-            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+            <Button variant="ghost" size="icon" onClick={handleBack}>
               <ArrowLeft className="h-5 w-5" />
             </Button>
           )}

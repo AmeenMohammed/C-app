@@ -1,4 +1,3 @@
-
 import { TopBar } from "@/components/TopBar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -56,8 +55,8 @@ const Profile = () => {
   return (
     <div className="min-h-screen bg-gray-50 pb-16">
       <TopBar title="Profile" />
-      <main className="container mx-auto px-4 py-8">
-        <Card className="p-6 mb-8">
+      <main className="container mx-auto px-4 py-6">
+        <Card className="p-6 mb-4">
           <div className="flex items-start gap-6 mb-3">
             <div className="relative">
               <img
@@ -211,7 +210,7 @@ const Profile = () => {
           </div>
         </Card>
 
-        <div className="mb-8">
+        <div className="mb-6">
           <Link to="/post">
             <Card className="w-full flex items-center gap-4 p-4 hover:border-primary transition-colors cursor-pointer">
               <ImagePlus className="h-8 w-8 text-primary" />

@@ -83,20 +83,26 @@ const SAMPLE_CHANNELS: Channel[] = [
 ];
 
 const Channels = () => {
-  const [searchQuery, setSearchQuery] = useState("");
+  const [discoverSearchQuery, setDiscoverSearchQuery] = useState("");
+  const [joinedSearchQuery, setJoinedSearchQuery] = useState("");
   const [range, setRange] = useState([10]); // Default 10km radius
   const [activeChannel, setActiveChannel] = useState<Channel | null>(null);
   const [newMessage, setNewMessage] = useState("");
   const [channels, setChannels] = useState(SAMPLE_CHANNELS);
 
   const filteredChannels = channels
-    .filter(channel => !channel.isJoined) // Filter out joined channels from discover tab
+    .filter(channel => !channel.isJoined)
     .filter(channel =>
-      channel.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      channel.description.toLowerCase().includes(searchQuery.toLowerCase())
+      channel.name.toLowerCase().includes(discoverSearchQuery.toLowerCase()) ||
+      channel.description.toLowerCase().includes(discoverSearchQuery.toLowerCase())
     );
 
-  const joinedChannels = channels.filter(channel => channel.isJoined);
+  const filteredJoinedChannels = channels
+    .filter(channel => channel.isJoined)
+    .filter(channel =>
+      channel.name.toLowerCase().includes(joinedSearchQuery.toLowerCase()) ||
+      channel.description.toLowerCase().includes(joinedSearchQuery.toLowerCase())
+    );
 
   const handleJoinChannel = (channel: Channel) => {
     setActiveChannel(channel);
@@ -159,9 +165,9 @@ const Channels = () => {
               <TabsTrigger value="discover" className="flex-1">Discover</TabsTrigger>
               <TabsTrigger value="joined" className="flex-1">
                 Joined
-                {joinedChannels.some(c => c.unreadCount) && (
+                {filteredJoinedChannels.some(c => c.unreadCount) && (
                   <span className="ml-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
-                    {joinedChannels.filter(c => c.unreadCount).length}
+                    {filteredJoinedChannels.filter(c => c.unreadCount).length}
                   </span>
                 )}
               </TabsTrigger>
@@ -172,8 +178,8 @@ const Channels = () => {
                 <Input
                   type="search"
                   placeholder="Search channels..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  value={discoverSearchQuery}
+                  onChange={(e) => setDiscoverSearchQuery(e.target.value)}
                   className="w-full"
                 />
                 
@@ -244,51 +250,61 @@ const Channels = () => {
             </TabsContent>
 
             <TabsContent value="joined" className="mt-4">
-              <ScrollArea className="h-[calc(100vh-220px)]">
-                <div className="space-y-4">
-                  {joinedChannels.map(channel => (
-                    <Card 
-                      key={channel.id} 
-                      className={`p-4 cursor-pointer hover:border-2 hover:border-red-500 transition-all ${
-                        channel.unreadCount ? 'border-2 border-red-500' : ''
-                      }`}
-                      onClick={() => handleJoinChannel(channel)}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <h3 className={`text-sm ${channel.unreadCount ? 'font-bold' : 'font-medium'}`}>
-                              {channel.name}
-                            </h3>
-                            {channel.isPrivate ? (
-                              <Lock className="h-4 w-4 text-muted-foreground" />
-                            ) : (
-                              <Globe className="h-4 w-4 text-muted-foreground" />
-                            )}
-                            {channel.unreadCount && (
-                              <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
-                                {channel.unreadCount}
-                              </span>
-                            )}
+              <div className="space-y-4">
+                <Input
+                  type="search"
+                  placeholder="Search joined channels..."
+                  value={joinedSearchQuery}
+                  onChange={(e) => setJoinedSearchQuery(e.target.value)}
+                  className="w-full"
+                />
+                
+                <ScrollArea className="h-[calc(100vh-280px)]">
+                  <div className="space-y-4">
+                    {filteredJoinedChannels.map(channel => (
+                      <Card 
+                        key={channel.id} 
+                        className={`p-4 cursor-pointer hover:border-2 hover:border-red-500 transition-all ${
+                          channel.unreadCount ? 'border-2 border-red-500' : ''
+                        }`}
+                        onClick={() => handleJoinChannel(channel)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <h3 className={`text-sm ${channel.unreadCount ? 'font-bold' : 'font-medium'}`}>
+                                {channel.name}
+                              </h3>
+                              {channel.isPrivate ? (
+                                <Lock className="h-4 w-4 text-muted-foreground" />
+                              ) : (
+                                <Globe className="h-4 w-4 text-muted-foreground" />
+                              )}
+                              {channel.unreadCount && (
+                                <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+                                  {channel.unreadCount}
+                                </span>
+                              )}
+                            </div>
+                            <p className={`text-sm text-muted-foreground ${
+                              channel.unreadCount ? 'font-semibold' : ''
+                            }`}>
+                              {channel.description}
+                            </p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <Users className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-xs text-muted-foreground">{channel.members} members</span>
+                            </div>
                           </div>
-                          <p className={`text-sm text-muted-foreground ${
-                            channel.unreadCount ? 'font-semibold' : ''
-                          }`}>
-                            {channel.description}
-                          </p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <Users className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-xs text-muted-foreground">{channel.members} members</span>
-                          </div>
+                          <Button variant="outline">
+                            Joined
+                          </Button>
                         </div>
-                        <Button variant="outline">
-                          Joined
-                        </Button>
-                      </div>
-                    </Card>
-                  ))}
-                </div>
-              </ScrollArea>
+                      </Card>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </div>
             </TabsContent>
           </Tabs>
         </main>

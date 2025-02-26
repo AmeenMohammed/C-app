@@ -79,6 +79,70 @@ const SAMPLE_CHANNELS: Channel[] = [
     members: 234,
     isPrivate: true,
     isJoined: false
+  },
+  {
+    id: 5,
+    name: "Furniture Exchange",
+    description: "Buy, sell, and trade furniture items",
+    members: 756,
+    isPrivate: false,
+    isJoined: false
+  },
+  {
+    id: 6,
+    name: "Rare Collectibles",
+    description: "For collectors of rare and unique items",
+    members: 445,
+    isPrivate: true,
+    isJoined: false
+  },
+  {
+    id: 7,
+    name: "Sports Equipment",
+    description: "Trading sports and fitness gear",
+    members: 1567,
+    isPrivate: false,
+    isJoined: false
+  },
+  {
+    id: 8,
+    name: "Books & Comics",
+    description: "Exchange books, comics, and magazines",
+    members: 2341,
+    isPrivate: false,
+    isJoined: false
+  },
+  {
+    id: 9,
+    name: "Art Gallery",
+    description: "Buy and sell original artwork",
+    members: 890,
+    isPrivate: true,
+    isJoined: false
+  },
+  {
+    id: 10,
+    name: "Musical Instruments",
+    description: "Trading musical instruments and equipment",
+    members: 678,
+    isPrivate: false,
+    isJoined: false
+  },
+  {
+    id: 11,
+    name: "Photography Gear",
+    description: "Exchange cameras and photography equipment",
+    members: 445,
+    isPrivate: false,
+    isJoined: false
+  },
+  {
+    id: 12,
+    name: "Antique Dealers",
+    description: "Premium channel for antique traders",
+    members: 223,
+    isPrivate: true,
+    isJoined: false
   }
 ];
 

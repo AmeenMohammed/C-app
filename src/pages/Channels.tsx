@@ -1,4 +1,3 @@
-
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { Input } from "@/components/ui/input";
@@ -29,6 +28,12 @@ interface Channel {
   members: number;
   isPrivate: boolean;
   messages?: Message[];
+}
+
+interface TopBarProps {
+  title: string;
+  showBackButton?: boolean;
+  onBackClick?: () => void;
 }
 
 // Sample data - in a real app this would come from an API
@@ -120,7 +125,11 @@ const Channels = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-16">
-      <TopBar title={activeChannel ? activeChannel.name : "Channels"} showBackButton={!!activeChannel} onBackClick={() => setActiveChannel(null)} />
+      <TopBar 
+        title={activeChannel ? activeChannel.name : "Channels"} 
+        showBackButton={!!activeChannel}
+        onBackClick={() => setActiveChannel(null)}
+      />
       
       {!activeChannel ? (
         // Channels List View
@@ -212,23 +221,24 @@ const Channels = () => {
 
           <div className="sticky bottom-0 bg-background border-t p-4">
             <form onSubmit={sendMessage} className="flex items-center gap-2">
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button type="button" size="icon" variant="ghost">
-                    <Smile className="h-5 w-5 text-muted-foreground" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="p-0 w-full" side="top">
-                  <EmojiPicker onEmojiClick={onEmojiClick} />
-                </PopoverContent>
-              </Popover>
-              
               <Input
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
                 placeholder="Type a message..."
                 className="flex-1"
               />
+              
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button type="button" size="icon" variant="ghost">
+                    <Smile className="h-5 w-5 text-muted-foreground" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="p-0 w-full" side="top" align="end">
+                  <EmojiPicker onEmojiClick={onEmojiClick} />
+                </PopoverContent>
+              </Popover>
+              
               <Button type="submit" size="icon">
                 <Send className="h-4 w-4" />
               </Button>

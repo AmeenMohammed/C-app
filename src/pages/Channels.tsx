@@ -398,8 +398,8 @@ const Channels = () => {
                       <div
                         className={`rounded-lg px-4 py-2 max-w-[80vw] ${
                           message.isMine
-                            ? 'bg-primary text-primary-foreground'
-                            : 'bg-secondary'
+                            ? 'border-2 border-red-500 text-black'
+                            : 'text-black'
                         }`}
                       >
                         {message.text}

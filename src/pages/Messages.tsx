@@ -231,8 +231,8 @@ const Messages = () => {
                         <div
                           className={`rounded-2xl px-4 py-2 ${
                             message.isMine
-                              ? 'bg-gray-900 text-white rounded-br-sm'
-                              : 'bg-gray-100 text-gray-900 rounded-bl-sm'
+                              ? 'border-2 border-red-500 text-black rounded-br-sm'
+                              : 'text-black rounded-bl-sm'
                           }`}
                         >
                           <span className="text-sm">{message.text}</span>

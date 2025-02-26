@@ -29,15 +29,70 @@ const Messages = () => {
   useEffect(() => {
     if (channelId) {
       setMessages([
-        { text: "Welcome to the channel!", isMine: false },
         { 
-          text: "Hey everyone! 👋", 
+          text: "Hi! I'm interested in the vintage camera you posted. Is it still available?", 
+          isMine: false,
+          user: {
+            name: "Sarah Smith",
+            avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=Sarah"
+          }
+        },
+        { 
+          text: "Yes, it's still available! Would you like to see more photos?", 
           isMine: true,
           user: {
             name: "John Doe",
             avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=John"
           }
         },
+        { 
+          text: "That would be great! Does it come with the original leather case?", 
+          isMine: false,
+          user: {
+            name: "Sarah Smith",
+            avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=Sarah"
+          }
+        },
+        { 
+          text: "Yes, it includes the original case and manual! 📸", 
+          isMine: true,
+          user: {
+            name: "John Doe",
+            avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=John"
+          }
+        },
+        { 
+          text: "Hey, I saw your listing for the mountain bike. What's the frame size?", 
+          isMine: false,
+          user: {
+            name: "Mike Johnson",
+            avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=Mike"
+          }
+        },
+        { 
+          text: "It's a 19-inch frame, perfect for riders 5'9\" to 6'1\"", 
+          isMine: true,
+          user: {
+            name: "John Doe",
+            avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=John"
+          }
+        },
+        { 
+          text: "Would you consider trading for a road bike?", 
+          isMine: false,
+          user: {
+            name: "Mike Johnson",
+            avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=Mike"
+          }
+        },
+        { 
+          text: "Not looking for trades at the moment, but thanks for the offer!", 
+          isMine: true,
+          user: {
+            name: "John Doe",
+            avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=John"
+          }
+        }
       ]);
     }
   }, [channelId]);
@@ -64,8 +119,8 @@ const Messages = () => {
                 <div className="flex items-end gap-2">
                   {!message.isMine && (
                     <Avatar className="h-6 w-6">
-                      <AvatarImage src="https://api.dicebear.com/7.x/avatars/svg?seed=Jane" />
-                      <AvatarFallback>JD</AvatarFallback>
+                      <AvatarImage src={message.user?.avatar} />
+                      <AvatarFallback>{message.user?.name.slice(0, 2)}</AvatarFallback>
                     </Avatar>
                   )}
                   <div>
@@ -85,7 +140,7 @@ const Messages = () => {
                         </span>
                         <Avatar className="h-4 w-4">
                           <AvatarImage src={message.user.avatar} />
-                          <AvatarFallback>JD</AvatarFallback>
+                          <AvatarFallback>{message.user.name.slice(0, 2)}</AvatarFallback>
                         </Avatar>
                       </div>
                     )}

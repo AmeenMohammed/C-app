@@ -8,7 +8,7 @@ import { Lock, Globe, MapPin, ExternalLink, Users } from "lucide-react";
 import { useState } from "react";
 import { Slider } from "@/components/ui/slider";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ItemGrid } from "@/components/ItemGrid";
+import { useNavigate } from "react-router-dom";
 
 // Sample data - in a real app this would come from an API
 const SAMPLE_CHANNELS = [
@@ -18,21 +18,6 @@ const SAMPLE_CHANNELS = [
     description: "Buy and sell items in your area",
     members: 1234,
     isPrivate: false,
-    isExpanded: true,
-    items: [
-      {
-        id: 1,
-        title: "Vintage Camera",
-        price: 299,
-        image: "https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d",
-      },
-      {
-        id: 2,
-        title: "Laptop Stand",
-        price: 49,
-        image: "https://images.unsplash.com/photo-1519389950473-47ba0277781c",
-      },
-    ],
   },
   {
     id: 2,
@@ -40,19 +25,24 @@ const SAMPLE_CHANNELS = [
     description: "For vintage item enthusiasts",
     members: 567,
     isPrivate: true,
-    isExpanded: false,
   },
 ];
 
 const Channels = () => {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [range, setRange] = useState([10]); // Default 10km radius
-  const [expandedChannelId, setExpandedChannelId] = useState(1); // Default to showing Local Marketplace
 
   const filteredChannels = SAMPLE_CHANNELS.filter(channel =>
     channel.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     channel.description.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const handleJoinChannel = (channelId: number) => {
+    // In a real app, you would handle the join logic here
+    // For now, we'll just navigate to the messages page with the channel ID
+    navigate(`/messages?channel=${channelId}`);
+  };
 
   const openGoogleMaps = () => {
     navigator.geolocation.getCurrentPosition(
@@ -84,43 +74,28 @@ const Channels = () => {
           <div className="space-y-4">
             {filteredChannels.map(channel => (
               <Card key={channel.id} className="p-4">
-                <div 
-                  className="space-y-4 cursor-pointer"
-                  onClick={() => setExpandedChannelId(expandedChannelId === channel.id ? -1 : channel.id)}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-medium">{channel.name}</h3>
-                        {channel.isPrivate ? (
-                          <Lock className="h-4 w-4 text-muted-foreground" />
-                        ) : (
-                          <Globe className="h-4 w-4 text-muted-foreground" />
-                        )}
-                      </div>
-                      <p className="text-sm text-muted-foreground">{channel.description}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Users className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-xs text-muted-foreground">{channel.members} members</span>
-                      </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-medium">{channel.name}</h3>
+                      {channel.isPrivate ? (
+                        <Lock className="h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        <Globe className="h-4 w-4 text-muted-foreground" />
+                      )}
                     </div>
-                    <Button variant={channel.isPrivate ? "outline" : "default"}>
-                      {channel.isPrivate ? "Request Join" : "Join"}
-                    </Button>
+                    <p className="text-sm text-muted-foreground">{channel.description}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Users className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-xs text-muted-foreground">{channel.members} members</span>
+                    </div>
                   </div>
-
-                  {/* Expanded Channel Content */}
-                  {expandedChannelId === channel.id && channel.items && (
-                    <div className="pt-4 border-t">
-                      <div className="space-y-4">
-                        <div className="flex justify-between items-center">
-                          <h4 className="font-medium">Recent Items</h4>
-                          <Button variant="ghost" size="sm">View All</Button>
-                        </div>
-                        <ItemGrid />
-                      </div>
-                    </div>
-                  )}
+                  <Button 
+                    variant={channel.isPrivate ? "outline" : "default"}
+                    onClick={() => handleJoinChannel(channel.id)}
+                  >
+                    {channel.isPrivate ? "Request Join" : "Join"}
+                  </Button>
                 </div>
               </Card>
             ))}

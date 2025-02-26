@@ -1,3 +1,4 @@
+
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
@@ -172,7 +173,7 @@ const Messages = () => {
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <TopBar title="My Messages" showBackButton={selectedUserId !== null} />
       
-      <main className="flex-1 container mx-auto px-2 py-4 overflow-hidden flex flex-col">
+      <main className="flex-1 container mx-auto px-2 py-4 overflow-hidden flex flex-col pb-32">
         {!selectedUserId ? (
           <ScrollArea className="flex-1">
             <div className="space-y-1">
@@ -212,7 +213,7 @@ const Messages = () => {
           </ScrollArea>
         ) : (
           <>
-            <ScrollArea className="flex-1 mb-4">
+            <ScrollArea className="flex-1">
               <div className="space-y-3 pb-4">
                 {messages.map((message, index) => (
                   <div
@@ -254,51 +255,53 @@ const Messages = () => {
               </div>
             </ScrollArea>
 
-            <div className="bg-white p-3 border rounded-lg shadow-sm">
-              <div className="flex items-center gap-2">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button 
-                      variant="ghost" 
-                      size="icon"
-                      className="h-9 w-9 rounded-full"
+            <div className="fixed bottom-16 left-0 right-0 bg-white shadow-lg border-t">
+              <div className="container mx-auto p-3">
+                <div className="flex items-center gap-2">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        className="h-9 w-9 rounded-full"
+                      >
+                        <Smile className="h-5 w-5 text-muted-foreground" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent 
+                      side="top" 
+                      className="w-full mb-2"
                     >
-                      <Smile className="h-5 w-5 text-muted-foreground" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent 
-                    side="top" 
-                    className="w-full mb-2"
+                      <EmojiPicker
+                        onEmojiClick={onEmojiClick}
+                        width="100%"
+                        height={400}
+                      />
+                    </PopoverContent>
+                  </Popover>
+
+                  <Input
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    placeholder="Type a message..."
+                    className="flex-1"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSendMessage();
+                      }
+                    }}
+                  />
+
+                  <Button 
+                    size="icon"
+                    onClick={handleSendMessage}
+                    disabled={!newMessage.trim()}
+                    className="h-9 w-9 rounded-full"
                   >
-                    <EmojiPicker
-                      onEmojiClick={onEmojiClick}
-                      width="100%"
-                      height={400}
-                    />
-                  </PopoverContent>
-                </Popover>
-
-                <Input
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder="Type a message..."
-                  className="flex-1"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSendMessage();
-                    }
-                  }}
-                />
-
-                <Button 
-                  size="icon"
-                  onClick={handleSendMessage}
-                  disabled={!newMessage.trim()}
-                  className="h-9 w-9 rounded-full"
-                >
-                  <Send className="h-5 w-5" />
-                </Button>
+                    <Send className="h-5 w-5" />
+                  </Button>
+                </div>
               </div>
             </div>
           </>

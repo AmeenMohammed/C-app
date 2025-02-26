@@ -1,4 +1,3 @@
-
 import { TopBar } from "@/components/TopBar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -116,7 +115,7 @@ const Profile = () => {
             </div>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-1">
             <div className="mb-2">
               <label className="text-sm font-medium mb-0.5 block">Bio</label>
               {isEditing ? (
@@ -131,7 +130,7 @@ const Profile = () => {
               )}
             </div>
 
-            <div className="flex items-center gap-2 py-0.5">
+            <div className="flex items-center gap-2">
               <Mail className="h-4 w-4 text-muted-foreground flex-shrink-0" />
               <div className="flex-1">
                 {isEditing ? (
@@ -159,7 +158,7 @@ const Profile = () => {
               </Button>
             </div>
 
-            <div className="flex items-center gap-2 py-0.5">
+            <div className="flex items-center gap-2">
               <Phone className="h-4 w-4 text-muted-foreground flex-shrink-0" />
               <div className="flex-1">
                 {isEditing ? (
@@ -186,7 +185,7 @@ const Profile = () => {
               </Button>
             </div>
 
-            <div className="flex items-center gap-2 py-0.5">
+            <div className="flex items-center gap-2">
               <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
               {isEditing ? (
                 <Input

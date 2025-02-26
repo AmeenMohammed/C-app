@@ -89,10 +89,12 @@ const Channels = () => {
   const [newMessage, setNewMessage] = useState("");
   const [channels, setChannels] = useState(SAMPLE_CHANNELS);
 
-  const filteredChannels = channels.filter(channel =>
-    channel.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    channel.description.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredChannels = channels
+    .filter(channel => !channel.isJoined) // Filter out joined channels from discover tab
+    .filter(channel =>
+      channel.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      channel.description.toLowerCase().includes(searchQuery.toLowerCase())
+    );
 
   const joinedChannels = channels.filter(channel => channel.isJoined);
 
@@ -180,15 +182,13 @@ const Channels = () => {
                     {filteredChannels.map(channel => (
                       <Card 
                         key={channel.id} 
-                        className={`p-4 cursor-pointer hover:border-2 hover:border-red-500 transition-all ${
-                          channel.isJoined && channel.unreadCount ? 'border-2 border-red-500' : ''
-                        }`}
+                        className="p-4 cursor-pointer hover:border-2 hover:border-red-500 transition-all"
                         onClick={() => handleJoinChannel(channel)}
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex-1">
                             <div className="flex items-center gap-2">
-                              <h3 className={`text-sm ${channel.isJoined && channel.unreadCount ? 'font-bold' : 'font-medium'}`}>
+                              <h3 className="text-sm font-medium">
                                 {channel.name}
                               </h3>
                               {channel.isPrivate ? (
@@ -196,15 +196,8 @@ const Channels = () => {
                               ) : (
                                 <Globe className="h-4 w-4 text-muted-foreground" />
                               )}
-                              {channel.isJoined && channel.unreadCount && (
-                                <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
-                                  {channel.unreadCount}
-                                </span>
-                              )}
                             </div>
-                            <p className={`text-sm text-muted-foreground ${
-                              channel.isJoined && channel.unreadCount ? 'font-semibold' : ''
-                            }`}>
+                            <p className="text-sm text-muted-foreground">
                               {channel.description}
                             </p>
                             <div className="flex items-center gap-2 mt-1">
@@ -213,9 +206,9 @@ const Channels = () => {
                             </div>
                           </div>
                           <Button 
-                            variant={channel.isJoined ? "outline" : channel.isPrivate ? "outline" : "default"}
+                            variant={channel.isPrivate ? "outline" : "default"}
                           >
-                            {channel.isJoined ? "Joined" : channel.isPrivate ? "Request Join" : "Join"}
+                            {channel.isPrivate ? "Request Join" : "Join"}
                           </Button>
                         </div>
                       </Card>

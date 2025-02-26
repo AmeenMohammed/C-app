@@ -25,77 +25,74 @@ const Messages = () => {
   const channelId = searchParams.get("channel");
   const [messages, setMessages] = useState<Message[]>([]);
 
-  // In a real app, you would fetch the channel details and messages here
   useEffect(() => {
-    if (channelId) {
-      setMessages([
-        { 
-          text: "Hi! I'm interested in the vintage camera you posted. Is it still available?", 
-          isMine: false,
-          user: {
-            name: "Sarah Smith",
-            avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=Sarah"
-          }
-        },
-        { 
-          text: "Yes, it's still available! Would you like to see more photos?", 
-          isMine: true,
-          user: {
-            name: "John Doe",
-            avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=John"
-          }
-        },
-        { 
-          text: "That would be great! Does it come with the original leather case?", 
-          isMine: false,
-          user: {
-            name: "Sarah Smith",
-            avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=Sarah"
-          }
-        },
-        { 
-          text: "Yes, it includes the original case and manual! 📸", 
-          isMine: true,
-          user: {
-            name: "John Doe",
-            avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=John"
-          }
-        },
-        { 
-          text: "Hey, I saw your listing for the mountain bike. What's the frame size?", 
-          isMine: false,
-          user: {
-            name: "Mike Johnson",
-            avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=Mike"
-          }
-        },
-        { 
-          text: "It's a 19-inch frame, perfect for riders 5'9\" to 6'1\"", 
-          isMine: true,
-          user: {
-            name: "John Doe",
-            avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=John"
-          }
-        },
-        { 
-          text: "Would you consider trading for a road bike?", 
-          isMine: false,
-          user: {
-            name: "Mike Johnson",
-            avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=Mike"
-          }
-        },
-        { 
-          text: "Not looking for trades at the moment, but thanks for the offer!", 
-          isMine: true,
-          user: {
-            name: "John Doe",
-            avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=John"
-          }
+    setMessages([
+      { 
+        text: "Hi! I'm interested in the vintage camera you posted. Is it still available?", 
+        isMine: false,
+        user: {
+          name: "Sarah Smith",
+          avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=Sarah"
         }
-      ]);
-    }
-  }, [channelId]);
+      },
+      { 
+        text: "Yes, it's still available! Would you like to see more photos?", 
+        isMine: true,
+        user: {
+          name: "John Doe",
+          avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=John"
+        }
+      },
+      { 
+        text: "That would be great! Does it come with the original leather case?", 
+        isMine: false,
+        user: {
+          name: "Sarah Smith",
+          avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=Sarah"
+        }
+      },
+      { 
+        text: "Yes, it includes the original case and manual! 📸", 
+        isMine: true,
+        user: {
+          name: "John Doe",
+          avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=John"
+        }
+      },
+      { 
+        text: "Hey, I saw your listing for the mountain bike. What's the frame size?", 
+        isMine: false,
+        user: {
+          name: "Mike Johnson",
+          avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=Mike"
+        }
+      },
+      { 
+        text: "It's a 19-inch frame, perfect for riders 5'9\" to 6'1\"", 
+        isMine: true,
+        user: {
+          name: "John Doe",
+          avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=John"
+        }
+      },
+      { 
+        text: "Would you consider trading for a road bike?", 
+        isMine: false,
+        user: {
+          name: "Mike Johnson",
+          avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=Mike"
+        }
+      },
+      { 
+        text: "Not looking for trades at the moment, but thanks for the offer!", 
+        isMine: true,
+        user: {
+          name: "John Doe",
+          avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=John"
+        }
+      }
+    ]);
+  }, []); // Now the messages will load immediately when the component mounts
 
   const sendMessage = (e: React.FormEvent) => {
     e.preventDefault();

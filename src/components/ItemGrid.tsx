@@ -67,7 +67,7 @@ export function ItemGrid() {
   };
 
   return (
-    <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7 gap-1.5">
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
       {SAMPLE_ITEMS.map((item) => (
         <Link 
           key={item.id} 
@@ -75,22 +75,22 @@ export function ItemGrid() {
           onClick={() => trackView(item.id)}
         >
           <Card className="overflow-hidden relative group">
-            <div className="absolute top-1 right-1 flex gap-1 z-10">
+            <div className="absolute top-2 right-2 flex gap-2 z-10">
               <Button
                 variant="secondary"
                 size="icon"
-                className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity"
+                className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
                 onClick={(e) => handleSave(e, item.id)}
               >
-                <BookmarkPlus className="h-3 w-3" />
+                <BookmarkPlus className="h-4 w-4" />
               </Button>
               <Button
                 variant="secondary"
                 size="icon"
-                className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity"
+                className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
                 onClick={(e) => handleContact(e, item.id)}
               >
-                <MessageSquare className="h-3 w-3" />
+                <MessageSquare className="h-4 w-4" />
               </Button>
             </div>
             <div className="relative pb-[100%]">
@@ -100,12 +100,12 @@ export function ItemGrid() {
                 className="absolute inset-0 w-full h-full object-cover"
               />
             </div>
-            <div className="p-1">
-              <h3 className="font-medium text-xs leading-tight truncate">{item.title}</h3>
-              <div className="flex justify-between items-center">
-                <p className="text-xs leading-tight text-muted-foreground">${item.price}</p>
-                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Eye className="h-3 w-3" />
+            <div className="p-3">
+              <h3 className="font-medium text-sm leading-tight truncate">{item.title}</h3>
+              <div className="flex justify-between items-center mt-1">
+                <p className="text-sm leading-tight text-muted-foreground">${item.price}</p>
+                <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                  <Eye className="h-4 w-4" />
                   <span>{viewCounts?.[item.id] ?? 0}</span>
                 </div>
               </div>

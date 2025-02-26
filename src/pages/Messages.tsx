@@ -20,133 +20,212 @@ interface Message {
   };
 }
 
+interface Conversation {
+  id: string;
+  user: {
+    name: string;
+    avatar?: string;
+  };
+  lastMessage: string;
+  timestamp: string;
+  unread?: boolean;
+}
+
 const Messages = () => {
-  const [searchParams] = useSearchParams();
-  const channelId = searchParams.get("channel");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const selectedUserId = searchParams.get("userId");
   const [messages, setMessages] = useState<Message[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>([
+    {
+      id: "sarah",
+      user: {
+        name: "Sarah Smith",
+        avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=Sarah"
+      },
+      lastMessage: "Does it come with the original leather case?",
+      timestamp: "10:30 AM",
+      unread: true
+    },
+    {
+      id: "mike",
+      user: {
+        name: "Mike Johnson",
+        avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=Mike"
+      },
+      lastMessage: "Would you consider trading for a road bike?",
+      timestamp: "Yesterday",
+      unread: false
+    },
+    {
+      id: "emma",
+      user: {
+        name: "Emma Wilson",
+        avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=Emma"
+      },
+      lastMessage: "Great! See you tomorrow at 2 PM.",
+      timestamp: "2 days ago",
+      unread: false
+    },
+    {
+      id: "david",
+      user: {
+        name: "David Chen",
+        avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=David"
+      },
+      lastMessage: "Is the price negotiable?",
+      timestamp: "3 days ago",
+      unread: true
+    }
+  ]);
 
   useEffect(() => {
-    setMessages([
-      { 
-        text: "Hi! I'm interested in the vintage camera you posted. Is it still available?", 
-        isMine: false,
-        user: {
-          name: "Sarah Smith",
-          avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=Sarah"
-        }
-      },
-      { 
-        text: "Yes, it's still available! Would you like to see more photos?", 
-        isMine: true,
-        user: {
-          name: "John Doe",
-          avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=John"
-        }
-      },
-      { 
-        text: "That would be great! Does it come with the original leather case?", 
-        isMine: false,
-        user: {
-          name: "Sarah Smith",
-          avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=Sarah"
-        }
-      },
-      { 
-        text: "Yes, it includes the original case and manual! 📸", 
-        isMine: true,
-        user: {
-          name: "John Doe",
-          avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=John"
-        }
-      },
-      { 
-        text: "Hey, I saw your listing for the mountain bike. What's the frame size?", 
-        isMine: false,
-        user: {
-          name: "Mike Johnson",
-          avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=Mike"
-        }
-      },
-      { 
-        text: "It's a 19-inch frame, perfect for riders 5'9\" to 6'1\"", 
-        isMine: true,
-        user: {
-          name: "John Doe",
-          avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=John"
-        }
-      },
-      { 
-        text: "Would you consider trading for a road bike?", 
-        isMine: false,
-        user: {
-          name: "Mike Johnson",
-          avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=Mike"
-        }
-      },
-      { 
-        text: "Not looking for trades at the moment, but thanks for the offer!", 
-        isMine: true,
-        user: {
-          name: "John Doe",
-          avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=John"
-        }
+    if (selectedUserId) {
+      // Load messages based on selected user
+      if (selectedUserId === "sarah") {
+        setMessages([
+          { 
+            text: "Hi! I'm interested in the vintage camera you posted. Is it still available?", 
+            isMine: false,
+            user: {
+              name: "Sarah Smith",
+              avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=Sarah"
+            }
+          },
+          { 
+            text: "Yes, it's still available! Would you like to see more photos?", 
+            isMine: true,
+            user: {
+              name: "John Doe",
+              avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=John"
+            }
+          },
+          { 
+            text: "That would be great! Does it come with the original leather case?", 
+            isMine: false,
+            user: {
+              name: "Sarah Smith",
+              avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=Sarah"
+            }
+          }
+        ]);
+      } else if (selectedUserId === "mike") {
+        setMessages([
+          { 
+            text: "Hey, I saw your listing for the mountain bike. What's the frame size?", 
+            isMine: false,
+            user: {
+              name: "Mike Johnson",
+              avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=Mike"
+            }
+          },
+          { 
+            text: "It's a 19-inch frame, perfect for riders 5'9\" to 6'1\"", 
+            isMine: true,
+            user: {
+              name: "John Doe",
+              avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=John"
+            }
+          },
+          { 
+            text: "Would you consider trading for a road bike?", 
+            isMine: false,
+            user: {
+              name: "Mike Johnson",
+              avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=Mike"
+            }
+          }
+        ]);
       }
-    ]);
-  }, []); // Now the messages will load immediately when the component mounts
+    } else {
+      setMessages([]);
+    }
+  }, [selectedUserId]);
 
-  const sendMessage = (e: React.FormEvent) => {
-    e.preventDefault();
-  };
-
-  const onEmojiClick = (emojiData: EmojiClickData) => {
+  const selectConversation = (userId: string) => {
+    setSearchParams({ userId });
   };
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <TopBar title="My Messages" showBackButton={true} />
+      <TopBar title="My Messages" showBackButton={selectedUserId !== null} />
       
       <main className="flex-1 container mx-auto px-4 py-6 overflow-hidden flex flex-col">
-        <ScrollArea className="flex-1 mb-4">
-          <div className="space-y-4 pb-4">
-            {messages.map((message, index) => (
-              <div
-                key={index}
-                className={`flex ${message.isMine ? 'justify-end' : 'justify-start'}`}
-              >
-                <div className="flex items-end gap-2">
-                  {!message.isMine && (
-                    <Avatar className="h-6 w-6">
-                      <AvatarImage src={message.user?.avatar} />
-                      <AvatarFallback>{message.user?.name.slice(0, 2)}</AvatarFallback>
+        {!selectedUserId ? (
+          // Show conversation list when no user is selected
+          <ScrollArea className="flex-1">
+            <div className="space-y-2">
+              {conversations.map((conversation) => (
+                <div
+                  key={conversation.id}
+                  className="bg-white rounded-lg p-4 shadow-sm cursor-pointer hover:bg-gray-50 transition-colors"
+                  onClick={() => selectConversation(conversation.id)}
+                >
+                  <div className="flex items-center gap-4">
+                    <Avatar className="h-12 w-12">
+                      <AvatarImage src={conversation.user.avatar} />
+                      <AvatarFallback>{conversation.user.name.slice(0, 2)}</AvatarFallback>
                     </Avatar>
-                  )}
-                  <div>
-                    <div
-                      className={`rounded-lg px-4 py-2 max-w-[80vw] ${
-                        message.isMine
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-secondary'
-                      }`}
-                    >
-                      {message.text}
-                    </div>
-                    {message.isMine && message.user && (
-                      <div className="flex items-center justify-end gap-1 mt-1">
-                        <span className="text-xs text-muted-foreground">
-                          {message.user.name}
-                        </span>
-                        <Avatar className="h-4 w-4">
-                          <AvatarImage src={message.user.avatar} />
-                          <AvatarFallback>{message.user.name.slice(0, 2)}</AvatarFallback>
-                        </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-semibold truncate">{conversation.user.name}</h3>
+                        <span className="text-xs text-muted-foreground">{conversation.timestamp}</span>
                       </div>
+                      <p className="text-sm text-muted-foreground truncate">
+                        {conversation.lastMessage}
+                      </p>
+                    </div>
+                    {conversation.unread && (
+                      <div className="h-2 w-2 bg-primary rounded-full"></div>
                     )}
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        </ScrollArea>
+              ))}
+            </div>
+          </ScrollArea>
+        ) : (
+          // Show messages when a user is selected
+          <ScrollArea className="flex-1 mb-4">
+            <div className="space-y-4 pb-4">
+              {messages.map((message, index) => (
+                <div
+                  key={index}
+                  className={`flex ${message.isMine ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div className="flex items-end gap-2">
+                    {!message.isMine && (
+                      <Avatar className="h-6 w-6">
+                        <AvatarImage src={message.user?.avatar} />
+                        <AvatarFallback>{message.user?.name.slice(0, 2)}</AvatarFallback>
+                      </Avatar>
+                    )}
+                    <div>
+                      <div
+                        className={`rounded-lg px-4 py-2 max-w-[80vw] ${
+                          message.isMine
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-secondary'
+                        }`}
+                      >
+                        {message.text}
+                      </div>
+                      {message.isMine && message.user && (
+                        <div className="flex items-center justify-end gap-1 mt-1">
+                          <span className="text-xs text-muted-foreground">
+                            {message.user.name}
+                          </span>
+                          <Avatar className="h-4 w-4">
+                            <AvatarImage src={message.user.avatar} />
+                            <AvatarFallback>{message.user.name.slice(0, 2)}</AvatarFallback>
+                          </Avatar>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+        )}
       </main>
       
       <BottomNav />

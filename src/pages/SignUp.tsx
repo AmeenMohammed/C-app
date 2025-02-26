@@ -5,28 +5,66 @@ import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const SignUp = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const { toast } = useToast();
 
-  const handleManualSignUp = (e: React.FormEvent) => {
+  const handleManualSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast({
-      description: "Please connect Supabase to enable authentication",
-    });
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+
+      if (error) {
+        toast({
+          variant: "destructive",
+          description: error.message,
+        });
+        return;
+      }
+
+      toast({
+        description: "Check your email to confirm your account!",
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        description: "An error occurred during sign up.",
+      });
+    }
   };
 
-  const handleGoogleSignUp = () => {
-    toast({
-      description: "Please connect Supabase to enable Google sign-in",
-    });
+  const handleGoogleSignUp = async () => {
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`
+        }
+      });
+
+      if (error) {
+        toast({
+          variant: "destructive",
+          description: error.message,
+        });
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        description: "An error occurred while signing in with Google.",
+      });
+    }
   };
 
   const handleAppleSignUp = () => {
     toast({
-      description: "Please connect Supabase to enable Apple sign-in",
+      description: "Please connect Apple provider in Supabase to enable Apple sign-in",
     });
   };
 

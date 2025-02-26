@@ -57,7 +57,7 @@ const Profile = () => {
       <TopBar title="Profile" />
       <main className="container mx-auto px-4 py-6 space-y-6">
         <Card className="p-6">
-          <div className="flex items-center space-x-4 mb-4">
+          <div className="flex items-center space-x-4 mb-3">
             <div className="relative">
               <img
                 src={profile.photoUrl}
@@ -112,8 +112,8 @@ const Profile = () => {
             </div>
           </div>
 
-          <div className="space-y-3">
-            <div>
+          <div className="space-y-2">
+            <div className="mb-2">
               <label className="text-sm font-medium mb-0.5 block">Bio</label>
               {isEditing ? (
                 <Textarea
@@ -127,8 +127,8 @@ const Profile = () => {
               )}
             </div>
 
-            <div className="flex items-center gap-2">
-              <Mail className="h-4 w-4 text-muted-foreground" />
+            <div className="flex items-center gap-2 py-0.5">
+              <Mail className="h-4 w-4 text-muted-foreground flex-shrink-0" />
               <div className="flex-1">
                 {isEditing ? (
                   <Input
@@ -145,7 +145,7 @@ const Profile = () => {
                 variant="ghost"
                 size="icon"
                 onClick={() => toggleVisibility('email')}
-                className="ml-2"
+                className="h-8 w-8"
               >
                 {profile.isEmailPublic ? (
                   <Eye className="h-4 w-4" />
@@ -155,8 +155,8 @@ const Profile = () => {
               </Button>
             </div>
 
-            <div className="flex items-center gap-2">
-              <Phone className="h-4 w-4 text-muted-foreground" />
+            <div className="flex items-center gap-2 py-0.5">
+              <Phone className="h-4 w-4 text-muted-foreground flex-shrink-0" />
               <div className="flex-1">
                 {isEditing ? (
                   <Input
@@ -172,7 +172,7 @@ const Profile = () => {
                 variant="ghost"
                 size="icon"
                 onClick={() => toggleVisibility('phone')}
-                className="ml-2"
+                className="h-8 w-8"
               >
                 {profile.isPhonePublic ? (
                   <Eye className="h-4 w-4" />
@@ -182,29 +182,27 @@ const Profile = () => {
               </Button>
             </div>
 
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <MapPin className="h-4 w-4 text-muted-foreground" />
-                {isEditing ? (
-                  <Input
-                    value={profile.location}
-                    onChange={(e) => setProfile({...profile, location: e.target.value})}
-                    placeholder="Your location"
-                  />
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <a 
-                      href={getGoogleMapsUrl(profile.location)} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-sm hover:text-primary transition-colors flex items-center gap-2"
-                    >
-                      {profile.location}
-                      <ExternalLink className="h-4 w-4" />
-                    </a>
-                  </div>
-                )}
-              </div>
+            <div className="flex items-center gap-2 py-0.5">
+              <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+              {isEditing ? (
+                <Input
+                  value={profile.location}
+                  onChange={(e) => setProfile({...profile, location: e.target.value})}
+                  placeholder="Your location"
+                />
+              ) : (
+                <div className="flex items-center gap-2 flex-1">
+                  <a 
+                    href={getGoogleMapsUrl(profile.location)} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-sm hover:text-primary transition-colors flex items-center gap-2"
+                  >
+                    {profile.location}
+                    <ExternalLink className="h-4 w-4" />
+                  </a>
+                </div>
+              )}
             </div>
           </div>
         </Card>

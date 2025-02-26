@@ -1,3 +1,4 @@
+
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { Input } from "@/components/ui/input";
@@ -9,7 +10,7 @@ import { Slider } from "@/components/ui/slider";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import EmojiPicker from "emoji-picker-react";
+import EmojiPicker, { EmojiStyle } from "emoji-picker-react";
 import type { EmojiClickData } from "emoji-picker-react";
 
 interface Message {
@@ -213,6 +214,7 @@ const Channels = () => {
             </div>
           </ScrollArea>
 
+          {/* Message Input Box - Only shown when in a channel chat */}
           <div className="fixed bottom-16 left-0 right-0 bg-white shadow-lg border-t">
             <div className="container mx-auto p-3">
               <form onSubmit={sendMessage} className="flex items-center gap-2">
@@ -233,7 +235,7 @@ const Channels = () => {
                     <EmojiPicker 
                       onEmojiClick={onEmojiClick}
                       skinTonesDisabled
-                      emojiStyle="apple"
+                      emojiStyle={EmojiStyle.APPLE}
                     />
                   </PopoverContent>
                 </Popover>

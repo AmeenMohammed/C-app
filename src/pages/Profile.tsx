@@ -57,7 +57,7 @@ const Profile = () => {
     <div className="min-h-screen bg-gray-50 pb-16">
       <TopBar title="Profile" />
       <main className="container mx-auto px-4 py-8">
-        <div className="space-y-12">
+        <div className="flex flex-col gap-16"> {/* Changed from space-y-12 to flex flex-col gap-16 */}
           <Card className="p-6">
             <div className="flex items-start gap-6 mb-3">
               <div className="relative">

@@ -34,10 +34,10 @@ const ItemDetails = () => {
                 </Button>
               ) : (
                 <div className="flex gap-2">
-                  <Button onClick={() => navigate('/messages')}>
+                  <Button size="sm" onClick={() => navigate('/messages')}>
                     Contact Seller
                   </Button>
-                  <Button variant="outline">
+                  <Button size="sm" variant="outline">
                     <ShoppingCart className="h-4 w-4 mr-2" />
                     Add to Cart
                   </Button>

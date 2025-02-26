@@ -1,15 +1,45 @@
-
 import { TopBar } from "@/components/TopBar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Pencil, ShoppingCart, Star } from "lucide-react";
+import { Eye, Pencil, ShoppingCart, Star } from "lucide-react";
 import { useLocation, useNavigate, Link } from "react-router-dom";
+import { useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 const ItemDetails = () => {
   const location = useLocation();
   const isOwner = location.state?.fromProfile ?? false;
   const navigate = useNavigate();
   const sellerId = "mock-seller-id"; // TODO: Replace with actual seller ID
+  const itemId = parseInt(location.pathname.split('/').pop() || "0");
+
+  // Get view count
+  const { data: viewCount } = useQuery({
+    queryKey: ['itemViews', itemId],
+    queryFn: async () => {
+      const { data } = await supabase.rpc('get_item_views', { item_uuid: itemId });
+      return data || 0;
+    },
+  });
+
+  // Track view
+  useEffect(() => {
+    const trackView = async () => {
+      const user = (await supabase.auth.getUser()).data.user;
+      if (user) {
+        await supabase.from('item_views').insert({
+          item_id: itemId,
+          viewer_id: user.id
+        }).then(({ error }) => {
+          if (error && error.code !== '23505') { // Ignore unique violation errors
+            console.error('Error tracking view:', error);
+          }
+        });
+      }
+    };
+    trackView();
+  }, [itemId]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -25,7 +55,13 @@ const ItemDetails = () => {
             <div className="flex justify-between items-start">
               <div>
                 <h1 className="text-2xl font-semibold">Vintage Camera</h1>
-                <p className="text-xl font-semibold text-primary">$299</p>
+                <div className="flex items-center gap-4">
+                  <p className="text-xl font-semibold text-primary">$299</p>
+                  <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                    <Eye className="h-4 w-4" />
+                    <span>{viewCount} views</span>
+                  </div>
+                </div>
               </div>
             </div>
             <div>

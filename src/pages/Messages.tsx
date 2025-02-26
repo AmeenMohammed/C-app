@@ -158,7 +158,7 @@ const Messages = () => {
                   key={conversation.id}
                   className={`bg-white rounded-lg p-3 shadow-sm cursor-pointer hover:bg-gray-50 transition-colors ${
                     conversation.unread ? 'border-2 border-red-500' : 'border'
-                  }`}
+                  } ${selectedUserId === conversation.id ? 'border-2 border-red-500' : ''}`}
                   onClick={() => selectConversation(conversation.id)}
                 >
                   <div className="flex items-center gap-3">

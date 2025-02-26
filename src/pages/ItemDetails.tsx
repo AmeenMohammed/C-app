@@ -27,22 +27,6 @@ const ItemDetails = () => {
                 <h1 className="text-2xl font-semibold">Vintage Camera</h1>
                 <p className="text-xl font-semibold text-primary">$299</p>
               </div>
-              {isOwner ? (
-                <Button onClick={() => navigate('/edit-item')} variant="outline">
-                  <Pencil className="h-4 w-4 mr-2" />
-                  Edit Item
-                </Button>
-              ) : (
-                <div className="flex gap-2">
-                  <Button size="sm" onClick={() => navigate('/messages')}>
-                    Contact Seller
-                  </Button>
-                  <Button size="sm" variant="outline">
-                    <ShoppingCart className="h-4 w-4 mr-2" />
-                    Add to Cart
-                  </Button>
-                </div>
-              )}
             </div>
             <div>
               <h2 className="font-semibold mb-2">Description</h2>
@@ -64,6 +48,22 @@ const ItemDetails = () => {
                 </div>
               </div>
             </div>
+            {isOwner ? (
+              <Button onClick={() => navigate('/edit-item')} variant="outline" className="w-full">
+                <Pencil className="h-4 w-4 mr-2" />
+                Edit Item
+              </Button>
+            ) : (
+              <div className="space-y-2">
+                <Button size="sm" onClick={() => navigate('/messages')} className="w-full">
+                  Contact Seller
+                </Button>
+                <Button size="sm" variant="outline" className="w-full">
+                  <ShoppingCart className="h-4 w-4 mr-2" />
+                  Add to Cart
+                </Button>
+              </div>
+            )}
           </div>
         </Card>
       </main>

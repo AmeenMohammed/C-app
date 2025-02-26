@@ -12,14 +12,14 @@ const ItemDetails = () => {
   const isOwner = location.state?.fromProfile ?? false;
   const navigate = useNavigate();
   const sellerId = "mock-seller-id"; // TODO: Replace with actual seller ID
-  const itemId = parseInt(location.pathname.split('/').pop() || "0");
+  const itemId = location.pathname.split('/').pop() || "0";
 
   // Get view count
   const { data: viewCount } = useQuery({
     queryKey: ['itemViews', itemId],
     queryFn: async () => {
       const { data } = await supabase.rpc('get_item_views', { item_uuid: itemId });
-      return data || 0;
+      return data ?? 0;
     },
   });
 

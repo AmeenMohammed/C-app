@@ -9,13 +9,13 @@ import { supabase } from "@/integrations/supabase/client";
 
 const SAMPLE_ITEMS = [
   {
-    id: 1,
+    id: "1",  // Changed to string to match UUID type
     title: "Vintage Camera",
     price: 299,
     image: "https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d",
   },
   {
-    id: 2,
+    id: "2",  // Changed to string to match UUID type
     title: "Laptop Stand",
     price: 49,
     image: "https://images.unsplash.com/photo-1519389950473-47ba0277781c",
@@ -31,28 +31,28 @@ export function ItemGrid() {
     queryFn: async () => {
       const viewPromises = SAMPLE_ITEMS.map(async (item) => {
         const { data } = await supabase.rpc('get_item_views', { item_uuid: item.id });
-        return { itemId: item.id, views: data || 0 };
+        return { itemId: item.id, views: data ?? 0 };
       });
       const counts = await Promise.all(viewPromises);
       return Object.fromEntries(counts.map(({ itemId, views }) => [itemId, views]));
     },
   });
 
-  const handleSave = (e: React.MouseEvent, itemId: number) => {
+  const handleSave = (e: React.MouseEvent, itemId: string) => {
     e.preventDefault(); // Prevent navigation
     toast({
       description: "Item saved for later",
     });
   };
 
-  const handleContact = (e: React.MouseEvent, itemId: number) => {
+  const handleContact = (e: React.MouseEvent, itemId: string) => {
     e.preventDefault(); // Prevent navigation
     toast({
       description: "Opening chat with seller...",
     });
   };
 
-  const trackView = async (itemId: number) => {
+  const trackView = async (itemId: string) => {
     const user = (await supabase.auth.getUser()).data.user;
     if (user) {
       await supabase.from('item_views').insert({

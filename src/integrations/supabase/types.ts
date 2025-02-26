@@ -39,6 +39,27 @@ export type Database = {
         }
         Relationships: []
       }
+      item_views: {
+        Row: {
+          created_at: string
+          id: string
+          item_id: string
+          viewer_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          item_id: string
+          viewer_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          item_id?: string
+          viewer_id?: string
+        }
+        Relationships: []
+      }
       purchases: {
         Row: {
           buyer_id: string
@@ -104,6 +125,12 @@ export type Database = {
           seller_uuid: string
         }
         Returns: boolean
+      }
+      get_item_views: {
+        Args: {
+          item_uuid: string
+        }
+        Returns: number
       }
       get_seller_ratings: {
         Args: {

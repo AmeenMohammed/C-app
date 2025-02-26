@@ -1,4 +1,3 @@
-
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
@@ -157,26 +156,25 @@ const Messages = () => {
               {conversations.map((conversation) => (
                 <div
                   key={conversation.id}
-                  className="bg-white rounded-lg p-3 shadow-sm cursor-pointer hover:bg-gray-50 transition-colors border"
+                  className={`bg-white rounded-lg p-3 shadow-sm cursor-pointer hover:bg-gray-50 transition-colors ${
+                    conversation.unread ? 'border-2 border-red-500' : 'border'
+                  }`}
                   onClick={() => selectConversation(conversation.id)}
                 >
                   <div className="flex items-center gap-3">
-                    <Avatar className="h-8 w-8">
+                    <Avatar className="h-10 w-10">
                       <AvatarImage src={conversation.user.avatar} />
                       <AvatarFallback>{conversation.user.name.slice(0, 2)}</AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
-                        <h3 className="font-medium text-xs truncate">{conversation.user.name}</h3>
-                        <span className="text-[10px] text-muted-foreground ml-2">{conversation.timestamp}</span>
+                        <h3 className="font-medium text-sm truncate">{conversation.user.name}</h3>
+                        <span className="text-xs text-muted-foreground ml-2">{conversation.timestamp}</span>
                       </div>
-                      <p className="text-[10px] text-muted-foreground truncate">
+                      <p className="text-xs text-muted-foreground truncate">
                         {conversation.lastMessage}
                       </p>
                     </div>
-                    {conversation.unread && (
-                      <div className="h-1.5 w-1.5 bg-blue-500 rounded-full shrink-0"></div>
-                    )}
                   </div>
                 </div>
               ))}
@@ -185,7 +183,7 @@ const Messages = () => {
         ) : (
           // Show messages when a user is selected
           <ScrollArea className="flex-1 mb-4">
-            <div className="space-y-2 pb-4">
+            <div className="space-y-3 pb-4">
               {messages.map((message, index) => (
                 <div
                   key={index}
@@ -193,27 +191,27 @@ const Messages = () => {
                 >
                   <div className="flex items-end gap-2 max-w-[85%]">
                     {!message.isMine && (
-                      <Avatar className="h-5 w-5">
+                      <Avatar className="h-6 w-6">
                         <AvatarImage src={message.user?.avatar} />
                         <AvatarFallback>{message.user?.name.slice(0, 2)}</AvatarFallback>
                       </Avatar>
                     )}
                     <div className="space-y-1">
                       <div
-                        className={`rounded-2xl px-3 py-1.5 ${
+                        className={`rounded-2xl px-4 py-2 ${
                           message.isMine
                             ? 'bg-gray-900 text-white rounded-br-sm'
                             : 'bg-gray-100 text-gray-900 rounded-bl-sm'
                         }`}
                       >
-                        <span className="text-xs">{message.text}</span>
+                        <span className="text-sm">{message.text}</span>
                       </div>
                       {message.isMine && message.user && (
                         <div className="flex items-center justify-end gap-1">
-                          <span className="text-[9px] text-muted-foreground">
+                          <span className="text-xs text-muted-foreground">
                             {message.user.name}
                           </span>
-                          <Avatar className="h-2.5 w-2.5">
+                          <Avatar className="h-4 w-4">
                             <AvatarImage src={message.user.avatar} />
                             <AvatarFallback>{message.user.name.slice(0, 2)}</AvatarFallback>
                           </Avatar>

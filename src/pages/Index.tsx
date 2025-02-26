@@ -11,7 +11,7 @@ const Index = () => {
         <Card className="p-6">
           <div className="mb-6">
             <img 
-              src="/lovable-uploads/7edf0965-8425-4b93-8de6-785450ba27ae.png" 
+              src="/lovable-uploads/6c6ec4d4-1993-41ce-9a5c-8ac84ca16177.png" 
               alt="Capp Logo"
               className="w-24 h-auto mx-auto"
             />

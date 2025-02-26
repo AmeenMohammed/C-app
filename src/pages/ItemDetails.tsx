@@ -2,12 +2,13 @@
 import { TopBar } from "@/components/TopBar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Pencil } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Pencil, ShoppingCart } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
 
 const ItemDetails = () => {
-  // In a real app, this would be determined by comparing the current user's ID with the item owner's ID
-  const isOwner = true;
+  const location = useLocation();
+  // Check if we're coming from the profile page
+  const isOwner = location.state?.fromProfile ?? false;
   const navigate = useNavigate();
 
   return (
@@ -32,7 +33,15 @@ const ItemDetails = () => {
                   Edit Item
                 </Button>
               ) : (
-                <Button>Contact Seller</Button>
+                <div className="flex gap-2">
+                  <Button onClick={() => navigate('/messages')}>
+                    Contact Seller
+                  </Button>
+                  <Button variant="outline">
+                    <ShoppingCart className="h-4 w-4 mr-2" />
+                    Add to Cart
+                  </Button>
+                </div>
               )}
             </div>
             <div>

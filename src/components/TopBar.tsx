@@ -1,5 +1,5 @@
 
-import { ArrowLeft, Menu, Bell, Heart, Settings, CreditCard } from "lucide-react";
+import { ArrowLeft, Menu, Bell, Heart, Settings, CreditCard, ArrowUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import {
@@ -16,6 +16,10 @@ interface TopBarProps {
 
 export function TopBar({ title, showBackButton = true }: TopBarProps) {
   const navigate = useNavigate();
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   return (
     <div className="sticky top-0 z-50 bg-white border-b">
@@ -35,6 +39,10 @@ export function TopBar({ title, showBackButton = true }: TopBarProps) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={scrollToTop}>
+              <ArrowUp className="mr-2 h-4 w-4" />
+              Move to Top
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => navigate('/notifications')}>
               <Bell className="mr-2 h-4 w-4" />
               Notifications

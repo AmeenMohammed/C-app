@@ -57,7 +57,7 @@ const Profile = () => {
       <TopBar title="Profile" />
       <main className="container mx-auto px-4 py-6 space-y-6">
         <Card className="p-6">
-          <div className="flex items-center space-x-4 mb-6">
+          <div className="flex items-center space-x-4 mb-4">
             <div className="relative">
               <img
                 src={profile.photoUrl}
@@ -112,9 +112,9 @@ const Profile = () => {
             </div>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-3">
             <div>
-              <label className="text-sm font-medium mb-1 block">Bio</label>
+              <label className="text-sm font-medium mb-0.5 block">Bio</label>
               {isEditing ? (
                 <Textarea
                   value={profile.bio}
@@ -182,7 +182,7 @@ const Profile = () => {
               </Button>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-muted-foreground" />
                 {isEditing ? (

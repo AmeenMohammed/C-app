@@ -424,33 +424,52 @@ const Channels = () => {
 
           <div className="fixed bottom-16 left-0 right-0 bg-white shadow-lg border-t">
             <div className="container mx-auto p-3">
-              <form onSubmit={sendMessage} className="flex items-center gap-2">
+              <div className="flex items-center gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      className="h-9 w-9 rounded-full"
+                    >
+                      <Smile className="h-5 w-5 text-muted-foreground" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent 
+                    side="top"
+                    align="start"
+                    className="w-[280px] mb-2"
+                  >
+                    <EmojiPicker
+                      onEmojiClick={onEmojiClick}
+                      width="100%"
+                      height={350}
+                    />
+                  </PopoverContent>
+                </Popover>
+
                 <Input
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
                   placeholder="Type a message..."
-                  className="flex-1 bg-gray-50 border-0 focus-visible:ring-1"
+                  className="flex-1"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      sendMessage(e);
+                    }
+                  }}
                 />
-                
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button type="button" size="icon" variant="ghost">
-                      <Smile className="h-5 w-5 text-muted-foreground" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="p-0 w-full" side="top" align="end">
-                    <EmojiPicker 
-                      onEmojiClick={onEmojiClick}
-                      skinTonesDisabled
-                      emojiStyle={EmojiStyle.APPLE}
-                    />
-                  </PopoverContent>
-                </Popover>
-                
-                <Button type="submit" size="icon">
-                  <Send className="h-4 w-4" />
+
+                <Button 
+                  size="icon"
+                  onClick={sendMessage}
+                  disabled={!newMessage.trim()}
+                  className="h-9 w-9 rounded-full"
+                >
+                  <Send className="h-5 w-5" />
                 </Button>
-              </form>
+              </div>
             </div>
           </div>
         </main>

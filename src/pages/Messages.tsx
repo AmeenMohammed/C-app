@@ -270,12 +270,13 @@ const Messages = () => {
                     </PopoverTrigger>
                     <PopoverContent 
                       side="top" 
-                      className="w-full mb-2"
+                      align="start"
+                      className="w-[280px] mb-2"
                     >
                       <EmojiPicker
                         onEmojiClick={onEmojiClick}
                         width="100%"
-                        height={400}
+                        height={350}
                       />
                     </PopoverContent>
                   </Popover>

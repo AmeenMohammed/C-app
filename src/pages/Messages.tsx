@@ -149,33 +149,33 @@ const Messages = () => {
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <TopBar title="My Messages" showBackButton={selectedUserId !== null} />
       
-      <main className="flex-1 container mx-auto px-4 py-6 overflow-hidden flex flex-col">
+      <main className="flex-1 container mx-auto px-2 py-4 overflow-hidden flex flex-col">
         {!selectedUserId ? (
           // Show conversation list when no user is selected
           <ScrollArea className="flex-1">
-            <div className="space-y-2">
+            <div className="space-y-1">
               {conversations.map((conversation) => (
                 <div
                   key={conversation.id}
-                  className="bg-white rounded-lg p-4 shadow-sm cursor-pointer hover:bg-gray-50 transition-colors"
+                  className="bg-white rounded-lg p-3 shadow-sm cursor-pointer hover:bg-gray-50 transition-colors border"
                   onClick={() => selectConversation(conversation.id)}
                 >
-                  <div className="flex items-center gap-4">
-                    <Avatar className="h-12 w-12">
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-10 w-10">
                       <AvatarImage src={conversation.user.avatar} />
                       <AvatarFallback>{conversation.user.name.slice(0, 2)}</AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
-                        <h3 className="font-semibold truncate">{conversation.user.name}</h3>
-                        <span className="text-xs text-muted-foreground">{conversation.timestamp}</span>
+                        <h3 className="font-medium text-sm truncate">{conversation.user.name}</h3>
+                        <span className="text-xs text-muted-foreground ml-2">{conversation.timestamp}</span>
                       </div>
-                      <p className="text-sm text-muted-foreground truncate">
+                      <p className="text-xs text-muted-foreground truncate">
                         {conversation.lastMessage}
                       </p>
                     </div>
                     {conversation.unread && (
-                      <div className="h-2 w-2 bg-blue-500 rounded-full"></div>
+                      <div className="h-2 w-2 bg-blue-500 rounded-full shrink-0"></div>
                     )}
                   </div>
                 </div>
@@ -185,35 +185,35 @@ const Messages = () => {
         ) : (
           // Show messages when a user is selected
           <ScrollArea className="flex-1 mb-4">
-            <div className="space-y-4 pb-4">
+            <div className="space-y-3 pb-4">
               {messages.map((message, index) => (
                 <div
                   key={index}
                   className={`flex ${message.isMine ? 'justify-end' : 'justify-start'}`}
                 >
-                  <div className="flex items-end gap-2">
+                  <div className="flex items-end gap-2 max-w-[85%]">
                     {!message.isMine && (
                       <Avatar className="h-6 w-6">
                         <AvatarImage src={message.user?.avatar} />
                         <AvatarFallback>{message.user?.name.slice(0, 2)}</AvatarFallback>
                       </Avatar>
                     )}
-                    <div>
+                    <div className="space-y-1">
                       <div
-                        className={`rounded-lg px-4 py-2 max-w-[80vw] ${
+                        className={`rounded-2xl px-4 py-2 ${
                           message.isMine
-                            ? 'bg-gray-900 text-white'
-                            : 'bg-gray-100 text-gray-900'
+                            ? 'bg-gray-900 text-white rounded-br-sm'
+                            : 'bg-gray-100 text-gray-900 rounded-bl-sm'
                         }`}
                       >
                         {message.text}
                       </div>
                       {message.isMine && message.user && (
-                        <div className="flex items-center justify-end gap-1 mt-1">
-                          <span className="text-xs text-muted-foreground">
+                        <div className="flex items-center justify-end gap-1">
+                          <span className="text-[10px] text-muted-foreground">
                             {message.user.name}
                           </span>
-                          <Avatar className="h-4 w-4">
+                          <Avatar className="h-3 w-3">
                             <AvatarImage src={message.user.avatar} />
                             <AvatarFallback>{message.user.name.slice(0, 2)}</AvatarFallback>
                           </Avatar>

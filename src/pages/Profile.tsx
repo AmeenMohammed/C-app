@@ -193,37 +193,18 @@ const Profile = () => {
                   />
                 ) : (
                   <div className="flex items-center gap-2">
-                    <span className="text-sm">{profile.location}</span>
                     <a 
                       href={getGoogleMapsUrl(profile.location)} 
                       target="_blank" 
                       rel="noopener noreferrer"
-                      className="text-primary hover:text-primary/80 transition-colors"
+                      className="text-sm hover:text-primary transition-colors flex items-center gap-2"
                     >
+                      {profile.location}
                       <ExternalLink className="h-4 w-4" />
                     </a>
                   </div>
                 )}
               </div>
-              {!isEditing && profile.location && (
-                <div className="relative w-full h-32 rounded-lg overflow-hidden mt-2">
-                  <img 
-                    src={`https://maps.googleapis.com/maps/api/staticmap?center=${encodeURIComponent(profile.location)}&zoom=13&size=400x200&maptype=roadmap&markers=color:red%7C${encodeURIComponent(profile.location)}&key=YOUR_API_KEY`}
-                    alt="Location map"
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-black/5 hover:bg-black/10 transition-colors">
-                    <a 
-                      href={getGoogleMapsUrl(profile.location)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="absolute inset-0 flex items-center justify-center text-primary"
-                    >
-                      <span className="sr-only">Open in Google Maps</span>
-                    </a>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </Card>

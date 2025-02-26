@@ -212,7 +212,7 @@ const Profile = () => {
         </Card>
 
         <Link to="/post">
-          <Card className="w-full flex items-center gap-4 p-4 hover:bg-accent transition-colors cursor-pointer">
+          <Card className="w-full flex items-center gap-4 p-4 hover:border-primary transition-colors cursor-pointer">
             <ImagePlus className="h-8 w-8 text-primary" />
             <div className="flex-1">
               <h3 className="text-sm font-medium">Post Your Item</h3>

@@ -1,4 +1,3 @@
-
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { Input } from "@/components/ui/input";
@@ -10,6 +9,7 @@ import { Slider } from "@/components/ui/slider";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import EmojiPicker, { EmojiStyle } from "emoji-picker-react";
 import type { EmojiClickData } from "emoji-picker-react";
 
@@ -33,7 +33,6 @@ interface Channel {
   messages?: Message[];
 }
 
-// Sample data - in a real app this would come from an API
 const SAMPLE_CHANNELS: Channel[] = [
   {
     id: 1,
@@ -95,6 +94,8 @@ const Channels = () => {
     channel.description.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const joinedChannels = channels.filter(channel => channel.isJoined);
+
   const handleJoinChannel = (channel: Channel) => {
     setActiveChannel(channel);
   };
@@ -150,66 +151,130 @@ const Channels = () => {
       />
       
       {!activeChannel ? (
-        // Channels List View
         <main className="container mx-auto px-4 py-6 space-y-4">
-          <Input
-            type="search"
-            placeholder="Search channels..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full"
-          />
-          
-          <ScrollArea className="h-[calc(100vh-220px)]">
-            <div className="space-y-4">
-              {filteredChannels.map(channel => (
-                <Card 
-                  key={channel.id} 
-                  className={`p-4 cursor-pointer hover:border-2 hover:border-red-500 transition-all ${
-                    channel.isJoined && channel.unreadCount ? 'border-2 border-red-500' : ''
-                  }`}
-                  onClick={() => handleJoinChannel(channel)}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <h3 className={`text-sm ${channel.isJoined && channel.unreadCount ? 'font-bold' : 'font-medium'}`}>
-                          {channel.name}
-                        </h3>
-                        {channel.isPrivate ? (
-                          <Lock className="h-4 w-4 text-muted-foreground" />
-                        ) : (
-                          <Globe className="h-4 w-4 text-muted-foreground" />
-                        )}
-                        {channel.isJoined && channel.unreadCount && (
-                          <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
-                            {channel.unreadCount}
-                          </span>
-                        )}
-                      </div>
-                      <p className={`text-sm text-muted-foreground ${
-                        channel.isJoined && channel.unreadCount ? 'font-semibold' : ''
-                      }`}>
-                        {channel.description}
-                      </p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Users className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-xs text-muted-foreground">{channel.members} members</span>
-                      </div>
-                    </div>
-                    <Button 
-                      variant={channel.isJoined ? "outline" : channel.isPrivate ? "outline" : "default"}
-                    >
-                      {channel.isJoined ? "Joined" : channel.isPrivate ? "Request Join" : "Join"}
-                    </Button>
+          <Tabs defaultValue="discover" className="w-full">
+            <TabsList className="w-full">
+              <TabsTrigger value="discover" className="flex-1">Discover</TabsTrigger>
+              <TabsTrigger value="joined" className="flex-1">
+                Joined
+                {joinedChannels.some(c => c.unreadCount) && (
+                  <span className="ml-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+                    {joinedChannels.filter(c => c.unreadCount).length}
+                  </span>
+                )}
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="discover" className="mt-4">
+              <div className="space-y-4">
+                <Input
+                  type="search"
+                  placeholder="Search channels..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full"
+                />
+                
+                <ScrollArea className="h-[calc(100vh-280px)]">
+                  <div className="space-y-4">
+                    {filteredChannels.map(channel => (
+                      <Card 
+                        key={channel.id} 
+                        className={`p-4 cursor-pointer hover:border-2 hover:border-red-500 transition-all ${
+                          channel.isJoined && channel.unreadCount ? 'border-2 border-red-500' : ''
+                        }`}
+                        onClick={() => handleJoinChannel(channel)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <h3 className={`text-sm ${channel.isJoined && channel.unreadCount ? 'font-bold' : 'font-medium'}`}>
+                                {channel.name}
+                              </h3>
+                              {channel.isPrivate ? (
+                                <Lock className="h-4 w-4 text-muted-foreground" />
+                              ) : (
+                                <Globe className="h-4 w-4 text-muted-foreground" />
+                              )}
+                              {channel.isJoined && channel.unreadCount && (
+                                <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+                                  {channel.unreadCount}
+                                </span>
+                              )}
+                            </div>
+                            <p className={`text-sm text-muted-foreground ${
+                              channel.isJoined && channel.unreadCount ? 'font-semibold' : ''
+                            }`}>
+                              {channel.description}
+                            </p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <Users className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-xs text-muted-foreground">{channel.members} members</span>
+                            </div>
+                          </div>
+                          <Button 
+                            variant={channel.isJoined ? "outline" : channel.isPrivate ? "outline" : "default"}
+                          >
+                            {channel.isJoined ? "Joined" : channel.isPrivate ? "Request Join" : "Join"}
+                          </Button>
+                        </div>
+                      </Card>
+                    ))}
                   </div>
-                </Card>
-              ))}
-            </div>
-          </ScrollArea>
+                </ScrollArea>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="joined" className="mt-4">
+              <ScrollArea className="h-[calc(100vh-220px)]">
+                <div className="space-y-4">
+                  {joinedChannels.map(channel => (
+                    <Card 
+                      key={channel.id} 
+                      className={`p-4 cursor-pointer hover:border-2 hover:border-red-500 transition-all ${
+                        channel.unreadCount ? 'border-2 border-red-500' : ''
+                      }`}
+                      onClick={() => handleJoinChannel(channel)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <h3 className={`text-sm ${channel.unreadCount ? 'font-bold' : 'font-medium'}`}>
+                              {channel.name}
+                            </h3>
+                            {channel.isPrivate ? (
+                              <Lock className="h-4 w-4 text-muted-foreground" />
+                            ) : (
+                              <Globe className="h-4 w-4 text-muted-foreground" />
+                            )}
+                            {channel.unreadCount && (
+                              <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+                                {channel.unreadCount}
+                              </span>
+                            )}
+                          </div>
+                          <p className={`text-sm text-muted-foreground ${
+                            channel.unreadCount ? 'font-semibold' : ''
+                          }`}>
+                            {channel.description}
+                          </p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Users className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-xs text-muted-foreground">{channel.members} members</span>
+                          </div>
+                        </div>
+                        <Button variant="outline">
+                          Joined
+                        </Button>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              </ScrollArea>
+            </TabsContent>
+          </Tabs>
         </main>
       ) : (
-        // Channel Chat View
         <main className="flex-1 container mx-auto px-4 py-6 overflow-hidden flex flex-col h-[calc(100vh-160px)]">
           <ScrollArea className="flex-1 mb-16">
             <div className="space-y-4 pb-4">
@@ -253,7 +318,6 @@ const Channels = () => {
             </div>
           </ScrollArea>
 
-          {/* Message Input Box - Only shown when in a channel chat */}
           <div className="fixed bottom-16 left-0 right-0 bg-white shadow-lg border-t">
             <div className="container mx-auto p-3">
               <form onSubmit={sendMessage} className="flex items-center gap-2">

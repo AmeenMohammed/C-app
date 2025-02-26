@@ -1,5 +1,5 @@
 
-import { Home, PlusSquare, User, Hash, MessageSquare } from "lucide-react";
+import { Home, PlusSquare, User, MessageSquare, Network } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
@@ -27,7 +27,7 @@ export function BottomNav() {
               location.pathname === "/channels" ? "text-primary" : "text-muted-foreground"
             )}
           >
-            <Hash className="h-6 w-6" />
+            <Network className="h-6 w-6" />
             <span className="text-xs">Channels</span>
           </Link>
           <Link 

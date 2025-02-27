@@ -207,7 +207,7 @@ const Messages = () => {
     }
 
     setAttachment(file);
-    toast.success(`Attached: ${file.name}`);
+    // Removed the success toast notification
   };
 
   const removeAttachment = () => {

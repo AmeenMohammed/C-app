@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ImagePlus, TrendingUp, MapPin, ExternalLink, X, Paperclip } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "@/hooks/use-toast";
 import { useState, useEffect, useRef } from "react";
 import { Slider } from "@/components/ui/slider";
 import {
@@ -100,10 +100,7 @@ const PostItem = () => {
       if (data.error) throw new Error(data.error);
 
       setImages(prev => [...prev, data.url]);
-      toast({
-        title: "Success",
-        description: "Image uploaded successfully",
-      });
+      // Removed the success toast notification
     } catch (error) {
       console.error('Upload error:', error);
       toast({
@@ -134,10 +131,7 @@ const PostItem = () => {
     }
 
     setAttachment(file);
-    toast({
-      title: "Success",
-      description: `Attached: ${file.name}`,
-    });
+    // Removed the success toast notification
   };
 
   const removeAttachment = () => {

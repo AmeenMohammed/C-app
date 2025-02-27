@@ -11,7 +11,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import EmojiPicker, { EmojiStyle } from "emoji-picker-react";
+import EmojiPicker from "emoji-picker-react";
 import type { EmojiClickData } from "emoji-picker-react";
 import { toast } from "sonner";
 
@@ -243,7 +243,7 @@ const Channels = () => {
     }
 
     setAttachment(file);
-    toast.success(`Attached: ${file.name}`);
+    // Removed the success toast notification
   };
 
   const removeAttachment = () => {

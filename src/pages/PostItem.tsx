@@ -41,7 +41,6 @@ const PostItem = () => {
           title: "Error",
           description: "Please sign in to post items",
           variant: "destructive",
-          duration: 5000,
         });
         navigate('/');
       }
@@ -58,7 +57,6 @@ const PostItem = () => {
     toast({
       title: "Processing Payment",
       description: `Processing payment via ${method}...`,
-      duration: 3000,
     });
   };
 
@@ -107,7 +105,6 @@ const PostItem = () => {
         title: "Error",
         description: "Failed to upload image. Please make sure you're signed in.",
         variant: "destructive",
-        duration: 5000,
       });
     } finally {
       setLoading(false);
@@ -125,7 +122,6 @@ const PostItem = () => {
         title: "Error",
         description: "Please fill in all required fields",
         variant: "destructive",
-        duration: 5000,
       });
       return;
     }
@@ -149,7 +145,6 @@ const PostItem = () => {
       toast({
         title: "Success",
         description: "Item posted successfully",
-        duration: 3000,
       });
       navigate('/profile');
     } catch (error) {
@@ -158,7 +153,6 @@ const PostItem = () => {
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to post item",
         variant: "destructive",
-        duration: 5000,
       });
       if (error instanceof Error && error.message === "Not authenticated") {
         navigate('/');
@@ -275,25 +269,21 @@ const PostItem = () => {
               />
             </div>
 
-            <div 
-              className="w-full rounded-md bg-pink-50 p-4 cursor-pointer hover:bg-pink-100 transition-colors"
+            <Card 
+              className="w-full flex items-center gap-4 p-4 hover:bg-accent transition-colors cursor-pointer bg-gray-50 border-primary/10 shadow-sm"
               onClick={handlePromoteItem}
             >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="bg-white p-2 rounded-full">
-                    <TrendingUp className="h-4 w-4 text-pink-500" />
-                  </div>
-                  <div>
-                    <h3 className="font-medium text-pink-700">Move to Top</h3>
-                    <p className="text-xs text-pink-600">Promote your items for more visibility</p>
-                  </div>
-                </div>
-                <div className="bg-pink-100 rounded px-2 py-1">
-                  <span className="text-xs font-medium text-pink-700">10 EGP</span>
-                </div>
+              <div className="rounded-full bg-primary/5 p-2">
+                <TrendingUp className="h-6 w-6 text-primary" />
               </div>
-            </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-medium">Move to Top</h3>
+                  <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">10 EGP</span>
+                </div>
+                <p className="text-xs text-muted-foreground">Promote your items for more visibility</p>
+              </div>
+            </Card>
 
             <Button className="w-full" type="submit" disabled={loading}>
               {loading ? "Posting..." : "Post Item"}

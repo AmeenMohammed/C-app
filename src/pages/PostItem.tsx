@@ -269,25 +269,25 @@ const PostItem = () => {
               />
             </div>
 
-            <Card 
-              className="w-full transition-colors cursor-pointer overflow-hidden rounded-lg border border-transparent"
+            <div 
+              className="w-full rounded-md bg-pink-50 p-4 cursor-pointer"
               onClick={handlePromoteItem}
             >
-              <div className="bg-rose-100 p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-full bg-white/80 p-2">
-                      <TrendingUp className="h-5 w-5 text-rose-500" />
-                    </div>
-                    <div>
-                      <h3 className="text-base font-medium text-rose-700">Move to Top</h3>
-                      <p className="text-xs text-rose-600">Promote your items for more visibility</p>
-                    </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="bg-white p-2 rounded-full">
+                    <TrendingUp className="h-4 w-4 text-pink-500" />
                   </div>
-                  <span className="text-xs bg-rose-200 text-rose-700 px-2 py-1 rounded font-medium">10 EGP</span>
+                  <div>
+                    <h3 className="font-medium text-pink-700">Move to Top</h3>
+                    <p className="text-xs text-pink-600">Promote your items for more visibility</p>
+                  </div>
+                </div>
+                <div className="bg-pink-100 rounded px-2 py-1">
+                  <span className="text-xs font-medium text-pink-700">10 EGP</span>
                 </div>
               </div>
-            </Card>
+            </div>
 
             <Button className="w-full" type="submit" disabled={loading}>
               {loading ? "Posting..." : "Post Item"}

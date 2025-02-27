@@ -1,8 +1,8 @@
+
 import { ArrowLeft, Settings2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-
 import { Button } from "@/components/ui/button";
-import { useMobile } from "@/hooks/use-mobile";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface TopBarProps {
   title: string;
@@ -11,7 +11,7 @@ interface TopBarProps {
 
 export function TopBar({ title, showBackButton = false }: TopBarProps) {
   const navigate = useNavigate();
-  const isMobile = useMobile();
+  const isMobile = useIsMobile();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">

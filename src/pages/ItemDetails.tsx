@@ -1,10 +1,9 @@
-
 import { TopBar } from "@/components/TopBar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Eye, Pencil, ShoppingCart, Star } from "lucide-react";
 import { useLocation, useNavigate, Link } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -14,34 +13,83 @@ const ItemDetails = () => {
   const isOwner = location.state?.fromProfile ?? false;
   const navigate = useNavigate();
   const itemId = location.pathname.split('/').pop() || "0";
+  const [itemFetchError, setItemFetchError] = useState<string | null>(null);
+
+  console.log("Attempting to fetch item with ID:", itemId);
 
   // Get item details
-  const { data: item } = useQuery({
+  const { data: item, isLoading, error } = useQuery({
     queryKey: ['item', itemId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('items')
-        .select('*')
-        .eq('id', itemId)
-        .single();
+      try {
+        // First check if this is a sample item from ItemGrid
+        if (itemId === "1" || itemId === "2") {
+          // Return hardcoded sample item for demo purposes
+          console.log("Using sample item data for ID:", itemId);
+          return {
+            id: itemId,
+            title: itemId === "1" ? "Vintage Camera" : "Laptop Stand",
+            price: itemId === "1" ? 299 : 49,
+            images: [itemId === "1" 
+              ? "https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d" 
+              : "https://images.unsplash.com/photo-1519389950473-47ba0277781c"],
+            description: itemId === "1" 
+              ? "A beautiful vintage camera in excellent condition." 
+              : "Ergonomic laptop stand for better posture and comfort.",
+            seller_id: "sample-seller"
+          };
+        }
 
-      if (error) throw error;
-      return data;
+        // Otherwise try to fetch from database
+        const { data, error } = await supabase
+          .from('items')
+          .select('*')
+          .eq('id', itemId)
+          .maybeSingle();
+
+        if (error) {
+          console.error("Supabase query error:", error);
+          setItemFetchError(error.message);
+          throw error;
+        }
+        
+        if (!data) {
+          console.error("No item found with ID:", itemId);
+          setItemFetchError("Item not found");
+          throw new Error("Item not found");
+        }
+        
+        console.log("Successfully fetched item:", data);
+        return data;
+      } catch (err) {
+        console.error("Error in queryFn:", err);
+        throw err;
+      }
     },
+    retry: false
   });
 
   // Get view count
   const { data: viewCount } = useQuery({
     queryKey: ['itemViews', itemId],
     queryFn: async () => {
+      // For sample items, return a random number
+      if (itemId === "1" || itemId === "2") {
+        return Math.floor(Math.random() * 50) + 10;
+      }
+      
       const { data } = await supabase.rpc('get_item_views', { item_uuid: itemId });
       return data ?? 0;
     },
+    enabled: !!item
   });
 
   // Track view
   useEffect(() => {
     const trackView = async () => {
+      // Only track views for real database items
+      if (itemId === "1" || itemId === "2") return;
+      
       const user = (await supabase.auth.getUser()).data.user;
       if (user) {
         await supabase.from('item_views').insert({
@@ -54,8 +102,11 @@ const ItemDetails = () => {
         });
       }
     };
-    trackView();
-  }, [itemId]);
+    
+    if (item) {
+      trackView();
+    }
+  }, [itemId, item]);
 
   const handleAddToCart = async () => {
     try {
@@ -64,6 +115,12 @@ const ItemDetails = () => {
       if (!user) {
         toast.error("Please sign in to add items to cart");
         navigate('/');
+        return;
+      }
+
+      // For sample items, show a toast
+      if (itemId === "1" || itemId === "2") {
+        toast.success("Sample item added to cart");
         return;
       }
 
@@ -86,7 +143,50 @@ const ItemDetails = () => {
     }
   };
 
-  if (!item) return null;
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <TopBar title="Item Details" />
+        <div className="container mx-auto px-4 py-6 text-center">
+          <p>Loading item details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || itemFetchError) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <TopBar title="Item Details" />
+        <div className="container mx-auto px-4 py-6 text-center">
+          <Card className="p-6">
+            <h2 className="text-xl font-semibold text-red-500 mb-2">Error Loading Item</h2>
+            <p className="text-gray-600 mb-4">
+              {itemFetchError || "This item doesn't exist or has been removed."}
+            </p>
+            <Button onClick={() => navigate('/home')}>Back to Home</Button>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  if (!item) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <TopBar title="Item Details" />
+        <div className="container mx-auto px-4 py-6 text-center">
+          <Card className="p-6">
+            <h2 className="text-xl font-semibold mb-2">Item Not Found</h2>
+            <p className="text-gray-600 mb-4">
+              The item you're looking for doesn't exist or has been removed.
+            </p>
+            <Button onClick={() => navigate('/home')}>Back to Home</Button>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -120,7 +220,7 @@ const ItemDetails = () => {
             <div>
               <h2 className="font-semibold mb-2">Seller</h2>
               <Link 
-                to={`/seller/${item.seller_id}`}
+                to={item.seller_id === "sample-seller" ? '/home' : `/seller/${item.seller_id}`}
                 className="flex items-center space-x-3 p-2 rounded-lg border border-transparent transition-all duration-200 hover:border-primary/50"
               >
                 <img

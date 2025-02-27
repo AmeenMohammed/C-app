@@ -269,7 +269,7 @@ const PostItem = () => {
               />
             </div>
 
-            <div className="relative">
+            <div className="relative group">
               <Card 
                 className="w-full flex items-center gap-4 p-4 transition-all duration-200 cursor-pointer bg-gray-50 border-primary/10 shadow-sm"
                 onClick={handlePromoteItem}
@@ -286,7 +286,7 @@ const PostItem = () => {
                 </div>
               </Card>
               {/* Pseudo-element for the hover effect without layout shift */}
-              <div className="absolute inset-0 pointer-events-none border-2 border-transparent rounded-lg hover:border-red-500 transition-colors duration-200"></div>
+              <div className="absolute inset-0 pointer-events-none border-2 border-transparent rounded-lg group-hover:border-red-500 transition-colors duration-200"></div>
             </div>
 
             <Button className="w-full" type="submit" disabled={loading}>

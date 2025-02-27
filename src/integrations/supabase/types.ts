@@ -165,6 +165,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      delete_user: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       get_item_views: {
         Args: {
           item_uuid: string

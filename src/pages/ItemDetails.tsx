@@ -1,7 +1,8 @@
+
 import { TopBar } from "@/components/TopBar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Eye, Pencil, ShoppingCart, Star } from "lucide-react";
+import { Eye, Pencil, ShoppingCart, Star, BookmarkPlus } from "lucide-react";
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -14,6 +15,7 @@ const ItemDetails = () => {
   const navigate = useNavigate();
   const itemId = location.pathname.split('/').pop() || "0";
   const [itemFetchError, setItemFetchError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   console.log("Attempting to fetch item with ID:", itemId);
 
@@ -120,7 +122,9 @@ const ItemDetails = () => {
 
       // For sample items, show a toast
       if (itemId === "1" || itemId === "2") {
-        toast.success("Sample item added to cart");
+        toast.success("Sample item added to cart", {
+          duration: 2000 // 2 seconds duration
+        });
         return;
       }
 
@@ -136,10 +140,49 @@ const ItemDetails = () => {
 
       if (error) throw error;
 
-      toast.success("Item added to cart");
+      toast.success("Item added to cart", {
+        duration: 2000 // 2 seconds duration
+      });
     } catch (error) {
       console.error('Error adding to cart:', error);
       toast.error("Failed to add item to cart");
+    }
+  };
+
+  const handleSaveItem = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        toast.error("Please sign in to save items");
+        navigate('/');
+        return;
+      }
+
+      // Visual feedback animation
+      setSaving(true);
+      setTimeout(() => setSaving(false), 500);
+
+      // For sample items or real ones, save the item
+      if (itemId === "1" || itemId === "2") {
+        // Just show animation for sample items
+        return;
+      }
+
+      // For real items, save to database
+      const { error } = await supabase
+        .from('saved_items')
+        .upsert({
+          user_id: user.id,
+          item_id: itemId
+        }, {
+          onConflict: 'user_id,item_id'
+        });
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error saving item:', error);
+      toast.error("Failed to save item");
     }
   };
 
@@ -210,6 +253,14 @@ const ItemDetails = () => {
                   </div>
                 </div>
               </div>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={handleSaveItem}
+                className={`transition-transform duration-300 ${saving ? 'scale-150' : ''}`}
+              >
+                <BookmarkPlus className={`h-5 w-5 ${saving ? 'text-primary fill-primary' : ''}`} />
+              </Button>
             </div>
             <div>
               <h2 className="font-semibold mb-2">Description</h2>

@@ -3,9 +3,10 @@ import { Card } from "@/components/ui/card";
 import { Link } from "react-router-dom";
 import { BookmarkPlus, MessageSquare, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
 
 const SAMPLE_ITEMS = [
   {
@@ -24,6 +25,7 @@ const SAMPLE_ITEMS = [
 
 export function ItemGrid() {
   const { toast } = useToast();
+  const [savingItems, setSavingItems] = useState<Record<string, boolean>>({});
 
   // Get view counts for all items
   const { data: viewCounts } = useQuery({
@@ -40,9 +42,12 @@ export function ItemGrid() {
 
   const handleSave = (e: React.MouseEvent, itemId: string) => {
     e.preventDefault(); // Prevent navigation
-    toast({
-      description: "Item saved for later",
-    });
+    
+    // Show animation
+    setSavingItems(prev => ({ ...prev, [itemId]: true }));
+    setTimeout(() => {
+      setSavingItems(prev => ({ ...prev, [itemId]: false }));
+    }, 500);
   };
 
   const handleContact = (e: React.MouseEvent, itemId: string) => {
@@ -79,10 +84,10 @@ export function ItemGrid() {
               <Button
                 variant="secondary"
                 size="icon"
-                className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                className={`h-8 w-8 opacity-0 group-hover:opacity-100 transition-all ${savingItems[item.id] ? 'opacity-100 scale-125' : ''}`}
                 onClick={(e) => handleSave(e, item.id)}
               >
-                <BookmarkPlus className="h-4 w-4" />
+                <BookmarkPlus className={`h-4 w-4 transition-all ${savingItems[item.id] ? 'text-primary fill-primary' : ''}`} />
               </Button>
               <Button
                 variant="secondary"

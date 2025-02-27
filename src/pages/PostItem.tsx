@@ -1,4 +1,3 @@
-
 import { TopBar } from "@/components/TopBar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -7,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ImagePlus, TrendingUp, MapPin, ExternalLink, X } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
 import { toast } from "@/components/ui/use-toast";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Slider } from "@/components/ui/slider";
 import {
   Dialog,
@@ -29,6 +28,21 @@ const PostItem = () => {
     description: "",
     range: [10] as number[], // Default 10km radius
   });
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast({
+          title: "Error",
+          description: "Please sign in to post items",
+          variant: "destructive",
+        });
+        navigate('/');
+      }
+    };
+    checkAuth();
+  }, [navigate]);
 
   const handlePromoteItem = () => {
     setShowPaymentDialog(true);
@@ -65,11 +79,14 @@ const PostItem = () => {
     formData.append('file', file);
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Not authenticated");
+
       const response = await fetch('https://vttanwzodshofhycuqjr.functions.supabase.co/upload-item-image', {
         method: 'POST',
         body: formData,
         headers: {
-          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+          'Authorization': `Bearer ${session.access_token}`
         }
       });
 
@@ -85,7 +102,7 @@ const PostItem = () => {
       console.error('Upload error:', error);
       toast({
         title: "Error",
-        description: "Failed to upload image",
+        description: "Failed to upload image. Please make sure you're signed in.",
         variant: "destructive",
       });
     } finally {
@@ -110,15 +127,15 @@ const PostItem = () => {
 
     setLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Not authenticated");
 
       const { error } = await supabase.from('items').insert({
         title: formData.title,
         price: parseFloat(formData.price),
         description: formData.description,
         location_range: formData.range[0],
-        seller_id: user.id,
+        seller_id: session.user.id,
         images: images,
       });
 
@@ -133,9 +150,12 @@ const PostItem = () => {
       console.error('Post error:', error);
       toast({
         title: "Error",
-        description: "Failed to post item",
+        description: error instanceof Error ? error.message : "Failed to post item",
         variant: "destructive",
       });
+      if (error instanceof Error && error.message === "Not authenticated") {
+        navigate('/');
+      }
     } finally {
       setLoading(false);
     }

@@ -45,14 +45,26 @@ const Settings = () => {
 
   const handleDeleteAccount = async () => {
     try {
-      const { error } = await supabase.rpc('delete_user');
-      if (error) {
+      // First delete the user's data using the Supabase client
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user?.id) {
+        throw new Error("No authenticated user");
+      }
+
+      // Delete user's auth account
+      const { error: deleteError } = await supabase.auth.admin.deleteUser(
+        user.user.id
+      );
+      
+      if (deleteError) {
         toast({
           variant: "destructive",
           description: "Error deleting account. Please try again.",
         });
         return;
       }
+
+      // Sign out after successful deletion
       await supabase.auth.signOut();
       navigate("/");
       toast({
@@ -151,4 +163,3 @@ const Settings = () => {
 };
 
 export default Settings;
-

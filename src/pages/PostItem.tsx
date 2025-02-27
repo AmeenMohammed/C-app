@@ -41,6 +41,7 @@ const PostItem = () => {
           title: "Error",
           description: "Please sign in to post items",
           variant: "destructive",
+          duration: 5000,
         });
         navigate('/');
       }
@@ -57,6 +58,7 @@ const PostItem = () => {
     toast({
       title: "Processing Payment",
       description: `Processing payment via ${method}...`,
+      duration: 3000,
     });
   };
 
@@ -105,6 +107,7 @@ const PostItem = () => {
         title: "Error",
         description: "Failed to upload image. Please make sure you're signed in.",
         variant: "destructive",
+        duration: 5000,
       });
     } finally {
       setLoading(false);
@@ -122,6 +125,7 @@ const PostItem = () => {
         title: "Error",
         description: "Please fill in all required fields",
         variant: "destructive",
+        duration: 5000,
       });
       return;
     }
@@ -145,6 +149,7 @@ const PostItem = () => {
       toast({
         title: "Success",
         description: "Item posted successfully",
+        duration: 3000,
       });
       navigate('/profile');
     } catch (error) {
@@ -153,6 +158,7 @@ const PostItem = () => {
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to post item",
         variant: "destructive",
+        duration: 5000,
       });
       if (error instanceof Error && error.message === "Not authenticated") {
         navigate('/');
@@ -270,7 +276,7 @@ const PostItem = () => {
             </div>
 
             <div 
-              className="w-full rounded-md bg-pink-50 p-4 cursor-pointer"
+              className="w-full rounded-md bg-pink-50 p-4 cursor-pointer hover:bg-pink-100 transition-colors"
               onClick={handlePromoteItem}
             >
               <div className="flex items-center justify-between">

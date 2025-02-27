@@ -269,21 +269,25 @@ const PostItem = () => {
               />
             </div>
 
-            <Card 
-              className="w-full flex items-center gap-4 p-4 transition-all duration-200 cursor-pointer bg-gray-50 border-primary/10 shadow-sm hover:border-red-500 hover:border-2"
-              onClick={handlePromoteItem}
-            >
-              <div className="rounded-full bg-primary/5 p-2">
-                <TrendingUp className="h-6 w-6 text-primary" />
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-medium">Move to Top</h3>
-                  <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">10 EGP</span>
+            <div className="relative">
+              <Card 
+                className="w-full flex items-center gap-4 p-4 transition-all duration-200 cursor-pointer bg-gray-50 border-primary/10 shadow-sm"
+                onClick={handlePromoteItem}
+              >
+                <div className="rounded-full bg-primary/5 p-2">
+                  <TrendingUp className="h-6 w-6 text-primary" />
                 </div>
-                <p className="text-xs text-muted-foreground">Promote your items for more visibility</p>
-              </div>
-            </Card>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-medium">Move to Top</h3>
+                    <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">10 EGP</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Promote your items for more visibility</p>
+                </div>
+              </Card>
+              {/* Pseudo-element for the hover effect without layout shift */}
+              <div className="absolute inset-0 pointer-events-none border-2 border-transparent rounded-lg hover:border-red-500 transition-colors duration-200"></div>
+            </div>
 
             <Button className="w-full" type="submit" disabled={loading}>
               {loading ? "Posting..." : "Post Item"}

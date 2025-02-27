@@ -270,7 +270,7 @@ const PostItem = () => {
             </div>
 
             <Card 
-              className="w-full flex items-center gap-4 p-4 hover:bg-accent transition-colors cursor-pointer bg-gray-50 border-primary/10 shadow-sm border-red-500 border-2"
+              className="w-full flex items-center gap-4 p-4 transition-all duration-200 cursor-pointer bg-gray-50 border-primary/10 shadow-sm hover:border-red-500 hover:border-2"
               onClick={handlePromoteItem}
             >
               <div className="rounded-full bg-primary/5 p-2">

@@ -21,6 +21,7 @@ import Settings from "./pages/Settings";
 import PaymentMethods from "./pages/PaymentMethods";
 import HelpSupport from "./pages/HelpSupport";
 import Channels from "./pages/Channels";
+import Cart from "./pages/Cart";
 
 const queryClient = new QueryClient();
 
@@ -48,6 +49,7 @@ const App = () => (
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/payment-methods" element={<PaymentMethods />} />
                 <Route path="/help-support" element={<HelpSupport />} />
+                <Route path="/cart" element={<Cart />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </main>

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ImagePlus, TrendingUp, MapPin, ExternalLink, X } from "lucide-react";
+import { ImagePlus, TrendingUp, MapPin, ExternalLink, X, Minus, Plus } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
 import { toast } from "@/hooks/use-toast";
 import { useState, useEffect, useRef } from "react";
@@ -113,6 +113,12 @@ const PostItem = () => {
 
   const removeImage = (index: number) => {
     setImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const adjustPrice = (amount: number) => {
+    const currentPrice = parseFloat(formData.price) || 0;
+    const newPrice = Math.max(0, currentPrice + amount);
+    setFormData(prev => ({ ...prev, price: newPrice.toString() }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -224,13 +230,34 @@ const PostItem = () => {
 
             <div className="space-y-2">
               <label className="text-sm font-medium">Price</label>
-              <Input 
-                type="number"
-                step="0.01"
-                placeholder="0.00"
-                value={formData.price}
-                onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
-              />
+              <div className="flex items-center space-x-2">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="icon" 
+                  onClick={() => adjustPrice(-1)}
+                  className="h-10 w-10 flex-shrink-0"
+                >
+                  <Minus className="h-4 w-4" />
+                </Button>
+                <Input 
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={formData.price}
+                  onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
+                  className="flex-grow"
+                />
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="icon" 
+                  onClick={() => adjustPrice(1)}
+                  className="h-10 w-10 flex-shrink-0"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
 
             <div className="space-y-2">

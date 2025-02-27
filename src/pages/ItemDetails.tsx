@@ -1,3 +1,4 @@
+
 import { TopBar } from "@/components/TopBar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -6,13 +7,28 @@ import { useLocation, useNavigate, Link } from "react-router-dom";
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const ItemDetails = () => {
   const location = useLocation();
   const isOwner = location.state?.fromProfile ?? false;
   const navigate = useNavigate();
-  const sellerId = "mock-seller-id"; // TODO: Replace with actual seller ID
   const itemId = location.pathname.split('/').pop() || "0";
+
+  // Get item details
+  const { data: item } = useQuery({
+    queryKey: ['item', itemId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('items')
+        .select('*')
+        .eq('id', itemId)
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+  });
 
   // Get view count
   const { data: viewCount } = useQuery({
@@ -41,22 +57,53 @@ const ItemDetails = () => {
     trackView();
   }, [itemId]);
 
+  const handleAddToCart = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        toast.error("Please sign in to add items to cart");
+        navigate('/');
+        return;
+      }
+
+      const { error } = await supabase
+        .from('cart_items')
+        .upsert({
+          user_id: user.id,
+          item_id: itemId,
+          quantity: 1
+        }, {
+          onConflict: 'user_id,item_id'
+        });
+
+      if (error) throw error;
+
+      toast.success("Item added to cart");
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      toast.error("Failed to add item to cart");
+    }
+  };
+
+  if (!item) return null;
+
   return (
     <div className="min-h-screen bg-gray-50">
       <TopBar title="Item Details" />
       <main className="container mx-auto px-4 py-6 space-y-4">
         <Card className="overflow-hidden">
           <img
-            src="https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d"
-            alt="Item"
+            src={item.images?.[0] || "https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d"}
+            alt={item.title}
             className="w-full aspect-video object-cover"
           />
           <div className="p-6 space-y-4">
             <div className="flex justify-between items-start">
               <div>
-                <h1 className="text-2xl font-semibold">Vintage Camera</h1>
+                <h1 className="text-2xl font-semibold">{item.title}</h1>
                 <div className="flex items-center gap-4">
-                  <p className="text-xl font-semibold text-primary">$299</p>
+                  <p className="text-xl font-semibold text-primary">${item.price}</p>
                   <div className="flex items-center gap-1 text-sm text-muted-foreground">
                     <Eye className="h-4 w-4" />
                     <span>{viewCount} views</span>
@@ -67,13 +114,13 @@ const ItemDetails = () => {
             <div>
               <h2 className="font-semibold mb-2">Description</h2>
               <p className="text-muted-foreground">
-                Beautiful vintage camera in excellent condition. Perfect for collectors or photography enthusiasts.
+                {item.description || "No description provided"}
               </p>
             </div>
             <div>
               <h2 className="font-semibold mb-2">Seller</h2>
               <Link 
-                to={`/seller/${sellerId}`}
+                to={`/seller/${item.seller_id}`}
                 className="flex items-center space-x-3 p-2 rounded-lg border border-transparent transition-all duration-200 hover:border-primary/50"
               >
                 <img
@@ -103,7 +150,12 @@ const ItemDetails = () => {
                 <Button size="sm" onClick={() => navigate('/messages')} className="w-full">
                   Contact Seller
                 </Button>
-                <Button size="sm" variant="outline" className="w-full">
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={handleAddToCart}
+                >
                   <ShoppingCart className="h-4 w-4 mr-2" />
                   Add to Cart
                 </Button>

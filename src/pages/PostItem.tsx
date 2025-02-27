@@ -242,8 +242,8 @@ const PostItem = () => {
                 </Button>
                 <Input 
                   type="number"
-                  step="0.01"
-                  placeholder="0.00"
+                  step="1"
+                  placeholder="0"
                   value={formData.price}
                   onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
                   className="flex-grow"

@@ -2,7 +2,7 @@
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
-import { Send, Smile, Paperclip } from "lucide-react";
+import { Send, Smile, Paperclip, X } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ScrollArea } from "@/components/ui/scroll-area";

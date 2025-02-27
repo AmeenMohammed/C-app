@@ -1,10 +1,11 @@
+
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Lock, Globe, MapPin, ExternalLink, Users, Send, Smile, Search } from "lucide-react";
-import { useState } from "react";
+import { Lock, Globe, MapPin, ExternalLink, Users, Send, Smile, Search, Paperclip, X } from "lucide-react";
+import { useState, useRef } from "react";
 import { Slider } from "@/components/ui/slider";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -12,6 +13,13 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import EmojiPicker, { EmojiStyle } from "emoji-picker-react";
 import type { EmojiClickData } from "emoji-picker-react";
+import { toast } from "sonner";
+
+interface MessageAttachment {
+  type: "image" | "video" | "file";
+  url: string;
+  name?: string;
+}
 
 interface Message {
   text: string;
@@ -20,6 +28,7 @@ interface Message {
     name: string;
     avatar?: string;
   };
+  attachment?: MessageAttachment;
 }
 
 interface Channel {
@@ -153,6 +162,8 @@ const Channels = () => {
   const [activeChannel, setActiveChannel] = useState<Channel | null>(null);
   const [newMessage, setNewMessage] = useState("");
   const [channels, setChannels] = useState(SAMPLE_CHANNELS);
+  const [attachment, setAttachment] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const filteredChannels = channels
     .filter(channel => !channel.isJoined)
@@ -174,30 +185,69 @@ const Channels = () => {
 
   const sendMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    if (newMessage.trim() && activeChannel) {
-      const updatedChannels = channels.map(channel => {
-        if (channel.id === activeChannel.id) {
-          return {
-            ...channel,
-            messages: [...(channel.messages || []), {
-              text: newMessage,
-              isMine: true,
-              user: {
-                name: "John Doe",
-                avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=John"
-              }
-            }]
-          };
-        }
-        return channel;
-      });
-      setChannels(updatedChannels);
-      setNewMessage("");
+    if ((!newMessage.trim() && !attachment) || !activeChannel) return;
+
+    const newMsg: Message = {
+      text: newMessage,
+      isMine: true,
+      user: {
+        name: "John Doe",
+        avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=John"
+      }
+    };
+
+    if (attachment) {
+      const url = URL.createObjectURL(attachment);
+      const type = attachment.type.startsWith('image/')
+        ? 'image'
+        : attachment.type.startsWith('video/')
+        ? 'video'
+        : 'file';
+      
+      newMsg.attachment = {
+        type,
+        url,
+        name: attachment.name
+      };
     }
+
+    const updatedChannels = channels.map(channel => {
+      if (channel.id === activeChannel.id) {
+        return {
+          ...channel,
+          messages: [...(channel.messages || []), newMsg]
+        };
+      }
+      return channel;
+    });
+    setChannels(updatedChannels);
+    setNewMessage("");
+    setAttachment(null);
   };
 
   const onEmojiClick = (emojiData: EmojiClickData) => {
     setNewMessage(prev => prev + emojiData.emoji);
+  };
+
+  const handleAttachmentClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 10 * 1024 * 1024) { // 10MB limit
+      toast.error("File is too large. Maximum size is 10MB.");
+      return;
+    }
+
+    setAttachment(file);
+    toast.success(`Attached: ${file.name}`);
+  };
+
+  const removeAttachment = () => {
+    setAttachment(null);
   };
 
   const openGoogleMaps = () => {
@@ -402,6 +452,30 @@ const Channels = () => {
                             : 'text-black'
                         }`}
                       >
+                        {message.attachment && (
+                          <div className="mb-2">
+                            {message.attachment.type === "image" && (
+                              <img 
+                                src={message.attachment.url} 
+                                alt="Attached"
+                                className="rounded-lg max-h-60 object-contain"
+                              />
+                            )}
+                            {message.attachment.type === "video" && (
+                              <video 
+                                src={message.attachment.url} 
+                                controls
+                                className="rounded-lg max-h-60 w-full"
+                              />
+                            )}
+                            {message.attachment.type === "file" && (
+                              <div className="flex items-center gap-2 bg-gray-100 p-2 rounded-lg">
+                                <Paperclip className="h-4 w-4 text-gray-600" />
+                                <span className="text-sm truncate">{message.attachment.name}</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
                         {message.text}
                       </div>
                       {message.isMine && message.user && (
@@ -424,6 +498,22 @@ const Channels = () => {
 
           <div className="fixed bottom-16 left-0 right-0 bg-white shadow-lg border-t">
             <div className="container mx-auto p-3">
+              {attachment && (
+                <div className="flex items-center gap-2 bg-gray-100 p-2 rounded-lg mb-2">
+                  <div className="flex-1 truncate text-sm">
+                    <Paperclip className="h-4 w-4 text-gray-600 inline mr-1" />
+                    {attachment.name}
+                  </div>
+                  <Button 
+                    variant="ghost" 
+                    size="icon"
+                    className="h-6 w-6 rounded-full"
+                    onClick={removeAttachment}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
               <div className="flex items-center gap-2">
                 <Popover>
                   <PopoverTrigger asChild>
@@ -448,6 +538,22 @@ const Channels = () => {
                   </PopoverContent>
                 </Popover>
 
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  className="h-9 w-9 rounded-full"
+                  onClick={handleAttachmentClick}
+                >
+                  <Paperclip className="h-5 w-5 text-muted-foreground" />
+                </Button>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  className="hidden"
+                  onChange={handleFileChange}
+                  accept="image/*,video/*,application/*"
+                />
+
                 <Input
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
@@ -464,7 +570,7 @@ const Channels = () => {
                 <Button 
                   size="icon"
                   onClick={sendMessage}
-                  disabled={!newMessage.trim()}
+                  disabled={!newMessage.trim() && !attachment}
                   className="h-9 w-9 rounded-full"
                 >
                   <Send className="h-5 w-5" />

@@ -1,5 +1,5 @@
 
-import { ArrowLeft, Menu, Bell, Heart, Settings, CreditCard, ArrowUp, LogOut } from "lucide-react";
+import { ArrowLeft, Menu, Bell, Heart, Settings, CreditCard, ArrowUp, LogOut, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import {
@@ -38,7 +38,7 @@ export function TopBar({ title, showBackButton = true, onBackClick }: TopBarProp
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       toast.success("Logged out successfully");
-      navigate("/"); // Changed from "/auth" to "/"
+      navigate("/");
     } catch (error) {
       toast.error("Error logging out");
     }
@@ -69,6 +69,10 @@ export function TopBar({ title, showBackButton = true, onBackClick }: TopBarProp
             <DropdownMenuItem onClick={() => navigate('/notifications')}>
               <Bell className="mr-2 h-4 w-4" />
               Notifications
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate('/cart')}>
+              <ShoppingCart className="mr-2 h-4 w-4" />
+              My Cart
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => navigate('/saved-items')}>
               <Heart className="mr-2 h-4 w-4" />

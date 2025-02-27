@@ -38,7 +38,7 @@ export function TopBar({ title, showBackButton = true, onBackClick }: TopBarProp
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       toast.success("Logged out successfully");
-      navigate("/auth");
+      navigate("/"); // Changed from "/auth" to "/"
     } catch (error) {
       toast.error("Error logging out");
     }

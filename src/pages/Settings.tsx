@@ -21,31 +21,8 @@ const Settings = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const handleLogout = async () => {
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        toast({
-          variant: "destructive",
-          description: "Error logging out. Please try again.",
-        });
-        return;
-      }
-      navigate("/");
-      toast({
-        description: "Successfully logged out",
-      });
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        description: "An unexpected error occurred",
-      });
-    }
-  };
-
   const handleDeleteAccount = async () => {
     try {
-      // Call the delete_user function we just created
       const { error } = await supabase.rpc('delete_user');
       if (error) {
         toast({
@@ -55,7 +32,6 @@ const Settings = () => {
         return;
       }
       
-      // Sign out after successful deletion
       await supabase.auth.signOut();
       navigate("/");
       toast({
@@ -110,13 +86,6 @@ const Settings = () => {
             <h2 className="text-lg font-medium text-destructive">Danger Zone</h2>
             <Separator className="my-4" />
             <div className="space-y-4">
-              <Button 
-                variant="outline" 
-                className="w-full justify-start"
-                onClick={handleLogout}
-              >
-                Logout
-              </Button>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button 

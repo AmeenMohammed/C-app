@@ -62,10 +62,27 @@ const SignUp = () => {
     }
   };
 
-  const handleAppleSignUp = () => {
-    toast({
-      description: "Please connect Apple provider in Supabase to enable Apple sign-in",
-    });
+  const handleAppleSignUp = async () => {
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'apple',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`
+        }
+      });
+
+      if (error) {
+        toast({
+          variant: "destructive",
+          description: error.message,
+        });
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        description: "An error occurred while signing in with Apple.",
+      });
+    }
   };
 
   return (
@@ -150,7 +167,7 @@ const SignUp = () => {
 
         <div className="text-center text-sm">
           Already have an account?{" "}
-          <Link to="/login" className="text-primary hover:underline">
+          <Link to="/" className="text-primary hover:underline">
             Sign In
           </Link>
         </div>

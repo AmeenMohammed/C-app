@@ -1,5 +1,5 @@
 
-import { ArrowLeft, Menu, Bell, Heart, Settings, CreditCard, ArrowUp } from "lucide-react";
+import { ArrowLeft, Menu, Bell, Heart, Settings, CreditCard, ArrowUp, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import {
@@ -7,12 +7,15 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface TopBarProps {
   title: string;
   showBackButton?: boolean;
-  onBackClick?: () => void;  // Added this prop
+  onBackClick?: () => void;
 }
 
 export function TopBar({ title, showBackButton = true, onBackClick }: TopBarProps) {
@@ -28,6 +31,17 @@ export function TopBar({ title, showBackButton = true, onBackClick }: TopBarProp
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleLogout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      toast.success("Logged out successfully");
+      navigate("/auth");
+    } catch (error) {
+      toast.error("Error logging out");
+    }
   };
 
   return (
@@ -67,6 +81,11 @@ export function TopBar({ title, showBackButton = true, onBackClick }: TopBarProp
             <DropdownMenuItem onClick={() => navigate('/payment-methods')}>
               <CreditCard className="mr-2 h-4 w-4" />
               Payment Methods
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleLogout}>
+              <LogOut className="mr-2 h-4 w-4" />
+              Logout
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

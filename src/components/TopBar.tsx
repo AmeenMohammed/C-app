@@ -1,42 +1,76 @@
 
-import { ArrowLeft, Settings2 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { ArrowLeft, Menu, Bell, Heart, Settings, CreditCard, ArrowUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useNavigate } from "react-router-dom";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface TopBarProps {
   title: string;
   showBackButton?: boolean;
+  onBackClick?: () => void;  // Added this prop
 }
 
-export function TopBar({ title, showBackButton = false }: TopBarProps) {
+export function TopBar({ title, showBackButton = true, onBackClick }: TopBarProps) {
   const navigate = useNavigate();
-  const isMobile = useIsMobile();
+
+  const handleBack = () => {
+    if (onBackClick) {
+      onBackClick();
+    } else {
+      navigate(-1);
+    }
+  };
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-14 items-center">
-        <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">
+    <div className="sticky top-0 z-50 bg-white border-b">
+      <div className="container mx-auto px-4 h-14 flex items-center justify-between">
+        <div className="flex items-center">
           {showBackButton && (
-            <Button
-              onClick={() => navigate(-1)}
-              variant="ghost"
-              className="h-auto p-1"
-            >
+            <Button variant="ghost" size="icon" onClick={handleBack}>
               <ArrowLeft className="h-5 w-5" />
             </Button>
           )}
-          <span className="font-semibold">{title}</span>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="ml-auto"
-            onClick={() => navigate("/settings")}
-          >
-            <Settings2 className="h-5 w-5" />
-          </Button>
+          <h1 className="text-lg font-semibold ml-2">{title}</h1>
         </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon">
+              <Menu className="h-5 w-5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={scrollToTop}>
+              <ArrowUp className="mr-2 h-4 w-4" />
+              Move to Top
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate('/notifications')}>
+              <Bell className="mr-2 h-4 w-4" />
+              Notifications
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate('/saved-items')}>
+              <Heart className="mr-2 h-4 w-4" />
+              Saved Items
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate('/settings')}>
+              <Settings className="mr-2 h-4 w-4" />
+              Settings
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate('/payment-methods')}>
+              <CreditCard className="mr-2 h-4 w-4" />
+              Payment Methods
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
-    </header>
+    </div>
   );
 }

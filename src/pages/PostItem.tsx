@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ImagePlus, TrendingUp, MapPin, ExternalLink, X, Paperclip } from "lucide-react";
+import { ImagePlus, TrendingUp, MapPin, ExternalLink, X } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
 import { toast } from "@/hooks/use-toast";
 import { useState, useEffect, useRef } from "react";
@@ -270,14 +270,16 @@ const PostItem = () => {
             </div>
 
             <Card 
-              className="w-full flex items-center gap-4 p-4 hover:bg-accent transition-colors cursor-pointer bg-gradient-to-r from-primary/5 to-primary/10"
+              className="w-full flex items-center gap-4 p-4 hover:bg-accent transition-colors cursor-pointer bg-gray-50 border-primary/10 shadow-sm"
               onClick={handlePromoteItem}
             >
-              <TrendingUp className="h-8 w-8 text-primary" />
+              <div className="rounded-full bg-primary/5 p-2">
+                <TrendingUp className="h-6 w-6 text-primary" />
+              </div>
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-medium">Move to Top</h3>
-                  <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded">10 EGP</span>
+                  <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">10 EGP</span>
                 </div>
                 <p className="text-xs text-muted-foreground">Promote your items for more visibility</p>
               </div>

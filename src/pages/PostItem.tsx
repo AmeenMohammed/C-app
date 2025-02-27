@@ -15,10 +15,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 const PostItem = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const showBackButton = location.state?.from === 'profile';
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [loading, setLoading] = useState(false);
   const [images, setImages] = useState<string[]>([]);
@@ -163,7 +165,7 @@ const PostItem = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-16">
-      <TopBar title="Post New Item" />
+      <TopBar title="Post New Item" showBackButton={showBackButton} />
       <main className="container mx-auto px-4 py-6 space-y-6">
         <Card className="p-6">
           <form className="space-y-6" onSubmit={handleSubmit}>

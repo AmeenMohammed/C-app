@@ -2,8 +2,8 @@
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
-import { Send, Smile } from "lucide-react";
-import { useState, useEffect } from "react";
+import { Send, Smile, Paperclip } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -11,6 +11,7 @@ import EmojiPicker from "emoji-picker-react";
 import type { EmojiClickData } from "emoji-picker-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
 
 interface Message {
   text: string;
@@ -18,6 +19,11 @@ interface Message {
   user?: {
     name: string;
     avatar?: string;
+  };
+  attachment?: {
+    type: "image" | "video" | "file";
+    url: string;
+    name?: string;
   };
 }
 
@@ -38,6 +44,8 @@ const Messages = () => {
   const selectedUserId = searchParams.get("userId");
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [attachment, setAttachment] = useState<File | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([
     {
       id: "sarah",
@@ -150,7 +158,7 @@ const Messages = () => {
   };
 
   const handleSendMessage = () => {
-    if (!newMessage.trim() || !selectedUserId) return;
+    if ((!newMessage.trim() && !attachment) || !selectedUserId) return;
 
     const message: Message = {
       text: newMessage,
@@ -161,12 +169,49 @@ const Messages = () => {
       }
     };
 
+    if (attachment) {
+      const url = URL.createObjectURL(attachment);
+      const type = attachment.type.startsWith('image/')
+        ? 'image'
+        : attachment.type.startsWith('video/')
+        ? 'video'
+        : 'file';
+      
+      message.attachment = {
+        type,
+        url,
+        name: attachment.name
+      };
+    }
+
     setMessages(prev => [...prev, message]);
     setNewMessage("");
+    setAttachment(null);
   };
 
   const onEmojiClick = (emojiData: EmojiClickData) => {
     setNewMessage(prev => prev + emojiData.emoji);
+  };
+
+  const handleAttachmentClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 10 * 1024 * 1024) { // 10MB limit
+      toast.error("File is too large. Maximum size is 10MB.");
+      return;
+    }
+
+    setAttachment(file);
+    toast.success(`Attached: ${file.name}`);
+  };
+
+  const removeAttachment = () => {
+    setAttachment(null);
   };
 
   return (
@@ -235,7 +280,31 @@ const Messages = () => {
                               : 'text-black rounded-bl-sm'
                           }`}
                         >
-                          <span className="text-sm">{message.text}</span>
+                          {message.attachment && (
+                            <div className="mb-2">
+                              {message.attachment.type === "image" && (
+                                <img 
+                                  src={message.attachment.url} 
+                                  alt="Attached"
+                                  className="rounded-lg max-h-60 object-contain"
+                                />
+                              )}
+                              {message.attachment.type === "video" && (
+                                <video 
+                                  src={message.attachment.url} 
+                                  controls
+                                  className="rounded-lg max-h-60 w-full"
+                                />
+                              )}
+                              {message.attachment.type === "file" && (
+                                <div className="flex items-center gap-2 bg-gray-100 p-2 rounded-lg">
+                                  <Paperclip className="h-4 w-4 text-gray-600" />
+                                  <span className="text-sm truncate">{message.attachment.name}</span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          {message.text && <span className="text-sm">{message.text}</span>}
                         </div>
                         {message.isMine && message.user && (
                           <div className="flex items-center justify-end gap-1">
@@ -257,6 +326,22 @@ const Messages = () => {
 
             <div className="fixed bottom-16 left-0 right-0 bg-white shadow-lg border-t">
               <div className="container mx-auto p-3">
+                {attachment && (
+                  <div className="flex items-center gap-2 bg-gray-100 p-2 rounded-lg mb-2">
+                    <div className="flex-1 truncate text-sm">
+                      <Paperclip className="h-4 w-4 text-gray-600 inline mr-1" />
+                      {attachment.name}
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      className="h-6 w-6 rounded-full"
+                      onClick={removeAttachment}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
                 <div className="flex items-center gap-2">
                   <Popover>
                     <PopoverTrigger asChild>
@@ -281,6 +366,22 @@ const Messages = () => {
                     </PopoverContent>
                   </Popover>
 
+                  <Button 
+                    variant="ghost" 
+                    size="icon"
+                    className="h-9 w-9 rounded-full"
+                    onClick={handleAttachmentClick}
+                  >
+                    <Paperclip className="h-5 w-5 text-muted-foreground" />
+                  </Button>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    className="hidden"
+                    onChange={handleFileChange}
+                    accept="image/*,video/*,application/*"
+                  />
+
                   <Input
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
@@ -297,7 +398,7 @@ const Messages = () => {
                   <Button 
                     size="icon"
                     onClick={handleSendMessage}
-                    disabled={!newMessage.trim()}
+                    disabled={!newMessage.trim() && !attachment}
                     className="h-9 w-9 rounded-full"
                   >
                     <Send className="h-5 w-5" />

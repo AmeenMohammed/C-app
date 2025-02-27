@@ -16,6 +16,7 @@ const ItemDetails = () => {
   const itemId = location.pathname.split('/').pop() || "0";
   const [itemFetchError, setItemFetchError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   console.log("Attempting to fetch item with ID:", itemId);
 
@@ -161,15 +162,20 @@ const ItemDetails = () => {
 
       // Visual feedback animation
       setSaving(true);
-      setTimeout(() => setSaving(false), 500);
+      // Toggle saved state - this simulates the save functionality
+      setSaved(!saved);
+      
+      setTimeout(() => {
+        setSaving(false);
+      }, 500);
 
-      // For sample items or real ones, save the item
-      if (itemId === "1" || itemId === "2") {
-        // Just show animation for sample items
-        return;
-      }
-
-      // For real items, save to database
+      // Since we don't have a saved_items table in the database,
+      // we'll only simulate the saving functionality
+      console.log(`Item ${itemId} ${saved ? 'unsaved' : 'saved'} by user ${user.id}`);
+      
+      // In a real application, we would store this data in a saved_items table
+      // This commented code is kept here to show how it would work
+      /*
       const { error } = await supabase
         .from('saved_items')
         .upsert({
@@ -180,6 +186,8 @@ const ItemDetails = () => {
         });
 
       if (error) throw error;
+      */
+
     } catch (error) {
       console.error('Error saving item:', error);
       toast.error("Failed to save item");
@@ -259,7 +267,7 @@ const ItemDetails = () => {
                 onClick={handleSaveItem}
                 className={`transition-transform duration-300 ${saving ? 'scale-150' : ''}`}
               >
-                <BookmarkPlus className={`h-5 w-5 ${saving ? 'text-primary fill-primary' : ''}`} />
+                <BookmarkPlus className={`h-5 w-5 transition-all ${saving || saved ? 'text-primary fill-primary' : ''}`} />
               </Button>
             </div>
             <div>

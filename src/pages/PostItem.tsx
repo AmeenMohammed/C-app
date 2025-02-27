@@ -26,8 +26,6 @@ const PostItem = () => {
   const [loading, setLoading] = useState(false);
   const [images, setImages] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const attachmentInputRef = useRef<HTMLInputElement>(null);
-  const [attachment, setAttachment] = useState<File | null>(null);
   const [formData, setFormData] = useState({
     title: "",
     price: "",
@@ -113,31 +111,6 @@ const PostItem = () => {
     }
   };
 
-  const handleAttachmentClick = () => {
-    attachmentInputRef.current?.click();
-  };
-
-  const handleAttachmentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (file.size > 10 * 1024 * 1024) { // 10MB limit
-      toast({
-        title: "Error",
-        description: "File is too large. Maximum size is 10MB.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setAttachment(file);
-    // Removed the success toast notification
-  };
-
-  const removeAttachment = () => {
-    setAttachment(null);
-  };
-
   const removeImage = (index: number) => {
     setImages(prev => prev.filter((_, i) => i !== index));
   };
@@ -158,25 +131,6 @@ const PostItem = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Not authenticated");
 
-      // First upload attachment if exists
-      let attachmentUrl = null;
-      if (attachment) {
-        const formData = new FormData();
-        formData.append('file', attachment);
-
-        const response = await fetch('https://vttanwzodshofhycuqjr.functions.supabase.co/upload-item-image', {
-          method: 'POST',
-          body: formData,
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`
-          }
-        });
-
-        const data = await response.json();
-        if (data.error) throw new Error(data.error);
-        attachmentUrl = data.url;
-      }
-
       const { error } = await supabase.from('items').insert({
         title: formData.title,
         price: parseFloat(formData.price),
@@ -184,7 +138,6 @@ const PostItem = () => {
         location_range: formData.range[0],
         seller_id: session.user.id,
         images: images,
-        attachment: attachmentUrl,
       });
 
       if (error) throw error;
@@ -307,42 +260,7 @@ const PostItem = () => {
             </div>
 
             <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <label className="text-sm font-medium">Description</label>
-                <Button 
-                  type="button"
-                  variant="ghost" 
-                  size="sm"
-                  className="h-8 px-2"
-                  onClick={handleAttachmentClick}
-                >
-                  <Paperclip className="h-4 w-4 mr-1" />
-                  <span className="text-xs">Attach</span>
-                </Button>
-                <input
-                  type="file"
-                  ref={attachmentInputRef}
-                  className="hidden"
-                  onChange={handleAttachmentChange}
-                  accept="image/*,video/*,application/*"
-                />
-              </div>
-              {attachment && (
-                <div className="flex items-center gap-2 bg-gray-100 p-2 rounded-lg">
-                  <div className="flex-1 truncate text-sm">
-                    <Paperclip className="h-4 w-4 text-gray-600 inline mr-1" />
-                    {attachment.name}
-                  </div>
-                  <Button 
-                    variant="ghost" 
-                    size="icon"
-                    className="h-6 w-6"
-                    onClick={removeAttachment}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              )}
+              <label className="text-sm font-medium">Description</label>
               <Textarea 
                 placeholder="Describe your item..." 
                 className="min-h-[100px]"

@@ -60,6 +60,45 @@ export type Database = {
         }
         Relationships: []
       }
+      items: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          images: string[] | null
+          location_range: number
+          price: number
+          promoted: boolean | null
+          promoted_at: string | null
+          seller_id: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          images?: string[] | null
+          location_range: number
+          price: number
+          promoted?: boolean | null
+          promoted_at?: string | null
+          seller_id: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          images?: string[] | null
+          location_range?: number
+          price?: number
+          promoted?: boolean | null
+          promoted_at?: string | null
+          seller_id?: string
+          title?: string
+        }
+        Relationships: []
+      }
       purchases: {
         Row: {
           buyer_id: string

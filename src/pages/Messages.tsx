@@ -1,4 +1,3 @@
-
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
@@ -40,17 +39,16 @@ interface Conversation {
 }
 
 const Messages = () => {
-  const { id: sellerId } = useParams<{ id: string }>();
+  const { id } = useParams<{ id: string }>();
   const location = useLocation();
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const selectedUserId = searchParams.get("userId") || sellerId;
+  const [searchParams] = useSearchParams();
+  const selectedUserId = id || searchParams.get("userId");
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [attachment, setAttachment] = useState<File | null>(null);
   
-  // Get seller info from location state if available
   const sellerInfo = location.state || {};
   const { sellerName, sellerPhoto, itemId, itemTitle } = sellerInfo;
   
@@ -97,7 +95,6 @@ const Messages = () => {
       unread: true,
       unreadCount: 1
     },
-    // Add sample-seller to conversations list to handle sample data
     {
       id: "sample-seller",
       user: {
@@ -110,13 +107,12 @@ const Messages = () => {
     }
   ]);
 
-  // Add dynamic conversation if it doesn't exist
   useEffect(() => {
-    if (sellerId && !conversations.some(c => c.id === sellerId) && sellerName) {
+    if (selectedUserId && !conversations.some(c => c.id === selectedUserId) && sellerName) {
       setConversations(prev => [
         ...prev,
         {
-          id: sellerId,
+          id: selectedUserId,
           user: {
             name: sellerName,
             avatar: sellerPhoto
@@ -127,10 +123,12 @@ const Messages = () => {
         }
       ]);
     }
-  }, [sellerId, sellerName, sellerPhoto, itemTitle]);
+  }, [selectedUserId, sellerName, sellerPhoto, itemTitle]);
 
   useEffect(() => {
     if (selectedUserId) {
+      const selectedConversation = conversations.find(c => c.id === selectedUserId);
+      
       if (selectedUserId === "sarah") {
         setMessages([
           { 
@@ -185,36 +183,24 @@ const Messages = () => {
             }
           }
         ]);
-      } else {
-        // For any other conversation (including direct navigation), show empty chat or starter message
-        const selectedConversation = conversations.find(c => c.id === selectedUserId);
-        
-        if (selectedConversation) {
-          // If item information was passed, create a starter message
-          if (itemId && itemTitle) {
-            setMessages([
-              {
-                text: `Hi! I'm interested in your item: ${itemTitle}`,
-                isMine: true,
-                user: {
-                  name: "John Doe", 
-                  avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=John"
-                }
+      } else if (selectedConversation || sellerName) {
+        if (itemId && itemTitle) {
+          setMessages([
+            {
+              text: `Hi! I'm interested in your item: ${itemTitle}`,
+              isMine: true,
+              user: {
+                name: "John Doe", 
+                avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=John"
               }
-            ]);
-          } else {
-            setMessages([]);
-          }
+            }
+          ]);
         } else {
-          // If conversation doesn't exist yet but we have seller info
-          if (sellerName) {
-            setMessages([]);
-          } else {
-            // Redirect to messages list if seller doesn't exist
-            toast.error("Conversation not found");
-            navigate('/messages');
-          }
+          setMessages([]);
         }
+      } else {
+        toast.error("Conversation not found");
+        navigate('/messages');
       }
     } else {
       setMessages([]);
@@ -222,7 +208,6 @@ const Messages = () => {
   }, [selectedUserId, itemId, itemTitle, sellerName, navigate, conversations]);
 
   const selectConversation = (userId: string) => {
-    // Clear URL parameter and use routing instead
     navigate(`/messages/${userId}`);
   };
 
@@ -276,7 +261,6 @@ const Messages = () => {
     }
 
     setAttachment(file);
-    // Removed the success toast notification
   };
 
   const removeAttachment = () => {

@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Home, ArrowLeft, MessageCircle } from "lucide-react";
+import { toast } from "sonner";
 
 const NotFound = () => {
   const location = useLocation();
@@ -18,8 +19,20 @@ const NotFound = () => {
     if (location.pathname.startsWith('/messages/')) {
       const sellerId = location.pathname.split('/messages/')[1];
       console.log("Attempted to access messages with seller ID:", sellerId);
+      
+      // Navigate to the Messages page with the seller ID as a state parameter
+      navigate('/messages', { 
+        state: { 
+          sellerId, 
+          sellerName: "Unknown Seller",
+          sellerPhoto: `https://api.dicebear.com/7.x/avatars/svg?seed=${sellerId}`
+        },
+        replace: true
+      });
+      
+      toast.info("Starting a new conversation");
     }
-  }, [location.pathname]);
+  }, [location.pathname, navigate]);
 
   const goBack = () => {
     navigate(-1);

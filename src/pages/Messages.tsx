@@ -4,7 +4,7 @@ import { BottomNav } from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
 import { Send, Smile, Paperclip, X } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
-import { useSearchParams, useParams, useLocation, useNavigate } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import EmojiPicker from "emoji-picker-react";
@@ -40,19 +40,12 @@ interface Conversation {
 }
 
 const Messages = () => {
-  const { id } = useParams<{ id: string }>();
-  const location = useLocation();
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const selectedUserId = id || searchParams.get("userId") || (location.state?.sellerId);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const selectedUserId = searchParams.get("userId");
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [attachment, setAttachment] = useState<File | null>(null);
-  
-  const sellerInfo = location.state || {};
-  const { sellerName, sellerPhoto, itemId, itemTitle } = sellerInfo;
-  
   const [conversations, setConversations] = useState<Conversation[]>([
     {
       id: "sarah",
@@ -95,53 +88,11 @@ const Messages = () => {
       timestamp: "3 days ago",
       unread: true,
       unreadCount: 1
-    },
-    {
-      id: "sample-seller",
-      user: {
-        name: sellerName || "Sample Seller",
-        avatar: sellerPhoto || "https://api.dicebear.com/7.x/avatars/svg?seed=Seller"
-      },
-      lastMessage: itemTitle ? `About: ${itemTitle}` : "Hi, I'm interested in your item",
-      timestamp: "Just now",
-      unread: false
     }
   ]);
 
-  // If we have a sellerId from the location state but no id in the URL,
-  // update the URL to include the seller ID for a better user experience
-  useEffect(() => {
-    if (location.state?.sellerId && !id) {
-      navigate(`/messages/${location.state.sellerId}`, { 
-        state: location.state,
-        replace: true 
-      });
-    }
-  }, [location.state, id, navigate]);
-
-  useEffect(() => {
-    // Add the seller to conversations if they don't exist yet
-    if (selectedUserId && !conversations.some(c => c.id === selectedUserId)) {
-      const newConversation = {
-        id: selectedUserId,
-        user: {
-          name: sellerName || "Unknown Seller",
-          avatar: sellerPhoto || `https://api.dicebear.com/7.x/avatars/svg?seed=${selectedUserId}`
-        },
-        lastMessage: itemTitle ? `About: ${itemTitle}` : "New conversation",
-        timestamp: "Just now",
-        unread: false
-      };
-      
-      setConversations(prev => [...prev, newConversation]);
-      console.log(`Added new conversation for seller ID: ${selectedUserId}`);
-    }
-  }, [selectedUserId, sellerName, sellerPhoto, itemTitle, conversations]);
-
   useEffect(() => {
     if (selectedUserId) {
-      const selectedConversation = conversations.find(c => c.id === selectedUserId);
-      
       if (selectedUserId === "sarah") {
         setMessages([
           { 
@@ -196,44 +147,14 @@ const Messages = () => {
             }
           }
         ]);
-      } else if (selectedConversation || sellerName) {
-        // For sample-seller or any other seller
-        if (itemId && itemTitle) {
-          setMessages([
-            {
-              text: `Hi! I'm interested in your item: ${itemTitle}`,
-              isMine: true,
-              user: {
-                name: "John Doe", 
-                avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=John"
-              }
-            }
-          ]);
-        } else {
-          // Start with an empty conversation or a default message
-          setMessages([
-            {
-              text: "Hi! I'm interested in connecting with you.",
-              isMine: true,
-              user: {
-                name: "John Doe",
-                avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=John"
-              }
-            }
-          ]);
-        }
-      } else {
-        // If no conversation exists and we have no seller info, show an error
-        toast.error("Conversation not found");
-        navigate('/messages');
       }
     } else {
       setMessages([]);
     }
-  }, [selectedUserId, itemId, itemTitle, sellerName, navigate, conversations]);
+  }, [selectedUserId]);
 
   const selectConversation = (userId: string) => {
-    navigate(`/messages/${userId}`);
+    setSearchParams({ userId });
   };
 
   const handleSendMessage = () => {
@@ -286,6 +207,7 @@ const Messages = () => {
     }
 
     setAttachment(file);
+    // Removed the success toast notification
   };
 
   const removeAttachment = () => {
@@ -294,20 +216,7 @@ const Messages = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <TopBar 
-        title={selectedUserId 
-          ? (conversations.find(c => c.id === selectedUserId)?.user.name || "Chat") 
-          : "My Messages"
-        } 
-        showBackButton={true} 
-        onBackClick={() => {
-          if (selectedUserId) {
-            navigate('/messages');
-          } else {
-            navigate(-1);
-          }
-        }}
-      />
+      <TopBar title="My Messages" showBackButton={selectedUserId !== null} />
       
       <main className="flex-1 container mx-auto px-2 py-4 overflow-hidden flex flex-col pb-32">
         {!selectedUserId ? (

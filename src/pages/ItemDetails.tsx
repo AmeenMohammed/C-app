@@ -1,4 +1,3 @@
-
 import { TopBar } from "@/components/TopBar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -20,14 +19,11 @@ const ItemDetails = () => {
 
   console.log("Attempting to fetch item with ID:", itemId);
 
-  // Get item details
   const { data: item, isLoading, error } = useQuery({
     queryKey: ['item', itemId],
     queryFn: async () => {
       try {
-        // First check if this is a sample item from ItemGrid
         if (itemId === "1" || itemId === "2") {
-          // Return hardcoded sample item for demo purposes
           console.log("Using sample item data for ID:", itemId);
           return {
             id: itemId,
@@ -43,7 +39,6 @@ const ItemDetails = () => {
           };
         }
 
-        // Otherwise try to fetch from database
         const { data, error } = await supabase
           .from('items')
           .select('*')
@@ -72,11 +67,9 @@ const ItemDetails = () => {
     retry: false
   });
 
-  // Get view count
   const { data: viewCount } = useQuery({
     queryKey: ['itemViews', itemId],
     queryFn: async () => {
-      // For sample items, return a random number
       if (itemId === "1" || itemId === "2") {
         return Math.floor(Math.random() * 50) + 10;
       }
@@ -87,10 +80,8 @@ const ItemDetails = () => {
     enabled: !!item
   });
 
-  // Track view
   useEffect(() => {
     const trackView = async () => {
-      // Only track views for real database items
       if (itemId === "1" || itemId === "2") return;
       
       const user = (await supabase.auth.getUser()).data.user;
@@ -99,7 +90,7 @@ const ItemDetails = () => {
           item_id: itemId,
           viewer_id: user.id
         }).then(({ error }) => {
-          if (error && error.code !== '23505') { // Ignore unique violation errors
+          if (error && error.code !== '23505') {
             console.error('Error tracking view:', error);
           }
         });
@@ -121,10 +112,9 @@ const ItemDetails = () => {
         return;
       }
 
-      // For sample items, show a toast
       if (itemId === "1" || itemId === "2") {
         toast.success("Sample item added to cart", {
-          duration: 2000 // 2 seconds duration
+          duration: 2000
         });
         return;
       }
@@ -142,7 +132,7 @@ const ItemDetails = () => {
       if (error) throw error;
 
       toast.success("Item added to cart", {
-        duration: 2000 // 2 seconds duration
+        duration: 2000
       });
     } catch (error) {
       console.error('Error adding to cart:', error);
@@ -160,33 +150,14 @@ const ItemDetails = () => {
         return;
       }
 
-      // Visual feedback animation
       setSaving(true);
-      // Toggle saved state - this simulates the save functionality
       setSaved(!saved);
       
       setTimeout(() => {
         setSaving(false);
       }, 500);
 
-      // Since we don't have a saved_items table in the database,
-      // we'll only simulate the saving functionality
       console.log(`Item ${itemId} ${saved ? 'unsaved' : 'saved'} by user ${user.id}`);
-      
-      // In a real application, we would store this data in a saved_items table
-      // This commented code is kept here to show how it would work
-      /*
-      const { error } = await supabase
-        .from('saved_items')
-        .upsert({
-          user_id: user.id,
-          item_id: itemId
-        }, {
-          onConflict: 'user_id,item_id'
-        });
-
-      if (error) throw error;
-      */
 
     } catch (error) {
       console.error('Error saving item:', error);
@@ -306,7 +277,18 @@ const ItemDetails = () => {
               </Button>
             ) : (
               <div className="space-y-2">
-                <Button size="sm" onClick={() => navigate('/messages')} className="w-full">
+                <Button 
+                  size="sm" 
+                  onClick={() => navigate(`/messages/${item.seller_id}`, { 
+                    state: { 
+                      sellerName: "John Doe", 
+                      sellerPhoto: "https://images.unsplash.com/photo-1649972904349-6e44c42644a7",
+                      itemId: item.id,
+                      itemTitle: item.title
+                    } 
+                  })}
+                  className="w-full"
+                >
                   Contact Seller
                 </Button>
                 <Button 

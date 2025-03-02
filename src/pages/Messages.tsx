@@ -44,7 +44,7 @@ const Messages = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const selectedUserId = id || searchParams.get("userId");
+  const selectedUserId = id || searchParams.get("userId") || (location.state?.sellerId);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -107,6 +107,17 @@ const Messages = () => {
       unread: false
     }
   ]);
+
+  // If we have a sellerId from the location state but no id in the URL,
+  // update the URL to include the seller ID for a better user experience
+  useEffect(() => {
+    if (location.state?.sellerId && !id) {
+      navigate(`/messages/${location.state.sellerId}`, { 
+        state: location.state,
+        replace: true 
+      });
+    }
+  }, [location.state, id, navigate]);
 
   useEffect(() => {
     // Add the seller to conversations if they don't exist yet

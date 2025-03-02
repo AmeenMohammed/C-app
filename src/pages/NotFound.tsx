@@ -20,8 +20,9 @@ const NotFound = () => {
       const sellerId = location.pathname.split('/messages/')[1];
       console.log("Attempted to access messages with seller ID:", sellerId);
       
-      // Navigate to the Messages page with the seller ID as a state parameter
-      navigate('/messages', { 
+      // Navigate directly to the seller's chat page with the seller ID in the URL
+      // This will ensure we're showing the chat interface instead of the messages list
+      navigate(`/messages/${sellerId}`, { 
         state: { 
           sellerId, 
           sellerName: "Unknown Seller",

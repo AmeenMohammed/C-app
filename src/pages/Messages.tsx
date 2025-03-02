@@ -4,7 +4,7 @@ import { BottomNav } from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
 import { Send, Smile, Paperclip, X } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useParams, useLocation, useNavigate } from "react-router-dom";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import EmojiPicker from "emoji-picker-react";
@@ -40,12 +40,20 @@ interface Conversation {
 }
 
 const Messages = () => {
+  const { id: sellerId } = useParams<{ id: string }>();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const selectedUserId = searchParams.get("userId");
+  const selectedUserId = searchParams.get("userId") || sellerId;
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [attachment, setAttachment] = useState<File | null>(null);
+  
+  // Get seller info from location state if available
+  const sellerInfo = location.state || {};
+  const { sellerName, sellerPhoto, itemId, itemTitle } = sellerInfo;
+  
   const [conversations, setConversations] = useState<Conversation[]>([
     {
       id: "sarah",
@@ -88,8 +96,38 @@ const Messages = () => {
       timestamp: "3 days ago",
       unread: true,
       unreadCount: 1
+    },
+    // Add sample-seller to conversations list to handle sample data
+    {
+      id: "sample-seller",
+      user: {
+        name: sellerName || "John Doe",
+        avatar: sellerPhoto || "https://api.dicebear.com/7.x/avatars/svg?seed=John"
+      },
+      lastMessage: itemTitle ? `About: ${itemTitle}` : "Hi, I'm interested in your item",
+      timestamp: "Just now",
+      unread: false
     }
   ]);
+
+  // Add dynamic conversation if it doesn't exist
+  useEffect(() => {
+    if (sellerId && !conversations.some(c => c.id === sellerId) && sellerName) {
+      setConversations(prev => [
+        ...prev,
+        {
+          id: sellerId,
+          user: {
+            name: sellerName,
+            avatar: sellerPhoto
+          },
+          lastMessage: itemTitle ? `About: ${itemTitle}` : "New conversation",
+          timestamp: "Just now",
+          unread: false
+        }
+      ]);
+    }
+  }, [sellerId, sellerName, sellerPhoto, itemTitle]);
 
   useEffect(() => {
     if (selectedUserId) {
@@ -147,14 +185,45 @@ const Messages = () => {
             }
           }
         ]);
+      } else {
+        // For any other conversation (including direct navigation), show empty chat or starter message
+        const selectedConversation = conversations.find(c => c.id === selectedUserId);
+        
+        if (selectedConversation) {
+          // If item information was passed, create a starter message
+          if (itemId && itemTitle) {
+            setMessages([
+              {
+                text: `Hi! I'm interested in your item: ${itemTitle}`,
+                isMine: true,
+                user: {
+                  name: "John Doe", 
+                  avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=John"
+                }
+              }
+            ]);
+          } else {
+            setMessages([]);
+          }
+        } else {
+          // If conversation doesn't exist yet but we have seller info
+          if (sellerName) {
+            setMessages([]);
+          } else {
+            // Redirect to messages list if seller doesn't exist
+            toast.error("Conversation not found");
+            navigate('/messages');
+          }
+        }
       }
     } else {
       setMessages([]);
     }
-  }, [selectedUserId]);
+  }, [selectedUserId, itemId, itemTitle, sellerName, navigate, conversations]);
 
   const selectConversation = (userId: string) => {
-    setSearchParams({ userId });
+    // Clear URL parameter and use routing instead
+    navigate(`/messages/${userId}`);
   };
 
   const handleSendMessage = () => {
@@ -216,7 +285,17 @@ const Messages = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <TopBar title="My Messages" showBackButton={selectedUserId !== null} />
+      <TopBar 
+        title={selectedUserId ? (conversations.find(c => c.id === selectedUserId)?.user.name || "Chat") : "My Messages"} 
+        showBackButton={true} 
+        onBackClick={() => {
+          if (selectedUserId) {
+            navigate('/messages');
+          } else {
+            navigate(-1);
+          }
+        }}
+      />
       
       <main className="flex-1 container mx-auto px-2 py-4 overflow-hidden flex flex-col pb-32">
         {!selectedUserId ? (

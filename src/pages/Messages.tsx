@@ -4,7 +4,7 @@ import { BottomNav } from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
 import { Send, Smile, Paperclip, X } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useLocation } from "react-router-dom";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import EmojiPicker from "emoji-picker-react";
@@ -41,6 +41,7 @@ interface Conversation {
 
 const Messages = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
   const selectedUserId = searchParams.get("userId");
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
@@ -90,6 +91,40 @@ const Messages = () => {
       unreadCount: 1
     }
   ]);
+
+  // Handle the case where a new conversation needs to be created
+  useEffect(() => {
+    // Check if we have seller information in the location state
+    const sellerInfo = location.state as { 
+      sellerId?: string; 
+      sellerName?: string; 
+      sellerAvatar?: string; 
+    } | null;
+
+    if (sellerInfo?.sellerId && selectedUserId) {
+      // Check if this seller is already in our conversations list
+      const existingConversation = conversations.find(conv => conv.id === sellerInfo.sellerId);
+      
+      if (!existingConversation && sellerInfo.sellerName) {
+        // Add this seller to our conversations list
+        const newConversation: Conversation = {
+          id: sellerInfo.sellerId,
+          user: {
+            name: sellerInfo.sellerName,
+            avatar: sellerInfo.sellerAvatar
+          },
+          lastMessage: "Start a conversation...",
+          timestamp: "Just now",
+          unread: false
+        };
+        
+        setConversations(prev => [newConversation, ...prev]);
+        
+        // Start with an empty message list for this new conversation
+        setMessages([]);
+      }
+    }
+  }, [location.state, selectedUserId]);
 
   useEffect(() => {
     if (selectedUserId) {
@@ -147,6 +182,9 @@ const Messages = () => {
             }
           }
         ]);
+      } else if (selectedUserId === "sample-seller" || selectedUserId === "emma" || selectedUserId === "david") {
+        // For new conversations, start with empty messages
+        setMessages([]);
       }
     } else {
       setMessages([]);
@@ -185,6 +223,22 @@ const Messages = () => {
     }
 
     setMessages(prev => [...prev, message]);
+    
+    // Update the last message in the conversations list
+    setConversations(prev => 
+      prev.map(conv => 
+        conv.id === selectedUserId 
+          ? {
+              ...conv,
+              lastMessage: newMessage || 'Sent an attachment',
+              timestamp: 'Just now',
+              unread: false,
+              unreadCount: 0
+            }
+          : conv
+      )
+    );
+    
     setNewMessage("");
     setAttachment(null);
   };
@@ -207,7 +261,6 @@ const Messages = () => {
     }
 
     setAttachment(file);
-    // Removed the success toast notification
   };
 
   const removeAttachment = () => {
@@ -321,6 +374,15 @@ const Messages = () => {
                     </div>
                   </div>
                 ))}
+                
+                {messages.length === 0 && selectedUserId && (
+                  <div className="flex items-center justify-center h-32">
+                    <p className="text-muted-foreground text-sm">
+                      Start the conversation with{" "}
+                      {conversations.find(c => c.id === selectedUserId)?.user.name || "this seller"}
+                    </p>
+                  </div>
+                )}
               </div>
             </ScrollArea>
 

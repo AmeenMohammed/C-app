@@ -78,7 +78,14 @@ const SellerProfile = () => {
   const handleContact = (method: string) => {
     switch (method) {
       case "message":
-        navigate('/messages');
+        // Navigate to messages with the seller ID
+        navigate(`/messages?userId=${id}`, { 
+          state: { 
+            sellerId: id,
+            sellerName: seller.name,
+            sellerAvatar: seller.photoUrl 
+          } 
+        });
         break;
       case "email":
         // In a real app, we'd use the seller's actual email

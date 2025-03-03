@@ -1,153 +1,141 @@
-import { Card } from "@/components/ui/card";
-import { Link } from "react-router-dom";
-import { BookmarkPlus, MessageSquare, Eye, Share2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+
 import { useState } from "react";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Share2 } from "lucide-react";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
-const SAMPLE_ITEMS = [
-  {
-    id: "1",
-    title: "Vintage Camera",
-    price: 299,
-    image: "https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d",
-  },
-  {
-    id: "2",
-    title: "Laptop Stand",
-    price: 49,
-    image: "https://images.unsplash.com/photo-1519389950473-47ba0277781c",
-  },
-];
+interface Item {
+  id: string;
+  title: string;
+  price: number;
+  images: string[];
+  description: string;
+  created_at: string;
+  user_id: string;
+  seller?: {
+    id: string;
+    avatar_url?: string;
+    full_name?: string;
+  };
+}
 
 export function ItemGrid() {
-  const { toast } = useToast();
-  const [savingItems, setSavingItems] = useState<Record<string, boolean>>({});
-
-  // Get view counts for all items
-  const { data: viewCounts } = useQuery({
-    queryKey: ['itemViews'],
-    queryFn: async () => {
-      const viewPromises = SAMPLE_ITEMS.map(async (item) => {
-        const { data } = await supabase.rpc('get_item_views', { item_uuid: item.id });
-        return { itemId: item.id, views: data ?? 0 };
-      });
-      const counts = await Promise.all(viewPromises);
-      return Object.fromEntries(counts.map(({ itemId, views }) => [itemId, views]));
+  const [items, setItems] = useState<Item[]>([
+    {
+      id: "1",
+      title: "Leather Sofa",
+      price: 599,
+      images: ["/lovable-uploads/7edf0965-8425-4b93-8de6-785450ba27ae.png"],
+      description: "Comfortable genuine leather sofa in excellent condition",
+      created_at: "2023-05-12T10:30:00Z",
+      user_id: "seller1",
+      seller: {
+        id: "seller1",
+        avatar_url: "/lovable-uploads/e6019a3b-61c9-4472-b3d8-808cef7cf0f2.png",
+        full_name: "Sarah Johnson",
+      },
     },
-  });
+    {
+      id: "2",
+      title: "iPhone 14 Pro",
+      price: 899,
+      images: ["/lovable-uploads/c8617c56-ede7-48cb-bc22-a12dda207d7e.png"],
+      description: "Like new iPhone 14 Pro 256GB, Space Black",
+      created_at: "2023-05-15T14:22:00Z",
+      user_id: "seller2",
+      seller: {
+        id: "seller2",
+        avatar_url: "/lovable-uploads/3377430e-f8c5-449c-a4cc-b797f7e85b18.png",
+        full_name: "Mike Chen",
+      },
+    },
+    {
+      id: "3",
+      title: "Mountain Bike",
+      price: 450,
+      images: ["/lovable-uploads/6c6ec4d4-1993-41ce-9a5c-8ac84ca16177.png"],
+      description: "Trek mountain bike, 21 speed, barely used",
+      created_at: "2023-05-18T09:15:00Z",
+      user_id: "seller3",
+      seller: {
+        id: "seller3",
+        avatar_url: "/lovable-uploads/e6019a3b-61c9-4472-b3d8-808cef7cf0f2.png",
+        full_name: "Alex Smith",
+      },
+    },
+  ]);
 
-  const handleSave = (e: React.MouseEvent, itemId: string) => {
-    e.preventDefault(); // Prevent navigation
-    
-    // Show animation
-    setSavingItems(prev => ({ ...prev, [itemId]: true }));
-    setTimeout(() => {
-      setSavingItems(prev => ({ ...prev, [itemId]: false }));
-    }, 500);
-  };
-
-  const handleContact = (e: React.MouseEvent, itemId: string) => {
-    e.preventDefault(); // Prevent navigation
-    toast({
-      description: "Opening chat with seller...",
-    });
-  };
-
-  const handleShare = (e: React.MouseEvent, itemId: string, title: string) => {
-    e.preventDefault(); // Prevent navigation
-
-    // Check if Web Share API is available
-    if (navigator.share) {
-      navigator.share({
-        title: title,
-        text: `Check out this item: ${title}`,
-        url: `${window.location.origin}/items/${itemId}`,
-      })
-      .then(() => toast.success("Shared successfully"))
-      .catch((error) => {
-        console.error('Error sharing:', error);
-        toast.error("Error sharing item");
-      });
-    } else {
-      // Fallback for browsers that don't support the Web Share API
-      navigator.clipboard.writeText(`${window.location.origin}/items/${itemId}`)
-        .then(() => toast.success("Link copied to clipboard"))
-        .catch(() => toast.error("Failed to copy link"));
-    }
-  };
-
-  const trackView = async (itemId: string) => {
-    const user = (await supabase.auth.getUser()).data.user;
-    if (user) {
-      await supabase.from('item_views').insert({
-        item_id: itemId,
-        viewer_id: user.id
-      }).then(({ error }) => {
-        if (error && error.code !== '23505') { // Ignore unique violation errors
-          console.error('Error tracking view:', error);
-        }
-      });
+  const handleShare = async (item: Item) => {
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: item.title,
+          text: `Check out this ${item.title} for $${item.price}`,
+          url: `${window.location.origin}/items/${item.id}`,
+        });
+        toast.success("Shared successfully!");
+      } else {
+        // Fallback for browsers that don't support the Web Share API
+        navigator.clipboard.writeText(`${window.location.origin}/items/${item.id}`);
+        toast.success("Link copied to clipboard!");
+      }
+    } catch (error) {
+      console.error("Error sharing:", error);
+      toast.error("Failed to share item");
     }
   };
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-      {SAMPLE_ITEMS.map((item) => (
-        <Link 
-          key={item.id} 
-          to={`/items/${item.id}`}
-          onClick={() => trackView(item.id)}
-        >
-          <Card className="overflow-hidden relative group">
-            <div className="absolute top-2 right-2 flex gap-2 z-10">
-              <Button
-                variant="secondary"
-                size="icon"
-                className={`h-8 w-8 opacity-0 group-hover:opacity-100 transition-all ${savingItems[item.id] ? 'opacity-100 scale-125' : ''}`}
-                onClick={(e) => handleSave(e, item.id)}
-              >
-                <BookmarkPlus className={`h-4 w-4 transition-all ${savingItems[item.id] ? 'text-primary fill-primary' : ''}`} />
-              </Button>
-              <Button
-                variant="secondary"
-                size="icon"
-                className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                onClick={(e) => handleContact(e, item.id)}
-              >
-                <MessageSquare className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="secondary"
-                size="icon"
-                className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                onClick={(e) => handleShare(e, item.id, item.title)}
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {items.map((item) => (
+        <Card key={item.id} className="overflow-hidden">
+          <Link to={`/items/${item.id}`} className="block">
+            {item.images?.[0] && (
+              <img
+                src={item.images[0]}
+                alt={item.title}
+                className="w-full h-48 object-cover"
+              />
+            )}
+          </Link>
+          <div className="p-4">
+            <div className="flex justify-between items-start">
+              <Link to={`/items/${item.id}`} className="block">
+                <h3 className="font-medium text-lg">{item.title}</h3>
+                <p className="text-green-600 font-bold">${item.price}</p>
+              </Link>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8"
+                onClick={() => handleShare(item)}
               >
                 <Share2 className="h-4 w-4" />
               </Button>
             </div>
-            <div className="relative pb-[100%]">
-              <img
-                src={item.image}
-                alt={item.title}
-                className="absolute inset-0 w-full h-full object-cover"
-              />
-            </div>
-            <div className="p-3">
-              <h3 className="font-medium text-sm leading-tight truncate">{item.title}</h3>
-              <div className="flex justify-between items-center mt-1">
-                <p className="text-sm leading-tight text-muted-foreground">${item.price}</p>
-                <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                  <Eye className="h-4 w-4" />
-                  <span>{viewCounts?.[item.id] ?? 0}</span>
+            <p className="text-gray-500 text-sm line-clamp-2 mt-1">
+              {item.description}
+            </p>
+            {item.seller && (
+              <Link to={`/seller/${item.seller.id}`} className="flex items-center mt-3">
+                <div className="story-ring-viewed w-6 h-6">
+                  {item.seller.avatar_url && (
+                    <img
+                      src={item.seller.avatar_url}
+                      alt={item.seller.full_name || "Seller"}
+                      className="rounded-full w-full h-full object-cover"
+                    />
+                  )}
                 </div>
-              </div>
-            </div>
-          </Card>
-        </Link>
+                <span className="text-xs text-gray-500 ml-2">
+                  {item.seller.full_name || "Anonymous Seller"}
+                </span>
+              </Link>
+            )}
+          </div>
+        </Card>
       ))}
     </div>
   );

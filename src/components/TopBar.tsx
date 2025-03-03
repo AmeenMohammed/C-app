@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { Logo } from "./Logo";
 
 interface TopBarProps {
   title: string;
@@ -47,13 +48,15 @@ export function TopBar({ title, showBackButton = true, onBackClick }: TopBarProp
   return (
     <div className="sticky top-0 z-50 bg-white border-b">
       <div className="container mx-auto px-4 h-14 flex items-center justify-between">
-        <div className="flex items-center">
-          {showBackButton && (
+        <div className="flex items-center gap-2">
+          {showBackButton ? (
             <Button variant="ghost" size="icon" onClick={handleBack}>
               <ArrowLeft className="h-5 w-5" />
             </Button>
+          ) : (
+            <Logo className="mr-2" />
           )}
-          <h1 className="text-lg font-semibold ml-2">{title}</h1>
+          <h1 className="text-lg font-semibold">{title}</h1>
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -72,7 +75,7 @@ export function TopBar({ title, showBackButton = true, onBackClick }: TopBarProp
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => navigate('/cart')}>
               <ShoppingCart className="mr-2 h-4 w-4" />
-              My Cart
+              Cart
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => navigate('/saved-items')}>
               <Heart className="mr-2 h-4 w-4" />

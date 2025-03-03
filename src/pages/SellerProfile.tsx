@@ -1,12 +1,12 @@
 
+import { useParams, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { TopBar } from "@/components/TopBar";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ItemGrid } from "@/components/ItemGrid";
+import { Shield, UserX } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
-import { Button } from "@/components/ui/button";
-import { MapPin, Star, StarHalf } from "lucide-react";
-import { useParams, useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
@@ -21,209 +21,233 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-interface SellerRatings {
-  average_rating: number;
-  total_ratings: number;
-  five_star_count: number;
-  four_star_count: number;
-  three_star_count: number;
-  two_star_count: number;
-  one_star_count: number;
-}
-
 const SellerProfile = () => {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [seller, setSeller] = useState({
-    name: "",
-    photoUrl: "",
-    location: "",
-    joinDate: "",
-  });
-  const [ratings, setRatings] = useState<SellerRatings | null>(null);
+  const [seller, setSeller] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isBlocked, setIsBlocked] = useState(false);
-  const [isBlockDialogOpen, setIsBlockDialogOpen] = useState(false);
 
   useEffect(() => {
-    const fetchSellerDetails = async () => {
-      if (!id) return;
-
-      // Fetch seller ratings
-      const { data: ratingData, error: ratingError } = await supabase
-        .rpc('get_seller_ratings', { seller_uuid: id });
-
-      if (ratingError) {
-        console.error('Error fetching ratings:', ratingError);
-      } else {
-        setRatings(ratingData[0]);
+    const fetchCurrentUser = async () => {
+      const { data } = await supabase.auth.getUser();
+      if (data?.user) {
+        setCurrentUserId(data.user.id);
+        checkIfBlocked(data.user.id);
       }
-
-      // Check if seller is blocked
-      const user = (await supabase.auth.getUser()).data.user;
-      if (user) {
-        const { data: blockData } = await supabase
-          .from('blocked_users')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('blocked_user_id', id)
-          .single();
-        
-        setIsBlocked(!!blockData);
-      }
-
-      // TODO: Fetch seller profile details once profiles table is implemented
-      // For now using mock data
-      setSeller({
-        name: "John Doe",
-        photoUrl: "https://images.unsplash.com/photo-1649972904349-6e44c42644a7",
-        location: "New York, NY",
-        joinDate: "2024",
-      });
     };
 
-    fetchSellerDetails();
+    fetchCurrentUser();
+  }, []);
+
+  useEffect(() => {
+    const fetchSellerInfo = async () => {
+      try {
+        // Here we would normally fetch the seller data
+        // For now, let's use dummy data
+        setTimeout(() => {
+          setSeller({
+            id: id,
+            name: "John Doe",
+            avatar: "/lovable-uploads/e6019a3b-61c9-4472-b3d8-808cef7cf0f2.png",
+            rating: 4.8,
+            reviews: 23,
+            joinDate: "June 2022",
+            listings: 12
+          });
+          setLoading(false);
+        }, 500);
+      } catch (error) {
+        console.error("Error fetching seller:", error);
+        setLoading(false);
+      }
+    };
+
+    if (id) {
+      fetchSellerInfo();
+    }
   }, [id]);
 
-  const renderStars = (rating: number) => {
-    const stars = [];
-    const fullStars = Math.floor(rating);
-    const hasHalfStar = rating % 1 !== 0;
-
-    for (let i = 0; i < fullStars; i++) {
-      stars.push(<Star key={i} className="h-5 w-5 fill-primary text-primary" />);
+  const checkIfBlocked = async (userId: string) => {
+    if (!id) return;
+    
+    try {
+      // Check if user has blocked this seller
+      const { data, error } = await supabase
+        .from('blocked_users')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('blocked_user_id', id);
+      
+      if (error) throw error;
+      
+      setIsBlocked(data && data.length > 0);
+    } catch (error) {
+      console.error("Error checking block status:", error);
     }
-
-    if (hasHalfStar) {
-      stars.push(<StarHalf key="half" className="h-5 w-5 text-primary" />);
-    }
-
-    return stars;
   };
 
   const handleContactSeller = () => {
-    navigate(`/messages?userId=${id}`, { 
-      state: { 
-        sellerId: id,
-        sellerName: seller.name,
-        sellerAvatar: seller.photoUrl 
-      } 
-    });
+    if (!currentUserId) {
+      toast.error("You need to be logged in to contact sellers");
+      navigate("/");
+      return;
+    }
+    
+    if (isBlocked) {
+      toast.error("You have blocked this seller");
+      return;
+    }
+    
+    // Navigate to the messages page with the seller ID
+    navigate(`/messages?seller=${id}`);
   };
 
   const handleBlockUser = async () => {
-    const user = (await supabase.auth.getUser()).data.user;
-    if (!user) {
-      toast.error("You need to be logged in to block users");
-      return;
-    }
-
-    if (isBlocked) {
-      // Unblock user
-      const { error } = await supabase
-        .from('blocked_users')
-        .delete()
-        .eq('user_id', user.id)
-        .eq('blocked_user_id', id);
-
-      if (error) {
-        console.error('Error unblocking user:', error);
-        toast.error("Failed to unblock user");
-      } else {
-        setIsBlocked(false);
-        toast.success(`You've unblocked ${seller.name}`);
-      }
-    } else {
-      // Block user
+    if (!currentUserId || !id) return;
+    
+    try {
+      // Insert a record in the blocked_users table
       const { error } = await supabase
         .from('blocked_users')
         .insert({
-          user_id: user.id,
+          user_id: currentUserId,
           blocked_user_id: id
         });
-
-      if (error) {
-        console.error('Error blocking user:', error);
-        toast.error("Failed to block user");
-      } else {
-        setIsBlocked(true);
-        toast.success(`You've blocked ${seller.name}`);
-      }
+      
+      if (error) throw error;
+      
+      setIsBlocked(true);
+      toast.success("User blocked successfully");
+    } catch (error) {
+      console.error("Error blocking user:", error);
+      toast.error("Failed to block user");
     }
-    
-    setIsBlockDialogOpen(false);
   };
+
+  const handleUnblockUser = async () => {
+    if (!currentUserId || !id) return;
+    
+    try {
+      // Delete the record from blocked_users table
+      const { error } = await supabase
+        .from('blocked_users')
+        .delete()
+        .eq('user_id', currentUserId)
+        .eq('blocked_user_id', id);
+      
+      if (error) throw error;
+      
+      setIsBlocked(false);
+      toast.success("User unblocked successfully");
+    } catch (error) {
+      console.error("Error unblocking user:", error);
+      toast.error("Failed to unblock user");
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 pb-16">
+        <TopBar title="Seller Profile" showBackButton={true} />
+        <main className="container mx-auto px-4 py-6">
+          <div className="animate-pulse">
+            <div className="h-20 bg-gray-200 rounded mb-4"></div>
+            <div className="h-40 bg-gray-200 rounded mb-4"></div>
+          </div>
+        </main>
+        <BottomNav />
+      </div>
+    );
+  }
+
+  if (!seller) {
+    return (
+      <div className="min-h-screen bg-gray-50 pb-16">
+        <TopBar title="Seller Profile" showBackButton={true} />
+        <main className="container mx-auto px-4 py-6">
+          <div className="text-center py-12">
+            <h2 className="text-xl font-medium">Seller not found</h2>
+          </div>
+        </main>
+        <BottomNav />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 pb-16">
-      <TopBar title="Seller Profile" showBackButton />
-      <main className="container mx-auto px-4 py-6 space-y-6">
-        <Card className="p-6">
-          <div className="flex items-start gap-6 mb-6">
-            <img
-              src={seller.photoUrl}
-              alt={seller.name}
-              className="w-24 h-24 rounded-full object-cover"
-            />
-            <div className="flex-1">
-              <h2 className="text-2xl font-semibold">{seller.name}</h2>
-              <p className="text-sm text-muted-foreground">Member since {seller.joinDate}</p>
-              <div className="flex items-center gap-2 mt-2">
-                <MapPin className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">{seller.location}</span>
+      <TopBar title="Seller Profile" showBackButton={true} />
+      <main className="container mx-auto px-4 py-6">
+        <Card className="mb-6 p-6">
+          <div className="flex items-center mb-4">
+            <div className="relative">
+              <img
+                src={seller.avatar}
+                alt={seller.name}
+                className="w-16 h-16 rounded-full object-cover"
+              />
+              {seller.verified && (
+                <div className="absolute bottom-0 right-0 bg-green-500 rounded-full p-1">
+                  <Shield className="w-4 h-4 text-white" />
+                </div>
+              )}
+            </div>
+            <div className="ml-4">
+              <h2 className="text-xl font-semibold">{seller.name}</h2>
+              <div className="flex items-center text-sm text-gray-500">
+                <span>⭐ {seller.rating}</span>
+                <span className="mx-2">•</span>
+                <span>{seller.reviews} reviews</span>
               </div>
-              <div className="flex items-center gap-2 mt-2">
-                <div className="flex">{ratings && renderStars(ratings.average_rating)}</div>
-                <span className="font-medium">{ratings?.average_rating || 0}</span>
-                <span className="text-muted-foreground">
-                  ({ratings?.total_ratings || 0} ratings)
-                </span>
-              </div>
+              <p className="text-sm text-gray-500">Member since {seller.joinDate}</p>
             </div>
           </div>
-
-          <div className="space-y-2">
+          
+          <div className="flex space-x-3 mt-4">
             <Button 
-              className="w-full"
+              className="flex-1" 
               onClick={handleContactSeller}
             >
               Contact Seller
             </Button>
             
-            <AlertDialog open={isBlockDialogOpen} onOpenChange={setIsBlockDialogOpen}>
-              <AlertDialogTrigger asChild>
-                <Button 
-                  variant={isBlocked ? "destructive" : "outline"}
-                  className="w-full"
-                >
-                  {isBlocked ? "Unblock User" : "Block User"}
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>
-                    {isBlocked ? "Unblock this user?" : "Block this user?"}
-                  </AlertDialogTitle>
-                  <AlertDialogDescription>
-                    {isBlocked 
-                      ? `You will start seeing ${seller.name}'s content again.`
-                      : `You won't see ${seller.name}'s content anymore. They won't be notified that you've blocked them.`}
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleBlockUser}>
-                    {isBlocked ? "Unblock" : "Block"}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            {currentUserId && currentUserId !== id && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant={isBlocked ? "outline" : "destructive"} size="icon">
+                    <UserX className="h-4 w-4" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      {isBlocked ? "Unblock this user?" : "Block this user?"}
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {isBlocked 
+                        ? "You will start seeing their listings and they will be able to contact you."
+                        : "You won't see their listings and they won't be able to contact you."}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction 
+                      onClick={isBlocked ? handleUnblockUser : handleBlockUser}
+                      className={isBlocked ? "" : "bg-destructive text-destructive-foreground hover:bg-destructive/90"}
+                    >
+                      {isBlocked ? "Unblock" : "Block"}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
           </div>
         </Card>
 
-        <div>
-          <h3 className="text-lg font-semibold mb-4">{seller.name}'s Items</h3>
-          <ItemGrid />
-        </div>
+        <h3 className="text-lg font-medium mb-4">{seller.name}'s Listings ({seller.listings})</h3>
+        <ItemGrid />
       </main>
       <BottomNav />
     </div>

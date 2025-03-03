@@ -1,10 +1,9 @@
-
 import { TopBar } from "@/components/TopBar";
 import { Card } from "@/components/ui/card";
 import { ItemGrid } from "@/components/ItemGrid";
 import { BottomNav } from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
-import { MapPin, MessageSquare, Mail, Phone, Star, StarHalf } from "lucide-react";
+import { MapPin, Star, StarHalf } from "lucide-react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -30,7 +29,6 @@ const SellerProfile = () => {
     joinDate: "",
   });
   const [ratings, setRatings] = useState<SellerRatings | null>(null);
-  const [showContactOptions, setShowContactOptions] = useState(false);
 
   useEffect(() => {
     const fetchSellerDetails = async () => {
@@ -75,29 +73,14 @@ const SellerProfile = () => {
     return stars;
   };
 
-  const handleContact = (method: string) => {
-    switch (method) {
-      case "message":
-        // Navigate to messages with the seller ID
-        navigate(`/messages?userId=${id}`, { 
-          state: { 
-            sellerId: id,
-            sellerName: seller.name,
-            sellerAvatar: seller.photoUrl 
-          } 
-        });
-        break;
-      case "email":
-        // In a real app, we'd use the seller's actual email
-        window.location.href = `mailto:${seller.name.toLowerCase().replace(' ', '.')}@example.com`;
-        break;
-      case "phone":
-        // In a real app, we'd use the seller's actual phone number
-        window.location.href = "tel:+1234567890";
-        break;
-      default:
-        toast(`Contact ${seller.name} via ${method}`);
-    }
+  const handleContactSeller = () => {
+    navigate(`/messages?userId=${id}`, { 
+      state: { 
+        sellerId: id,
+        sellerName: seller.name,
+        sellerAvatar: seller.photoUrl 
+      } 
+    });
   };
 
   return (
@@ -128,40 +111,12 @@ const SellerProfile = () => {
             </div>
           </div>
 
-          {showContactOptions ? (
-            <div className="grid grid-cols-3 gap-2 mt-4">
-              <Button 
-                className="flex flex-col items-center gap-1 h-auto py-3"
-                onClick={() => handleContact("message")}
-              >
-                <MessageSquare className="h-5 w-5" />
-                <span className="text-xs">Message</span>
-              </Button>
-              <Button 
-                variant="outline"
-                className="flex flex-col items-center gap-1 h-auto py-3"
-                onClick={() => handleContact("email")}
-              >
-                <Mail className="h-5 w-5" />
-                <span className="text-xs">Email</span>
-              </Button>
-              <Button 
-                variant="outline"
-                className="flex flex-col items-center gap-1 h-auto py-3"
-                onClick={() => handleContact("phone")}
-              >
-                <Phone className="h-5 w-5" />
-                <span className="text-xs">Call</span>
-              </Button>
-            </div>
-          ) : (
-            <Button 
-              className="w-full mt-4"
-              onClick={() => setShowContactOptions(true)}
-            >
-              Contact Seller
-            </Button>
-          )}
+          <Button 
+            className="w-full mt-4"
+            onClick={handleContactSeller}
+          >
+            Contact Seller
+          </Button>
         </Card>
 
         <div>

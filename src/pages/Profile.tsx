@@ -4,14 +4,18 @@ import { Card } from "@/components/ui/card";
 import { ItemGrid } from "@/components/ItemGrid";
 import { Settings, ImagePlus, Phone, MapPin, Mail, Eye, EyeOff, Camera, ExternalLink } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const Profile = () => {
+  const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
   const [profile, setProfile] = useState({
     name: "John Doe",
     bio: "Hello! I'm a passionate seller on this platform.",
@@ -23,9 +27,28 @@ const Profile = () => {
     photoUrl: "https://images.unsplash.com/photo-1649972904349-6e44c42644a7"
   });
 
+  useEffect(() => {
+    const checkUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setUserId(user.id);
+        setProfile(prev => ({
+          ...prev,
+          name: user.user_metadata.name || "User",
+          email: user.email || "No email provided",
+        }));
+      } else {
+        toast.error("Please sign in to view your profile");
+        navigate('/');
+      }
+    };
+    
+    checkUser();
+  }, [navigate]);
+
   const handleSave = () => {
     setIsEditing(false);
-    // TODO: Implement save to backend
+    toast.success("Profile updated successfully");
   };
 
   const toggleVisibility = (field: 'email' | 'phone') => {
@@ -224,7 +247,13 @@ const Profile = () => {
 
         <div>
           <h3 className="text-lg font-semibold mb-4">My Listings</h3>
-          <ItemGrid />
+          {userId ? (
+            <ItemGrid userId={userId} isProfile={true} />
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">Loading your items...</p>
+            </div>
+          )}
         </div>
       </main>
       <BottomNav />

@@ -1,6 +1,6 @@
 
 import { Card } from "@/components/ui/card";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { BookmarkPlus, MessageSquare, Eye, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -16,6 +16,7 @@ interface ItemGridProps {
 
 export function ItemGrid({ userId, isProfile = false }: ItemGridProps) {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [savingItems, setSavingItems] = useState<Record<string, boolean>>({});
   
   // Query to fetch user items or default items
@@ -33,8 +34,14 @@ export function ItemGrid({ userId, isProfile = false }: ItemGridProps) {
           if (error) throw error;
           return data;
         } else {
-          // Return sample items as default (this will be replaced with actual DB query later)
-          return SAMPLE_ITEMS;
+          // Return all items from database
+          const { data, error } = await supabase
+            .from('items')
+            .select('*')
+            .order('created_at', { ascending: false });
+            
+          if (error) throw error;
+          return data.length > 0 ? data : SAMPLE_ITEMS;
         }
       } catch (error) {
         console.error('Error fetching items:', error);
@@ -76,11 +83,42 @@ export function ItemGrid({ userId, isProfile = false }: ItemGridProps) {
     }, 500);
   };
 
-  const handleContact = (e: React.MouseEvent, itemId: string) => {
+  const handleContact = async (e: React.MouseEvent, itemId: string, sellerId: string) => {
     e.preventDefault(); // Prevent navigation
-    toast({
-      description: "Opening chat with seller...",
-    });
+    
+    try {
+      // Get seller info from database
+      const { data: sellerData, error: sellerError } = await supabase
+        .from('items')
+        .select('seller_id')
+        .eq('id', itemId)
+        .single();
+      
+      if (sellerError) throw sellerError;
+      
+      // Navigate to messages with seller ID
+      toast({
+        description: "Opening chat with seller...",
+      });
+      
+      // Get seller name (in a real app, you'd get this from a profiles table)
+      const sellerName = "Seller"; // Default name if we can't get real name
+      
+      // Navigate to messages page with seller info
+      navigate(`/messages?userId=${sellerId || sellerData.seller_id}`, { 
+        state: { 
+          sellerId: sellerId || sellerData.seller_id,
+          sellerName: sellerName,
+          sellerAvatar: `https://api.dicebear.com/7.x/avatars/svg?seed=${sellerId || sellerData.seller_id}`
+        } 
+      });
+    } catch (error) {
+      console.error('Error contacting seller:', error);
+      toast({
+        variant: "destructive",
+        description: "Couldn't open chat with seller. Please try again.",
+      });
+    }
   };
 
   const handleShare = (e: React.MouseEvent, itemId: string, title: string) => {
@@ -165,7 +203,7 @@ export function ItemGrid({ userId, isProfile = false }: ItemGridProps) {
                 variant="secondary"
                 size="icon"
                 className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                onClick={(e) => handleContact(e, item.id)}
+                onClick={(e) => handleContact(e, item.id, item.seller_id)}
               >
                 <MessageSquare className="h-4 w-4" />
               </Button>
@@ -212,6 +250,7 @@ const SAMPLE_ITEMS = [
     price: 299,
     image: "https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d",
     images: ["https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d"],
+    seller_id: "sarah"
   },
   {
     id: "2",
@@ -219,5 +258,6 @@ const SAMPLE_ITEMS = [
     price: 49,
     image: "https://images.unsplash.com/photo-1519389950473-47ba0277781c",
     images: ["https://images.unsplash.com/photo-1519389950473-47ba0277781c"],
+    seller_id: "mike"
   },
 ];

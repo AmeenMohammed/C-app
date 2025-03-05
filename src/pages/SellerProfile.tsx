@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { MapPin, Star, StarHalf } from "lucide-react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, checkBlockedUsersTable } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -43,6 +43,16 @@ const SellerProfile = () => {
   const [ratings, setRatings] = useState<SellerRatings | null>(null);
   const [isBlocked, setIsBlocked] = useState(false);
   const [isBlockDialogOpen, setIsBlockDialogOpen] = useState(false);
+  const [hasBlockedUsersTable, setHasBlockedUsersTable] = useState(false);
+
+  useEffect(() => {
+    const checkTable = async () => {
+      const tableExists = await checkBlockedUsersTable();
+      setHasBlockedUsersTable(tableExists);
+    };
+    
+    checkTable();
+  }, []);
 
   useEffect(() => {
     const fetchSellerDetails = async () => {
@@ -58,17 +68,24 @@ const SellerProfile = () => {
         setRatings(ratingData[0]);
       }
 
-      // Check if seller is blocked
-      const user = (await supabase.auth.getUser()).data.user;
-      if (user) {
-        const { data: blockData } = await supabase
-          .from('blocked_users')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('blocked_user_id', id)
-          .single();
-        
-        setIsBlocked(!!blockData);
+      // Check if seller is blocked (only if the table exists)
+      if (hasBlockedUsersTable) {
+        const user = (await supabase.auth.getUser()).data.user;
+        if (user) {
+          try {
+            // Use raw query instead to avoid TypeScript errors
+            const { data, error } = await supabase.rpc('is_user_blocked', { 
+              blocker_id: user.id, 
+              blocked_id: id 
+            });
+            
+            if (!error) {
+              setIsBlocked(!!data);
+            }
+          } catch (error) {
+            console.error('Error checking if user is blocked:', error);
+          }
+        }
       }
 
       // TODO: Fetch seller profile details once profiles table is implemented
@@ -82,7 +99,7 @@ const SellerProfile = () => {
     };
 
     fetchSellerDetails();
-  }, [id]);
+  }, [id, hasBlockedUsersTable]);
 
   const renderStars = (rating: number) => {
     const stars = [];
@@ -111,43 +128,38 @@ const SellerProfile = () => {
   };
 
   const handleBlockUser = async () => {
+    if (!hasBlockedUsersTable) {
+      toast.error("This feature is not available");
+      return;
+    }
+    
     const user = (await supabase.auth.getUser()).data.user;
     if (!user) {
       toast.error("You need to be logged in to block users");
       return;
     }
 
-    if (isBlocked) {
-      // Unblock user
-      const { error } = await supabase
-        .from('blocked_users')
-        .delete()
-        .eq('user_id', user.id)
-        .eq('blocked_user_id', id);
-
-      if (error) {
-        console.error('Error unblocking user:', error);
-        toast.error("Failed to unblock user");
-      } else {
+    try {
+      if (isBlocked) {
+        // Use RPC function to unblock
+        await supabase.rpc('unblock_user', { 
+          blocker_id: user.id, 
+          user_to_unblock: id 
+        });
         setIsBlocked(false);
         toast.success(`You've unblocked ${seller.name}`);
-      }
-    } else {
-      // Block user
-      const { error } = await supabase
-        .from('blocked_users')
-        .insert({
-          user_id: user.id,
-          blocked_user_id: id
-        });
-
-      if (error) {
-        console.error('Error blocking user:', error);
-        toast.error("Failed to block user");
       } else {
+        // Use RPC function to block
+        await supabase.rpc('block_user', { 
+          blocker_id: user.id, 
+          user_to_block: id 
+        });
         setIsBlocked(true);
         toast.success(`You've blocked ${seller.name}`);
       }
+    } catch (error) {
+      console.error('Error updating block status:', error);
+      toast.error("Failed to update block status");
     }
     
     setIsBlockDialogOpen(false);
@@ -189,40 +201,42 @@ const SellerProfile = () => {
               Contact Seller
             </Button>
             
-            <AlertDialog open={isBlockDialogOpen} onOpenChange={setIsBlockDialogOpen}>
-              <AlertDialogTrigger asChild>
-                <Button 
-                  variant={isBlocked ? "destructive" : "outline"}
-                  className="w-full"
-                >
-                  {isBlocked ? "Unblock User" : "Block User"}
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>
-                    {isBlocked ? "Unblock this user?" : "Block this user?"}
-                  </AlertDialogTitle>
-                  <AlertDialogDescription>
-                    {isBlocked 
-                      ? `You will start seeing ${seller.name}'s content again.`
-                      : `You won't see ${seller.name}'s content anymore. They won't be notified that you've blocked them.`}
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleBlockUser}>
-                    {isBlocked ? "Unblock" : "Block"}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            {hasBlockedUsersTable && (
+              <AlertDialog open={isBlockDialogOpen} onOpenChange={setIsBlockDialogOpen}>
+                <AlertDialogTrigger asChild>
+                  <Button 
+                    variant={isBlocked ? "destructive" : "outline"}
+                    className="w-full"
+                  >
+                    {isBlocked ? "Unblock User" : "Block User"}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      {isBlocked ? "Unblock this user?" : "Block this user?"}
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {isBlocked 
+                        ? `You will start seeing ${seller.name}'s content again.`
+                        : `You won't see ${seller.name}'s content anymore. They won't be notified that you've blocked them.`}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleBlockUser}>
+                      {isBlocked ? "Unblock" : "Block"}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
           </div>
         </Card>
 
         <div>
           <h3 className="text-lg font-semibold mb-4">{seller.name}'s Items</h3>
-          <ItemGrid />
+          <ItemGrid userId={id} isProfile={true} />
         </div>
       </main>
       <BottomNav />

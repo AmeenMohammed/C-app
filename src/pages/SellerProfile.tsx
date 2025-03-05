@@ -74,7 +74,7 @@ const SellerProfile = () => {
         const user = (await supabase.auth.getUser()).data.user;
         if (user) {
           try {
-            // Use RPC call instead of direct table access
+            // Use RPC call to check if user is blocked
             const { data, error } = await supabase
               .rpc('check_if_user_is_blocked', { 
                 blocker_uuid: user.id, 

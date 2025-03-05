@@ -16,7 +16,10 @@ export const checkBlockedUsersTable = async () => {
   try {
     // Try to query information_schema to check if the table exists
     const { data, error } = await supabase
-      .rpc('check_if_table_exists_in_schema', { table_name: 'blocked_users', schema_name: 'public' });
+      .rpc('check_if_table_exists_in_schema', { 
+        table_name: 'blocked_users', 
+        schema_name: 'public' 
+      });
     
     if (error) {
       console.error('Error checking table existence:', error);

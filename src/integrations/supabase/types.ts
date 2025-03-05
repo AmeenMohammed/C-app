@@ -190,10 +190,31 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      block_user: {
+        Args: {
+          blocker_uuid: string
+          blocked_uuid: string
+        }
+        Returns: undefined
+      }
       can_rate_seller: {
         Args: {
           buyer_uuid: string
           seller_uuid: string
+        }
+        Returns: boolean
+      }
+      check_if_table_exists_in_schema: {
+        Args: {
+          table_name: string
+          schema_name: string
+        }
+        Returns: boolean
+      }
+      check_if_user_is_blocked: {
+        Args: {
+          blocker_uuid: string
+          blocked_uuid: string
         }
         Returns: boolean
       }
@@ -229,6 +250,13 @@ export type Database = {
           average_rating: number
           total_ratings: number
         }[]
+      }
+      unblock_user: {
+        Args: {
+          blocker_uuid: string
+          blocked_uuid: string
+        }
+        Returns: undefined
       }
     }
     Enums: {

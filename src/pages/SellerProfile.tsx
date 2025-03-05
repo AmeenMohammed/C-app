@@ -1,11 +1,10 @@
-
 import { TopBar } from "@/components/TopBar";
 import { Card } from "@/components/ui/card";
 import { ItemGrid } from "@/components/ItemGrid";
 import { BottomNav } from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
 import { MapPin, Star, StarHalf } from "lucide-react";
-import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { supabase, checkBlockedUsersTable } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -34,9 +33,6 @@ interface SellerRatings {
 const SellerProfile = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
-  const showBackButton = !location.state?.fromMessages; // Hide back button when coming from messages
-  
   const [seller, setSeller] = useState({
     name: "",
     photoUrl: "",
@@ -74,15 +70,16 @@ const SellerProfile = () => {
         const user = (await supabase.auth.getUser()).data.user;
         if (user) {
           try {
-            // Check if this user is blocked by querying directly
             const { data, error } = await supabase
-              .from('blocked_users')
-              .select('*')
+              .from('blocked_users_view')
+              .select('is_blocked')
               .eq('blocker_id', user.id)
               .eq('blocked_id', id)
-              .limit(1);
+              .single();
             
-            setIsBlocked(data && data.length > 0);
+            if (!error && data) {
+              setIsBlocked(data.is_blocked);
+            }
           } catch (error) {
             console.error('Error checking if user is blocked:', error);
           }
@@ -140,7 +137,6 @@ const SellerProfile = () => {
 
     try {
       if (isBlocked) {
-        // Delete the record - unblock the user
         const { error } = await supabase
           .from('blocked_users')
           .delete()
@@ -151,13 +147,12 @@ const SellerProfile = () => {
         setIsBlocked(false);
         toast.success(`You've unblocked ${seller.name}`);
       } else {
-        // Insert a new record - block the user
         const { error } = await supabase
           .from('blocked_users')
-          .insert([{
+          .insert({
             blocker_id: user.id,
             blocked_id: id
-          }]);
+          });
         
         if (error) throw error;
         setIsBlocked(true);
@@ -173,7 +168,7 @@ const SellerProfile = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-16">
-      <TopBar title="Seller Profile" showBackButton={showBackButton} />
+      <TopBar title="Seller Profile" showBackButton />
       <main className="container mx-auto px-4 py-6 space-y-6">
         <Card className="p-6">
           <div className="flex items-start gap-6 mb-6">

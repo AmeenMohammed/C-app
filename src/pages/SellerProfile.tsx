@@ -74,15 +74,18 @@ const SellerProfile = () => {
         const user = (await supabase.auth.getUser()).data.user;
         if (user) {
           try {
-            // Check if this user is blocked by querying directly
+            // Use RPC call instead of direct table access
             const { data, error } = await supabase
-              .from('blocked_users')
-              .select('*')
-              .eq('blocker_id', user.id)
-              .eq('blocked_id', id)
-              .limit(1);
+              .rpc('check_if_user_is_blocked', { 
+                blocker_uuid: user.id, 
+                blocked_uuid: id 
+              });
             
-            setIsBlocked(data && data.length > 0);
+            if (error) {
+              console.error('Error checking block status:', error);
+            } else {
+              setIsBlocked(data === true);
+            }
           } catch (error) {
             console.error('Error checking if user is blocked:', error);
           }
@@ -140,24 +143,23 @@ const SellerProfile = () => {
 
     try {
       if (isBlocked) {
-        // Delete the record - unblock the user
+        // Use RPC function to unblock
         const { error } = await supabase
-          .from('blocked_users')
-          .delete()
-          .eq('blocker_id', user.id)
-          .eq('blocked_id', id);
+          .rpc('unblock_user', { 
+            blocker_uuid: user.id, 
+            blocked_uuid: id 
+          });
         
         if (error) throw error;
         setIsBlocked(false);
         toast.success(`You've unblocked ${seller.name}`);
       } else {
-        // Insert a new record - block the user
+        // Use RPC function to block
         const { error } = await supabase
-          .from('blocked_users')
-          .insert([{
-            blocker_id: user.id,
-            blocked_id: id
-          }]);
+          .rpc('block_user', { 
+            blocker_uuid: user.id, 
+            blocked_uuid: id 
+          });
         
         if (error) throw error;
         setIsBlocked(true);

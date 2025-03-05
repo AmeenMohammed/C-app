@@ -14,14 +14,16 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
 // Custom function to check if the blocked_users table exists
 export const checkBlockedUsersTable = async () => {
   try {
-    // Simply try to select from the table to see if it exists
-    const { error } = await supabase
-      .from('blocked_users')
-      .select('*')
-      .limit(1);
+    // Try to query information_schema to check if the table exists
+    const { data, error } = await supabase
+      .rpc('check_if_table_exists_in_schema', { table_name: 'blocked_users', schema_name: 'public' });
     
-    // If there's no error, the table exists
-    return !error;
+    if (error) {
+      console.error('Error checking table existence:', error);
+      return false;
+    }
+    
+    return data === true;
   } catch (error) {
     console.error('Error checking if blocked_users table exists:', error);
     return false;

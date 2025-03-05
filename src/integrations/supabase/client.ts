@@ -13,14 +13,12 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
 
 // Custom function to check if the blocked_users table exists
 export const checkBlockedUsersTable = async () => {
-  try {
-    // Use a safer approach by checking if the table exists in the database
-    const { data, error } = await supabase
-      .rpc('check_if_table_exists', { table_name: 'blocked_users' });
-    
-    return data === true;
-  } catch (error) {
-    console.error('Error checking if blocked_users table exists:', error);
-    return false;
-  }
+  // This is a safer way to check if a table exists without causing TypeScript errors
+  const { data, error } = await supabase
+    .from('blocked_users')
+    .select('count')
+    .limit(1)
+    .single();
+  
+  return !error;
 };

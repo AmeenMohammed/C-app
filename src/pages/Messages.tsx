@@ -47,10 +47,6 @@ const Messages = () => {
   const [newMessage, setNewMessage] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [attachment, setAttachment] = useState<File | null>(null);
-  
-  // Check if this is a direct chat from an item
-  const isDirectChat = location.state?.directChat === true;
-  
   const [conversations, setConversations] = useState<Conversation[]>([
     {
       id: "sarah",
@@ -276,8 +272,7 @@ const Messages = () => {
       <TopBar title="My Messages" showBackButton={selectedUserId !== null} />
       
       <main className="flex-1 container mx-auto px-2 py-4 overflow-hidden flex flex-col pb-32">
-        {/* Only show conversation list if not in direct chat mode and no user is selected */}
-        {!selectedUserId && !isDirectChat ? (
+        {!selectedUserId ? (
           <ScrollArea className="flex-1">
             <div className="space-y-1">
               {conversations.map((conversation) => (

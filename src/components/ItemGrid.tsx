@@ -1,4 +1,3 @@
-
 import { Card } from "@/components/ui/card";
 import { Link, useNavigate } from "react-router-dom";
 import { BookmarkPlus, MessageSquare, Eye, Share2 } from "lucide-react";
@@ -15,16 +14,14 @@ interface ItemGridProps {
 }
 
 export function ItemGrid({ userId, isProfile = false }: ItemGridProps) {
-  const { toast } = useToast();
+  const { toast: uiToast } = useToast();
   const navigate = useNavigate();
   const [savingItems, setSavingItems] = useState<Record<string, boolean>>({});
   
-  // Query to fetch user items or default items
   const { data: items, isLoading, error } = useQuery({
     queryKey: ['items', userId, isProfile],
     queryFn: async () => {
       try {
-        // If on profile page and userId provided, get user's items
         if (isProfile && userId) {
           const { data, error } = await supabase
             .from('items')
@@ -34,7 +31,6 @@ export function ItemGrid({ userId, isProfile = false }: ItemGridProps) {
           if (error) throw error;
           return data;
         } else {
-          // Return all items from database
           const { data, error } = await supabase
             .from('items')
             .select('*')
@@ -50,7 +46,6 @@ export function ItemGrid({ userId, isProfile = false }: ItemGridProps) {
     },
   });
 
-  // Get view counts for all items
   const { data: viewCounts } = useQuery({
     queryKey: ['itemViews', items],
     queryFn: async () => {
@@ -74,9 +69,7 @@ export function ItemGrid({ userId, isProfile = false }: ItemGridProps) {
   });
 
   const handleSave = (e: React.MouseEvent, itemId: string) => {
-    e.preventDefault(); // Prevent navigation
-    
-    // Show animation
+    e.preventDefault();
     setSavingItems(prev => ({ ...prev, [itemId]: true }));
     setTimeout(() => {
       setSavingItems(prev => ({ ...prev, [itemId]: false }));
@@ -84,10 +77,9 @@ export function ItemGrid({ userId, isProfile = false }: ItemGridProps) {
   };
 
   const handleContact = async (e: React.MouseEvent, itemId: string, sellerId: string) => {
-    e.preventDefault(); // Prevent navigation
+    e.preventDefault();
     
     try {
-      // Get seller info from database
       const { data: sellerData, error: sellerError } = await supabase
         .from('items')
         .select('seller_id')
@@ -96,25 +88,23 @@ export function ItemGrid({ userId, isProfile = false }: ItemGridProps) {
       
       if (sellerError) throw sellerError;
       
-      // Navigate to messages with seller ID
-      toast({
+      uiToast({
         description: "Opening chat with seller...",
       });
       
-      // Get seller name (in a real app, you'd get this from a profiles table)
-      const sellerName = "Seller"; // Default name if we can't get real name
+      const sellerName = "Seller";
       
-      // Navigate to messages page with seller info
       navigate(`/messages?userId=${sellerId || sellerData.seller_id}`, { 
         state: { 
           sellerId: sellerId || sellerData.seller_id,
           sellerName: sellerName,
-          sellerAvatar: `https://api.dicebear.com/7.x/avatars/svg?seed=${sellerId || sellerData.seller_id}`
+          sellerAvatar: `https://api.dicebear.com/7.x/avatars/svg?seed=${sellerId || sellerData.seller_id}`,
+          directChat: true
         } 
       });
     } catch (error) {
       console.error('Error contacting seller:', error);
-      toast({
+      uiToast({
         variant: "destructive",
         description: "Couldn't open chat with seller. Please try again.",
       });
@@ -122,9 +112,8 @@ export function ItemGrid({ userId, isProfile = false }: ItemGridProps) {
   };
 
   const handleShare = (e: React.MouseEvent, itemId: string, title: string) => {
-    e.preventDefault(); // Prevent navigation
-
-    // Check if Web Share API is available
+    e.preventDefault();
+    
     if (navigator.share) {
       navigator.share({
         title: title,
@@ -137,7 +126,6 @@ export function ItemGrid({ userId, isProfile = false }: ItemGridProps) {
         toast.error("Error sharing item");
       });
     } else {
-      // Fallback for browsers that don't support the Web Share API
       navigator.clipboard.writeText(`${window.location.origin}/items/${itemId}`)
         .then(() => toast.success("Link copied to clipboard"))
         .catch(() => toast.error("Failed to copy link"));
@@ -151,14 +139,13 @@ export function ItemGrid({ userId, isProfile = false }: ItemGridProps) {
         item_id: itemId,
         viewer_id: user.id
       }).then(({ error }) => {
-        if (error && error.code !== '23505') { // Ignore unique violation errors
+        if (error && error.code !== '23505') {
           console.error('Error tracking view:', error);
         }
       });
     }
   };
 
-  // Show appropriate message when no items are found
   if (items && items.length === 0 && isProfile) {
     return (
       <div className="text-center py-8">
@@ -242,7 +229,6 @@ export function ItemGrid({ userId, isProfile = false }: ItemGridProps) {
   );
 }
 
-// Sample items to use as fallback
 const SAMPLE_ITEMS = [
   {
     id: "1",

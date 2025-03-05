@@ -1,4 +1,3 @@
-
 import { TopBar } from "@/components/TopBar";
 import { Card } from "@/components/ui/card";
 import { ItemGrid } from "@/components/ItemGrid";
@@ -58,7 +57,6 @@ const SellerProfile = () => {
     const fetchSellerDetails = async () => {
       if (!id) return;
 
-      // Fetch seller ratings
       const { data: ratingData, error: ratingError } = await supabase
         .rpc('get_seller_ratings', { seller_uuid: id });
 
@@ -68,19 +66,19 @@ const SellerProfile = () => {
         setRatings(ratingData[0]);
       }
 
-      // Check if seller is blocked (only if the table exists)
       if (hasBlockedUsersTable) {
         const user = (await supabase.auth.getUser()).data.user;
         if (user) {
           try {
-            // Use raw query instead to avoid TypeScript errors
-            const { data, error } = await supabase.rpc('is_user_blocked', { 
-              blocker_id: user.id, 
-              blocked_id: id 
-            });
+            const { data, error } = await supabase
+              .from('blocked_users_view')
+              .select('is_blocked')
+              .eq('blocker_id', user.id)
+              .eq('blocked_id', id)
+              .single();
             
-            if (!error) {
-              setIsBlocked(!!data);
+            if (!error && data) {
+              setIsBlocked(data.is_blocked);
             }
           } catch (error) {
             console.error('Error checking if user is blocked:', error);
@@ -88,8 +86,6 @@ const SellerProfile = () => {
         }
       }
 
-      // TODO: Fetch seller profile details once profiles table is implemented
-      // For now using mock data
       setSeller({
         name: "John Doe",
         photoUrl: "https://images.unsplash.com/photo-1649972904349-6e44c42644a7",
@@ -141,19 +137,24 @@ const SellerProfile = () => {
 
     try {
       if (isBlocked) {
-        // Use RPC function to unblock
-        await supabase.rpc('unblock_user', { 
-          blocker_id: user.id, 
-          user_to_unblock: id 
-        });
+        const { error } = await supabase
+          .from('blocked_users')
+          .delete()
+          .eq('blocker_id', user.id)
+          .eq('blocked_id', id);
+        
+        if (error) throw error;
         setIsBlocked(false);
         toast.success(`You've unblocked ${seller.name}`);
       } else {
-        // Use RPC function to block
-        await supabase.rpc('block_user', { 
-          blocker_id: user.id, 
-          user_to_block: id 
-        });
+        const { error } = await supabase
+          .from('blocked_users')
+          .insert({
+            blocker_id: user.id,
+            blocked_id: id
+          });
+        
+        if (error) throw error;
         setIsBlocked(true);
         toast.success(`You've blocked ${seller.name}`);
       }

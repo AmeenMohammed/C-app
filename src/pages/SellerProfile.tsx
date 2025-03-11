@@ -58,17 +58,20 @@ const SellerProfile = () => {
         setRatings(ratingData[0]);
       }
 
-      // Check if seller is blocked
+      // Check if seller is blocked using the RPC function
       const user = (await supabase.auth.getUser()).data.user;
-      if (user) {
-        const { data: blockData } = await supabase
-          .from('blocked_users')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('blocked_user_id', id)
-          .single();
+      if (user && id) {
+        const { data: isUserBlocked, error: blockCheckError } = await supabase
+          .rpc('check_if_user_is_blocked', { 
+            blocker_uuid: user.id, 
+            blocked_uuid: id 
+          });
         
-        setIsBlocked(!!blockData);
+        if (blockCheckError) {
+          console.error('Error checking block status:', blockCheckError);
+        } else {
+          setIsBlocked(!!isUserBlocked);
+        }
       }
 
       // TODO: Fetch seller profile details once profiles table is implemented
@@ -112,42 +115,46 @@ const SellerProfile = () => {
 
   const handleBlockUser = async () => {
     const user = (await supabase.auth.getUser()).data.user;
-    if (!user) {
+    if (!user || !id) {
       toast.error("You need to be logged in to block users");
       return;
     }
 
-    if (isBlocked) {
-      // Unblock user
-      const { error } = await supabase
-        .from('blocked_users')
-        .delete()
-        .eq('user_id', user.id)
-        .eq('blocked_user_id', id);
+    try {
+      if (isBlocked) {
+        // Unblock user using the RPC function
+        const { error } = await supabase
+          .rpc('unblock_user', {
+            blocker_uuid: user.id,
+            blocked_uuid: id
+          });
 
-      if (error) {
-        console.error('Error unblocking user:', error);
-        toast.error("Failed to unblock user");
+        if (error) {
+          console.error('Error unblocking user:', error);
+          toast.error("Failed to unblock user");
+        } else {
+          setIsBlocked(false);
+          toast.success(`You've unblocked ${seller.name}`);
+        }
       } else {
-        setIsBlocked(false);
-        toast.success(`You've unblocked ${seller.name}`);
-      }
-    } else {
-      // Block user
-      const { error } = await supabase
-        .from('blocked_users')
-        .insert({
-          user_id: user.id,
-          blocked_user_id: id
-        });
+        // Block user using the RPC function
+        const { error } = await supabase
+          .rpc('block_user', {
+            blocker_uuid: user.id,
+            blocked_uuid: id
+          });
 
-      if (error) {
-        console.error('Error blocking user:', error);
-        toast.error("Failed to block user");
-      } else {
-        setIsBlocked(true);
-        toast.success(`You've blocked ${seller.name}`);
+        if (error) {
+          console.error('Error blocking user:', error);
+          toast.error("Failed to block user");
+        } else {
+          setIsBlocked(true);
+          toast.success(`You've blocked ${seller.name}`);
+        }
       }
+    } catch (error) {
+      console.error('Error managing block status:', error);
+      toast.error("An error occurred");
     }
     
     setIsBlockDialogOpen(false);
@@ -222,7 +229,7 @@ const SellerProfile = () => {
 
         <div>
           <h3 className="text-lg font-semibold mb-4">{seller.name}'s Items</h3>
-          <ItemGrid />
+          <ItemGrid userId={id} />
         </div>
       </main>
       <BottomNav />

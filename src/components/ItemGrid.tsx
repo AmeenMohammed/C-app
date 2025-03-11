@@ -1,4 +1,3 @@
-
 import { Card } from "@/components/ui/card";
 import { Link } from "react-router-dom";
 import { BookmarkPlus, MessageSquare, Eye, Share2 } from "lucide-react";
@@ -83,26 +82,41 @@ export function ItemGrid({ userId, isProfile = false }: ItemGridProps) {
     });
   };
 
-  const handleShare = (e: React.MouseEvent, itemId: string, title: string) => {
+  const handleShare = async (e: React.MouseEvent, itemId: string, title: string) => {
     e.preventDefault(); // Prevent navigation
+    
+    const shareData = {
+      title: title,
+      text: `Check out this item: ${title}`,
+      url: `${window.location.origin}/items/${itemId}`
+    };
 
-    // Check if Web Share API is available
-    if (navigator.share) {
-      navigator.share({
-        title: title,
-        text: `Check out this item: ${title}`,
-        url: `${window.location.origin}/items/${itemId}`,
-      })
-      .then(() => toast.success("Shared successfully"))
-      .catch((error) => {
-        console.error('Error sharing:', error);
-        toast.error("Error sharing item");
+    try {
+      if (navigator.share) {
+        // Use native share if available (mobile devices)
+        await navigator.share(shareData);
+        toast({
+          title: "Shared successfully",
+          description: "Item has been shared",
+          duration: 2000,
+        });
+      } else {
+        // Fallback to clipboard
+        await navigator.clipboard.writeText(shareData.url);
+        toast({
+          title: "Link copied",
+          description: "Item link copied to clipboard",
+          duration: 2000,
+        });
+      }
+    } catch (error) {
+      console.error('Error sharing:', error);
+      toast({
+        title: "Share failed",
+        description: "Could not share the item",
+        variant: "destructive",
+        duration: 2000,
       });
-    } else {
-      // Fallback for browsers that don't support the Web Share API
-      navigator.clipboard.writeText(`${window.location.origin}/items/${itemId}`)
-        .then(() => toast.success("Link copied to clipboard"))
-        .catch(() => toast.error("Failed to copy link"));
     }
   };
 

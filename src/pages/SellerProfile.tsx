@@ -54,7 +54,7 @@ const SellerProfile = () => {
 
       if (ratingError) {
         console.error('Error fetching ratings:', ratingError);
-      } else {
+      } else if (ratingData && ratingData.length > 0) {
         setRatings(ratingData[0]);
       }
 

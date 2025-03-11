@@ -16,10 +16,111 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const Settings = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [openEditProfile, setOpenEditProfile] = useState(false);
+  const [openChangePassword, setOpenChangePassword] = useState(false);
+  const [openPrivacySettings, setOpenPrivacySettings] = useState(false);
+  const [openNotifications, setOpenNotifications] = useState(false);
+  const [openLanguage, setOpenLanguage] = useState(false);
+  const [openTheme, setOpenTheme] = useState(false);
+  
+  // Form state
+  const [profileName, setProfileName] = useState("");
+  const [profileEmail, setProfileEmail] = useState("");
+  const [profileBio, setProfileBio] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [privacySettings, setPrivacySettings] = useState({
+    profileVisibility: true,
+    allowDirectMessages: true,
+    showActivityStatus: true,
+  });
+  const [notifications, setNotifications] = useState({
+    pushNotifications: true,
+    emailNotifications: true,
+    messageNotifications: true,
+    dealAlerts: true,
+  });
+  const [language, setLanguage] = useState("english");
+  const [theme, setTheme] = useState("light");
+  
+  const handleSaveProfile = () => {
+    toast({
+      description: "Profile updated successfully",
+    });
+    setOpenEditProfile(false);
+  };
+  
+  const handleChangePassword = () => {
+    if (newPassword !== confirmPassword) {
+      toast({
+        variant: "destructive",
+        description: "Passwords do not match",
+      });
+      return;
+    }
+    
+    toast({
+      description: "Password changed successfully",
+    });
+    setOpenChangePassword(false);
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+  };
+  
+  const handleSavePrivacySettings = () => {
+    toast({
+      description: "Privacy settings updated",
+    });
+    setOpenPrivacySettings(false);
+  };
+  
+  const handleSaveNotifications = () => {
+    toast({
+      description: "Notification preferences updated",
+    });
+    setOpenNotifications(false);
+  };
+  
+  const handleSaveLanguage = () => {
+    toast({
+      description: `Language changed to ${language}`,
+    });
+    setOpenLanguage(false);
+  };
+  
+  const handleSaveTheme = () => {
+    toast({
+      description: `Theme changed to ${theme} mode`,
+    });
+    setOpenTheme(false);
+  };
 
   const handleDeleteAccount = async () => {
     try {
@@ -49,18 +150,30 @@ const Settings = () => {
     <div className="min-h-screen bg-gray-50">
       <TopBar title="Settings" showBackButton={true} />
       <main className="container mx-auto px-4 py-6">
-        <div className="space-y-6">
+        <div className="space-y-6 pb-16">
           <div className="rounded-lg bg-white p-6 shadow">
             <h2 className="text-lg font-medium">Account Settings</h2>
             <Separator className="my-4" />
             <div className="space-y-4">
-              <Button variant="outline" className="w-full justify-start">
+              <Button 
+                variant="outline" 
+                className="w-full justify-start"
+                onClick={() => setOpenEditProfile(true)}
+              >
                 Edit Profile
               </Button>
-              <Button variant="outline" className="w-full justify-start">
+              <Button 
+                variant="outline" 
+                className="w-full justify-start"
+                onClick={() => setOpenChangePassword(true)}
+              >
                 Change Password
               </Button>
-              <Button variant="outline" className="w-full justify-start">
+              <Button 
+                variant="outline" 
+                className="w-full justify-start"
+                onClick={() => setOpenPrivacySettings(true)}
+              >
                 Privacy Settings
               </Button>
             </div>
@@ -70,13 +183,25 @@ const Settings = () => {
             <h2 className="text-lg font-medium">Preferences</h2>
             <Separator className="my-4" />
             <div className="space-y-4">
-              <Button variant="outline" className="w-full justify-start">
+              <Button 
+                variant="outline" 
+                className="w-full justify-start"
+                onClick={() => setOpenNotifications(true)}
+              >
                 Notifications
               </Button>
-              <Button variant="outline" className="w-full justify-start">
+              <Button 
+                variant="outline" 
+                className="w-full justify-start"
+                onClick={() => setOpenLanguage(true)}
+              >
                 Language
               </Button>
-              <Button variant="outline" className="w-full justify-start">
+              <Button 
+                variant="outline" 
+                className="w-full justify-start"
+                onClick={() => setOpenTheme(true)}
+              >
                 Theme
               </Button>
             </div>
@@ -118,6 +243,313 @@ const Settings = () => {
           </div>
         </div>
       </main>
+
+      {/* Edit Profile Dialog */}
+      <Dialog open={openEditProfile} onOpenChange={setOpenEditProfile}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Edit Profile</DialogTitle>
+            <DialogDescription>
+              Make changes to your profile here. Click save when you're done.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="name" className="text-right">
+                Name
+              </Label>
+              <Input
+                id="name"
+                value={profileName}
+                onChange={(e) => setProfileName(e.target.value)}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="email" className="text-right">
+                Email
+              </Label>
+              <Input
+                id="email"
+                type="email"
+                value={profileEmail}
+                onChange={(e) => setProfileEmail(e.target.value)}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="bio" className="text-right">
+                Bio
+              </Label>
+              <Input
+                id="bio"
+                value={profileBio}
+                onChange={(e) => setProfileBio(e.target.value)}
+                className="col-span-3"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Cancel</Button>
+            </DialogClose>
+            <Button onClick={handleSaveProfile}>Save changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Change Password Dialog */}
+      <Dialog open={openChangePassword} onOpenChange={setOpenChangePassword}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Change Password</DialogTitle>
+            <DialogDescription>
+              Enter your current password and choose a new one.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="current-password" className="text-right">
+                Current
+              </Label>
+              <Input
+                id="current-password"
+                type="password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="new-password" className="text-right">
+                New
+              </Label>
+              <Input
+                id="new-password"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="confirm-password" className="text-right">
+                Confirm
+              </Label>
+              <Input
+                id="confirm-password"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="col-span-3"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Cancel</Button>
+            </DialogClose>
+            <Button onClick={handleChangePassword}>Update Password</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Privacy Settings Dialog */}
+      <Dialog open={openPrivacySettings} onOpenChange={setOpenPrivacySettings}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Privacy Settings</DialogTitle>
+            <DialogDescription>
+              Manage your privacy preferences.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="profile-visibility" className="flex-1">
+                Profile Visibility
+              </Label>
+              <Switch
+                id="profile-visibility"
+                checked={privacySettings.profileVisibility}
+                onCheckedChange={(checked) => 
+                  setPrivacySettings({...privacySettings, profileVisibility: checked})
+                }
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="direct-messages" className="flex-1">
+                Allow Direct Messages
+              </Label>
+              <Switch
+                id="direct-messages"
+                checked={privacySettings.allowDirectMessages}
+                onCheckedChange={(checked) => 
+                  setPrivacySettings({...privacySettings, allowDirectMessages: checked})
+                }
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="activity-status" className="flex-1">
+                Show Activity Status
+              </Label>
+              <Switch
+                id="activity-status"
+                checked={privacySettings.showActivityStatus}
+                onCheckedChange={(checked) => 
+                  setPrivacySettings({...privacySettings, showActivityStatus: checked})
+                }
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Cancel</Button>
+            </DialogClose>
+            <Button onClick={handleSavePrivacySettings}>Save Preferences</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Notifications Dialog */}
+      <Dialog open={openNotifications} onOpenChange={setOpenNotifications}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Notification Settings</DialogTitle>
+            <DialogDescription>
+              Customize how you want to be notified.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="push-notifications" className="flex-1">
+                Push Notifications
+              </Label>
+              <Switch
+                id="push-notifications"
+                checked={notifications.pushNotifications}
+                onCheckedChange={(checked) => 
+                  setNotifications({...notifications, pushNotifications: checked})
+                }
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="email-notifications" className="flex-1">
+                Email Notifications
+              </Label>
+              <Switch
+                id="email-notifications"
+                checked={notifications.emailNotifications}
+                onCheckedChange={(checked) => 
+                  setNotifications({...notifications, emailNotifications: checked})
+                }
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="message-notifications" className="flex-1">
+                New Message Alerts
+              </Label>
+              <Switch
+                id="message-notifications"
+                checked={notifications.messageNotifications}
+                onCheckedChange={(checked) => 
+                  setNotifications({...notifications, messageNotifications: checked})
+                }
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="deal-alerts" className="flex-1">
+                Deal Alerts
+              </Label>
+              <Switch
+                id="deal-alerts"
+                checked={notifications.dealAlerts}
+                onCheckedChange={(checked) => 
+                  setNotifications({...notifications, dealAlerts: checked})
+                }
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Cancel</Button>
+            </DialogClose>
+            <Button onClick={handleSaveNotifications}>Save Preferences</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Language Dialog */}
+      <Dialog open={openLanguage} onOpenChange={setOpenLanguage}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Language Settings</DialogTitle>
+            <DialogDescription>
+              Select your preferred language.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Select value={language} onValueChange={setLanguage}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select a language" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="english">English</SelectItem>
+                <SelectItem value="spanish">Spanish</SelectItem>
+                <SelectItem value="french">French</SelectItem>
+                <SelectItem value="german">German</SelectItem>
+                <SelectItem value="japanese">Japanese</SelectItem>
+                <SelectItem value="chinese">Chinese</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Cancel</Button>
+            </DialogClose>
+            <Button onClick={handleSaveLanguage}>Save Preference</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Theme Dialog */}
+      <Dialog open={openTheme} onOpenChange={setOpenTheme}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Theme Settings</DialogTitle>
+            <DialogDescription>
+              Choose your preferred theme.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Tabs defaultValue={theme} className="w-full" onValueChange={setTheme}>
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="light">Light</TabsTrigger>
+                <TabsTrigger value="dark">Dark</TabsTrigger>
+              </TabsList>
+              <TabsContent value="light" className="mt-4">
+                <div className="rounded-md border border-gray-200 p-4 bg-white">
+                  <div className="h-16 rounded bg-gray-100 mb-2"></div>
+                  <div className="h-4 w-3/4 rounded bg-gray-200 mb-2"></div>
+                  <div className="h-4 w-1/2 rounded bg-gray-200"></div>
+                </div>
+              </TabsContent>
+              <TabsContent value="dark" className="mt-4">
+                <div className="rounded-md border border-gray-700 p-4 bg-gray-800">
+                  <div className="h-16 rounded bg-gray-700 mb-2"></div>
+                  <div className="h-4 w-3/4 rounded bg-gray-600 mb-2"></div>
+                  <div className="h-4 w-1/2 rounded bg-gray-600"></div>
+                </div>
+              </TabsContent>
+            </Tabs>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Cancel</Button>
+            </DialogClose>
+            <Button onClick={handleSaveTheme}>Save Preference</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -16,8 +16,10 @@ import {
   MessageSquare,
   Bell,
   Heart,
-  HelpCircle
+  HelpCircle,
+  ShoppingCart
 } from "lucide-react";
+import { useLocation } from "react-router-dom";
 
 const menuItems = [
   {
@@ -27,6 +29,7 @@ const menuItems = [
       { title: "Messages", icon: MessageSquare, url: "/messages" },
       { title: "Notifications", icon: Bell, url: "/notifications" },
       { title: "Saved Items", icon: Heart, url: "/saved-items" },
+      { title: "Cart", icon: ShoppingCart, url: "/cart" },
     ],
   },
   {
@@ -40,6 +43,15 @@ const menuItems = [
 ];
 
 export function AppSidebar() {
+  const location = useLocation();
+  
+  // Don't show sidebar on login or signup pages
+  const isAuthPage = location.pathname === "/" || location.pathname === "/signup";
+  
+  if (isAuthPage) {
+    return null;
+  }
+
   return (
     <Sidebar>
       <SidebarContent>

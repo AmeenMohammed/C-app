@@ -1,19 +1,36 @@
-
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 const SignUp = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
+  const { toast: toastHook } = useToast();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Get the page user was trying to access
+  const from = location.state?.from?.pathname || '/home';
+
+  // If user is already logged in, redirect them
+  useEffect(() => {
+    if (user) {
+      navigate(from, { replace: true });
+    }
+  }, [user, navigate, from]);
 
   const handleManualSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
+
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -21,67 +38,71 @@ const SignUp = () => {
       });
 
       if (error) {
-        toast({
-          variant: "destructive",
-          description: error.message,
-        });
+        toast.error(error.message);
         return;
       }
 
-      toast({
-        description: "Check your email to confirm your account!",
-      });
+      toast.success("Check your email to confirm your account!");
     } catch (error) {
-      toast({
-        variant: "destructive",
-        description: "An error occurred during sign up.",
-      });
+      toast.error("An error occurred during sign up.");
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleGoogleSignUp = async () => {
+    setLoading(true);
     try {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`
+          redirectTo: `${window.location.origin}/auth/callback`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
         }
       });
 
       if (error) {
-        toast({
-          variant: "destructive",
-          description: error.message,
-        });
+        console.error('Google OAuth error:', error);
+        toast.error(error.message || "Failed to sign in with Google");
+        setLoading(false);
+        return;
       }
+
+      // The redirect will happen automatically, so we don't need to do anything here
+      // The loading state will be maintained until the redirect completes
     } catch (error) {
-      toast({
-        variant: "destructive",
-        description: "An error occurred while signing in with Google.",
-      });
+      console.error('Unexpected Google OAuth error:', error);
+      toast.error("An unexpected error occurred while signing in with Google.");
+      setLoading(false);
     }
   };
 
   const handleAppleSignUp = async () => {
+    setLoading(true);
     try {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'apple',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`
+          redirectTo: `${window.location.origin}/auth/callback`,
         }
       });
 
       if (error) {
-        toast({
-          variant: "destructive",
-          description: error.message,
-        });
+        console.error('Apple OAuth error:', error);
+        toast.error(error.message || "Failed to sign in with Apple");
+        setLoading(false);
+        return;
       }
+
+      // The redirect will happen automatically, so we don't need to do anything here
+      // The loading state will be maintained until the redirect completes
     } catch (error) {
-      toast({
-        variant: "destructive",
-        description: "An error occurred while signing in with Apple.",
-      });
+      console.error('Unexpected Apple OAuth error:', error);
+      toast.error("An unexpected error occurred while signing in with Apple.");
+      setLoading(false);
     }
   };
 
@@ -100,6 +121,7 @@ const SignUp = () => {
             variant="outline"
             className="w-full"
             onClick={handleGoogleSignUp}
+            disabled={loading}
           >
             <svg
               className="mr-2 h-4 w-4"
@@ -111,13 +133,14 @@ const SignUp = () => {
               <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
               <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
             </svg>
-            Continue with Google
+            {loading ? "Connecting..." : "Continue with Google"}
           </Button>
 
-          <Button
+          {/* <Button
             variant="outline"
             className="w-full"
             onClick={handleAppleSignUp}
+            disabled={loading}
           >
             <svg
               className="mr-2 h-4 w-4"
@@ -126,8 +149,8 @@ const SignUp = () => {
             >
               <path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.087 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701" />
             </svg>
-            Continue with Apple
-          </Button>
+            {loading ? "Connecting..." : "Continue with Apple"}
+          </Button> */}
 
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
@@ -148,6 +171,7 @@ const SignUp = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                disabled={loading}
               />
             </div>
             <div className="space-y-2">
@@ -157,10 +181,12 @@ const SignUp = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                disabled={loading}
+                minLength={6}
               />
             </div>
-            <Button type="submit" className="w-full">
-              Sign Up
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? "Creating Account..." : "Sign Up"}
             </Button>
           </form>
         </div>

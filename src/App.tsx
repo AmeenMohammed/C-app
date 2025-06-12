@@ -15,6 +15,7 @@ import Profile from "./pages/Profile";
 import SellerProfile from "./pages/SellerProfile";
 import NotFound from "./pages/NotFound";
 import SignUp from "./pages/SignUp";
+import AuthCallback from "./pages/AuthCallback";
 import Messages from "./pages/Messages";
 import Notifications from "./pages/Notifications";
 import SavedItems from "./pages/SavedItems";
@@ -40,6 +41,7 @@ const App = () => (
                   {/* Public Routes */}
                   <Route path="/" element={<Index />} />
                   <Route path="/signup" element={<SignUp />} />
+                  <Route path="/auth/callback" element={<AuthCallback />} />
                   <Route path="/home" element={<Home />} />
                   <Route path="/items/:id" element={<ItemDetails />} />
                   <Route path="/seller/:id" element={<SellerProfile />} />

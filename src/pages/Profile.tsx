@@ -4,18 +4,17 @@ import { Card } from "@/components/ui/card";
 import { ItemGrid } from "@/components/ItemGrid";
 import { Settings, ImagePlus, Phone, MapPin, Mail, Eye, EyeOff, Camera, ExternalLink } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { useState, useRef, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
 const Profile = () => {
-  const navigate = useNavigate();
+  const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [userId, setUserId] = useState<string | null>(null);
   const [profile, setProfile] = useState({
     name: "John Doe",
     bio: "Hello! I'm a passionate seller on this platform.",
@@ -28,23 +27,14 @@ const Profile = () => {
   });
 
   useEffect(() => {
-    const checkUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setUserId(user.id);
-        setProfile(prev => ({
-          ...prev,
-          name: user.user_metadata.name || "User",
-          email: user.email || "No email provided",
-        }));
-      } else {
-        toast.error("Please sign in to view your profile");
-        navigate('/');
-      }
-    };
-    
-    checkUser();
-  }, [navigate]);
+    if (user) {
+      setProfile(prev => ({
+        ...prev,
+        name: user.user_metadata?.name || user.email?.split('@')[0] || "User",
+        email: user.email || "No email provided",
+      }));
+    }
+  }, [user]);
 
   const handleSave = () => {
     setIsEditing(false);
@@ -54,7 +44,7 @@ const Profile = () => {
   const toggleVisibility = (field: 'email' | 'phone') => {
     setProfile(prev => ({
       ...prev,
-      [field === 'email' ? 'isEmailPublic' : 'isPhonePublic']: 
+      [field === 'email' ? 'isEmailPublic' : 'isPhonePublic']:
       field === 'email' ? !prev.isEmailPublic : !prev.isPhonePublic
     }));
   };
@@ -108,7 +98,7 @@ const Profile = () => {
             <div className="flex-1 flex items-start justify-between">
               <div className="space-y-1">
                 {isEditing ? (
-                  <Input 
+                  <Input
                     value={profile.name}
                     onChange={(e) => setProfile({...profile, name: e.target.value})}
                     placeholder="Your name"
@@ -121,8 +111,8 @@ const Profile = () => {
                 )}
               </div>
               <div className="flex gap-2">
-                <Button 
-                  variant={isEditing ? "default" : "outline"} 
+                <Button
+                  variant={isEditing ? "default" : "outline"}
                   onClick={() => isEditing ? handleSave() : setIsEditing(true)}
                 >
                   {isEditing ? "Save" : "Edit"}
@@ -218,9 +208,9 @@ const Profile = () => {
                 />
               ) : (
                 <div className="flex items-center gap-2 flex-1">
-                  <a 
-                    href={getGoogleMapsUrl(profile.location)} 
-                    target="_blank" 
+                  <a
+                    href={getGoogleMapsUrl(profile.location)}
+                    target="_blank"
                     rel="noopener noreferrer"
                     className="text-sm hover:text-primary transition-colors flex items-center gap-2"
                   >
@@ -247,8 +237,8 @@ const Profile = () => {
 
         <div>
           <h3 className="text-lg font-semibold mb-4">My Listings</h3>
-          {userId ? (
-            <ItemGrid userId={userId} isProfile={true} />
+          {user?.id ? (
+            <ItemGrid userId={user.id} isProfile={true} />
           ) : (
             <div className="text-center py-8">
               <p className="text-muted-foreground">Loading your items...</p>

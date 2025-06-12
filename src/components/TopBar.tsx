@@ -1,4 +1,3 @@
-
 import { ArrowLeft, Menu, Bell, Heart, Settings, CreditCard, ArrowUp, LogOut, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
@@ -9,7 +8,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
 interface TopBarProps {
@@ -20,6 +19,7 @@ interface TopBarProps {
 
 export function TopBar({ title, showBackButton = true, onBackClick }: TopBarProps) {
   const navigate = useNavigate();
+  const { signOut } = useAuth();
 
   const handleBack = () => {
     if (onBackClick) {
@@ -35,8 +35,7 @@ export function TopBar({ title, showBackButton = true, onBackClick }: TopBarProp
 
   const handleLogout = async () => {
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      await signOut();
       toast.success("Logged out successfully");
       navigate("/");
     } catch (error) {

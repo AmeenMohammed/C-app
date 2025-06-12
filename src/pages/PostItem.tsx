@@ -1,4 +1,3 @@
-
 import { TopBar } from "@/components/TopBar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -7,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ImagePlus, TrendingUp, MapPin, ExternalLink, X } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
 import { toast } from "@/hooks/use-toast";
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import { Slider } from "@/components/ui/slider";
 import {
   Dialog,
@@ -17,10 +16,12 @@ import {
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 const PostItem = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
   const showBackButton = location.state?.from === 'profile';
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -32,21 +33,6 @@ const PostItem = () => {
     description: "",
     range: [10] as number[], // Default 10km radius
   });
-
-  useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        toast({
-          title: "Error",
-          description: "Please sign in to post items",
-          variant: "destructive",
-        });
-        navigate('/');
-      }
-    };
-    checkAuth();
-  }, [navigate]);
 
   const handlePromoteItem = () => {
     setShowPaymentDialog(true);
@@ -98,12 +84,11 @@ const PostItem = () => {
       if (data.error) throw new Error(data.error);
 
       setImages(prev => [...prev, data.url]);
-      // Removed the success toast notification
     } catch (error) {
       console.error('Upload error:', error);
       toast({
         title: "Error",
-        description: "Failed to upload image. Please make sure you're signed in.",
+        description: "Failed to upload image. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -126,17 +111,23 @@ const PostItem = () => {
       return;
     }
 
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to post items",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("Not authenticated");
-
       const { error } = await supabase.from('items').insert({
         title: formData.title,
         price: parseFloat(formData.price),
         description: formData.description,
         location_range: formData.range[0],
-        seller_id: session.user.id,
+        seller_id: user.id,
         images: images,
       });
 
@@ -154,9 +145,6 @@ const PostItem = () => {
         description: error instanceof Error ? error.message : "Failed to post item",
         variant: "destructive",
       });
-      if (error instanceof Error && error.message === "Not authenticated") {
-        navigate('/');
-      }
     } finally {
       setLoading(false);
     }
@@ -174,8 +162,8 @@ const PostItem = () => {
                 <div className="grid grid-cols-4 gap-2 mb-4">
                   {images.map((url, index) => (
                     <div key={index} className="relative w-20 h-20">
-                      <img 
-                        src={url} 
+                      <img
+                        src={url}
                         alt={`Item ${index + 1}`}
                         className="w-full h-full object-cover rounded-md"
                       />
@@ -215,7 +203,7 @@ const PostItem = () => {
 
             <div className="space-y-2">
               <label className="text-sm font-medium">Title</label>
-              <Input 
+              <Input
                 placeholder="What are you selling?"
                 value={formData.title}
                 onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
@@ -224,7 +212,7 @@ const PostItem = () => {
 
             <div className="space-y-2">
               <label className="text-sm font-medium">Price</label>
-              <Input 
+              <Input
                 type="number"
                 step="1"
                 placeholder="0"
@@ -245,8 +233,8 @@ const PostItem = () => {
                   step={1}
                   className="flex-1"
                 />
-                <Button 
-                  variant="ghost" 
+                <Button
+                  variant="ghost"
                   size="icon"
                   onClick={openGoogleMaps}
                   className="h-8 w-8"
@@ -261,8 +249,8 @@ const PostItem = () => {
 
             <div className="space-y-2">
               <label className="text-sm font-medium">Description</label>
-              <Textarea 
-                placeholder="Describe your item..." 
+              <Textarea
+                placeholder="Describe your item..."
                 className="min-h-[100px]"
                 value={formData.description}
                 onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
@@ -270,7 +258,7 @@ const PostItem = () => {
             </div>
 
             <div className="relative group">
-              <Card 
+              <Card
                 className="w-full flex items-center gap-4 p-4 transition-all duration-200 cursor-pointer bg-gray-50 border-primary/10 shadow-sm"
                 onClick={handlePromoteItem}
               >

@@ -1,6 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { Link } from "react-router-dom";
-import { BookmarkPlus, MessageSquare, Eye, Share2 } from "lucide-react";
+import { BookmarkPlus, MessageSquare, Eye, Share2, ImagePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
@@ -11,32 +11,64 @@ import { toast } from "sonner";
 interface ItemGridProps {
   userId?: string;
   isProfile?: boolean;
+  locationRange?: number;
+  selectedCategory?: string;
 }
 
-export function ItemGrid({ userId, isProfile = false }: ItemGridProps) {
+export function ItemGrid({ userId, isProfile = false, locationRange = 10, selectedCategory = 'all' }: ItemGridProps) {
   const { toast } = useToast();
   const [savingItems, setSavingItems] = useState<Record<string, boolean>>({});
-  
-  // Query to fetch user items or default items
+
+  // Query to fetch user items or filtered items based on location and category
   const { data: items, isLoading, error } = useQuery({
-    queryKey: ['items', userId, isProfile],
+    queryKey: ['items', userId, isProfile, locationRange, selectedCategory],
     queryFn: async () => {
       try {
         // If on profile page and userId provided, get user's items
         if (isProfile && userId) {
+          console.log('🔍 Fetching items for user profile:', userId);
+
           const { data, error } = await supabase
             .from('items')
             .select('*')
-            .eq('seller_id', userId);
-            
-          if (error) throw error;
-          return data;
+            .eq('seller_id', userId)
+            .order('created_at', { ascending: false });
+
+          if (error) {
+            console.error('❌ Error fetching user items:', error);
+            throw error;
+          }
+
+          console.log('✅ Found items for user:', data?.length || 0);
+          return data || [];
         } else {
-          // Return sample items as default (this will be replaced with actual DB query later)
-          return SAMPLE_ITEMS;
+          // Get items from database filtered by location and category
+          let query = supabase
+            .from('items')
+            .select('*')
+            .lte('location_range', locationRange)
+            .order('created_at', { ascending: false });
+
+          // Filter by category if not 'all'
+          if (selectedCategory && selectedCategory !== 'all') {
+            query = query.eq('category', selectedCategory);
+          }
+
+          const { data, error } = await query;
+
+          if (error) {
+            console.error('Error fetching items:', error);
+            return SAMPLE_ITEMS;
+          }
+
+          return data || [];
         }
       } catch (error) {
         console.error('Error fetching items:', error);
+        if (isProfile) {
+          // For profile pages, return empty array instead of sample items
+          return [];
+        }
         return SAMPLE_ITEMS;
       }
     },
@@ -49,7 +81,7 @@ export function ItemGrid({ userId, isProfile = false }: ItemGridProps) {
       const itemsToFetch = items || SAMPLE_ITEMS;
       const viewPromises = itemsToFetch.map(async (item) => {
         if (!item.id) return { itemId: item.id, views: 0 };
-        
+
         try {
           const { data } = await supabase.rpc('get_item_views', { item_uuid: item.id });
           return { itemId: item.id, views: data ?? 0 };
@@ -58,7 +90,7 @@ export function ItemGrid({ userId, isProfile = false }: ItemGridProps) {
           return { itemId: item.id, views: 0 };
         }
       });
-      
+
       const counts = await Promise.all(viewPromises);
       return Object.fromEntries(counts.map(({ itemId, views }) => [itemId, views]));
     },
@@ -67,7 +99,7 @@ export function ItemGrid({ userId, isProfile = false }: ItemGridProps) {
 
   const handleSave = (e: React.MouseEvent, itemId: string) => {
     e.preventDefault(); // Prevent navigation
-    
+
     // Show animation
     setSavingItems(prev => ({ ...prev, [itemId]: true }));
     setTimeout(() => {
@@ -84,7 +116,7 @@ export function ItemGrid({ userId, isProfile = false }: ItemGridProps) {
 
   const handleShare = async (e: React.MouseEvent, itemId: string, title: string) => {
     e.preventDefault(); // Prevent navigation
-    
+
     const shareData = {
       title: title,
       text: `Check out this item: ${title}`,
@@ -137,8 +169,24 @@ export function ItemGrid({ userId, isProfile = false }: ItemGridProps) {
   // Show appropriate message when no items are found
   if (items && items.length === 0 && isProfile) {
     return (
-      <div className="text-center py-8">
-        <p className="text-muted-foreground">You haven't posted any items yet</p>
+      <div className="text-center py-12">
+        <div className="bg-gray-50 rounded-lg p-8 max-w-md mx-auto">
+          <div className="text-gray-400 mb-4">
+            <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M9 7l3-3 3 3" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No items posted yet</h3>
+          <p className="text-muted-foreground mb-4">
+            Start selling by posting your first item. It's quick and easy!
+          </p>
+          <Link to="/post">
+            <Button>
+              <ImagePlus className="mr-2 h-4 w-4" />
+              Post Your First Item
+            </Button>
+          </Link>
+        </div>
       </div>
     );
   }
@@ -160,8 +208,8 @@ export function ItemGrid({ userId, isProfile = false }: ItemGridProps) {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
       {displayItems.map((item) => (
-        <Link 
-          key={item.id} 
+        <Link
+          key={item.id}
           to={`/items/${item.id}`}
           onClick={() => trackView(item.id)}
         >
@@ -224,14 +272,40 @@ const SAMPLE_ITEMS = [
     id: "1",
     title: "Vintage Camera",
     price: 299,
+    category: "cameras",
     image: "https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d",
     images: ["https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d"],
+    location_range: 10,
+    seller_id: "sample-user-1",
   },
   {
     id: "2",
     title: "Laptop Stand",
     price: 49,
+    category: "electronics",
     image: "https://images.unsplash.com/photo-1519389950473-47ba0277781c",
     images: ["https://images.unsplash.com/photo-1519389950473-47ba0277781c"],
+    location_range: 15,
+    seller_id: "sample-user-2",
+  },
+  {
+    id: "3",
+    title: "Office Chair",
+    price: 120,
+    category: "furniture",
+    image: "https://images.unsplash.com/photo-1586023492125-27b2c045efd7",
+    images: ["https://images.unsplash.com/photo-1586023492125-27b2c045efd7"],
+    location_range: 8,
+    seller_id: "sample-user-3",
+  },
+  {
+    id: "4",
+    title: "Designer Jacket",
+    price: 85,
+    category: "fashion",
+    image: "https://images.unsplash.com/photo-1544022613-e87ca75a784a",
+    images: ["https://images.unsplash.com/photo-1544022613-e87ca75a784a"],
+    location_range: 12,
+    seller_id: "sample-user-4",
   },
 ];

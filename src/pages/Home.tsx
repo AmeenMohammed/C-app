@@ -1,4 +1,3 @@
-
 import { ItemGrid } from "@/components/ItemGrid";
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
@@ -42,7 +41,7 @@ const Home = () => {
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
       <TopBar title="Home" showBackButton={false} />
-      
+
       {/* Categories Bar */}
       <div className="bg-white border-b sticky top-14 z-40">
         <div className="container mx-auto px-4">
@@ -77,9 +76,12 @@ const Home = () => {
       </div>
 
       <main className="container mx-auto px-4 py-6">
-        <ItemGrid />
+        <ItemGrid
+          locationRange={range[0]}
+          selectedCategory={selectedCategory}
+        />
       </main>
-      
+
       {/* Location Range Slider */}
       <div className="fixed bottom-16 left-0 right-0 bg-white shadow-lg border-t p-2">
         <div className="container mx-auto">
@@ -94,8 +96,8 @@ const Home = () => {
               className="flex-1"
             />
             <span className="text-sm text-muted-foreground min-w-[3rem]">{range}km</span>
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               size="icon"
               onClick={openGoogleMaps}
               className="h-8 w-8"
@@ -105,7 +107,7 @@ const Home = () => {
           </div>
         </div>
       </div>
-      
+
       <BottomNav />
     </div>
   );

@@ -3,7 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ImagePlus, TrendingUp, MapPin, ExternalLink, X } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ImagePlus, TrendingUp, MapPin, ExternalLink, X, Sofa, Pill, ShoppingBag, Car, Laptop, Camera, Baby, Book, Shirt } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
 import { toast } from "@/hooks/use-toast";
 import { useState, useRef } from "react";
@@ -18,6 +19,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 
+const categories = [
+  { id: 'furniture', label: 'Furniture', icon: Sofa, description: 'Home and office furniture' },
+  { id: 'medicine', label: 'Medicine', icon: Pill, description: 'Medical and health items' },
+  { id: 'electronics', label: 'Electronics', icon: Laptop, description: 'Electronic devices' },
+  { id: 'vehicles', label: 'Vehicles', icon: Car, description: 'Cars and vehicles' },
+  { id: 'cameras', label: 'Cameras', icon: Camera, description: 'Cameras and photography gear' },
+  { id: 'baby', label: 'Baby Items', icon: Baby, description: 'Baby products and accessories' },
+  { id: 'books', label: 'Books', icon: Book, description: 'Books and publications' },
+  { id: 'fashion', label: 'Fashion', icon: Shirt, description: 'Clothing and accessories' },
+];
+
 const PostItem = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -31,6 +43,7 @@ const PostItem = () => {
     title: "",
     price: "",
     description: "",
+    category: "",
     range: [10] as number[], // Default 10km radius
   });
 
@@ -102,10 +115,10 @@ const PostItem = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.title || !formData.price || !formData.description) {
+    if (!formData.title || !formData.price || !formData.description || !formData.category) {
       toast({
         title: "Error",
-        description: "Please fill in all required fields",
+        description: "Please fill in all required fields including category",
         variant: "destructive",
       });
       return;
@@ -126,6 +139,7 @@ const PostItem = () => {
         title: formData.title,
         price: parseFloat(formData.price),
         description: formData.description,
+        category: formData.category,
         location_range: formData.range[0],
         seller_id: user.id,
         images: images,
@@ -255,6 +269,25 @@ const PostItem = () => {
                 value={formData.description}
                 onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
               />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Category</label>
+              <Select
+                value={formData.category}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((category) => (
+                    <SelectItem key={category.id} value={category.id}>
+                      {category.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="relative group">

@@ -10,97 +10,156 @@ import { Input } from "@/components/ui/input";
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { LoadingScreen } from "@/components/LoadingScreen";
 import avatar from "../assets/avatar.jpg";
 
+interface UserProfile {
+  id: string;
+  user_id: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  bio: string | null;
+  phone: string | null;
+  location: string | null;
+  created_at: string;
+  updated_at: string;
+}
 
 const Profile = () => {
   const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [profile, setProfile] = useState({
-    name: "User",
-    bio: "Hello! I'm a passionate seller on this platform.",
-    email: "user@example.com",
-    telephone: "+1 (234) 567-8900",
-    location: "New York, NY",
-    isEmailPublic: false,
-    isPhonePublic: false,
-    photoUrl: avatar
-  });
+  const [loading, setLoading] = useState(true);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [isEmailPublic, setIsEmailPublic] = useState(false);
+  const [isPhonePublic, setIsPhonePublic] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      // Extract avatar URL with better fallback logic
-      const googleAvatar = user.user_metadata?.avatar_url ||
-                        user.user_metadata?.picture ||
-                        user.identities?.[0]?.identity_data?.avatar_url ||
-                        user.identities?.[0]?.identity_data?.picture;
+    const fetchOrCreateProfile = async () => {
+      if (!user) return;
 
+      try {
+        setLoading(true);
 
-      // Extract name with better priority
-      const displayName = user.user_metadata?.full_name ||
-                         user.user_metadata?.name ||
-                         user.identities?.[0]?.identity_data?.full_name ||
-                         user.identities?.[0]?.identity_data?.name ||
-                         user.email?.split('@')[0] ||
-                         "User";
+        // Try to fetch existing profile
+        const { data: existingProfile, error } = await supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
 
-      // Extract email with fallback
-      const userEmail = user.email ||
-                       user.user_metadata?.email ||
-                       user.identities?.[0]?.identity_data?.email ||
-                       "No email provided";
+        if (error && error.code === 'PGRST116') {
+          // No profile found, create one
+          const newProfile = {
+            user_id: user.id,
+            full_name: user.user_metadata?.full_name ||
+                     user.user_metadata?.name ||
+                     user.email?.split('@')[0] ||
+                     'User',
+            avatar_url: user.user_metadata?.avatar_url ||
+                       user.user_metadata?.picture || null,
+            bio: 'Hello! I\'m new to this platform.',
+            phone: user.phone || '',
+            location: 'Location not set'
+          };
 
-      // Extract phone (Google OAuth might not provide this)
-      const userPhone = user.phone ||
-                       user.user_metadata?.phone ||
-                       user.identities?.[0]?.identity_data?.phone ||
-                       "";
+          const { data: createdProfile, error: createError } = await supabase
+            .from('user_profiles')
+            .insert(newProfile)
+            .select()
+            .single();
 
-      // Extract location (Google OAuth might not provide this)
-      const userLocation = user.user_metadata?.location ||
-                          user.identities?.[0]?.identity_data?.location ||
-                          "";
+          if (createError) {
+            console.error('Error creating profile:', createError);
+            toast.error('Failed to create profile');
+          } else {
+            setUserProfile(createdProfile);
+          }
+        } else if (!error && existingProfile) {
+          setUserProfile(existingProfile);
+        }
+      } catch (error) {
+        console.error('Error fetching/creating profile:', error);
+        toast.error('Failed to load profile');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-      setProfile(prev => ({
-        ...prev,
-        name: displayName,
-        email: userEmail,
-        telephone: userPhone,
-        location: userLocation,
-        photoUrl: googleAvatar,
-      }));
-    }
+    fetchOrCreateProfile();
   }, [user]);
 
-  const handleSave = () => {
-    setIsEditing(false);
-    toast.success("Profile updated successfully");
+  const handleSave = async () => {
+    if (!userProfile || !user) return;
+
+    try {
+      const { error } = await supabase
+        .from('user_profiles')
+        .update({
+          full_name: userProfile.full_name,
+          bio: userProfile.bio,
+          phone: userProfile.phone,
+          location: userProfile.location,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', user.id);
+
+      if (error) {
+        toast.error('Failed to update profile');
+        console.error('Error updating profile:', error);
+      } else {
+        toast.success('Profile updated successfully');
+        setIsEditing(false);
+      }
+    } catch (error) {
+      toast.error('Failed to update profile');
+      console.error('Error updating profile:', error);
+    }
   };
 
   const toggleVisibility = (field: 'email' | 'phone') => {
-    setProfile(prev => ({
-      ...prev,
-      [field === 'email' ? 'isEmailPublic' : 'isPhonePublic']:
-      field === 'email' ? !prev.isEmailPublic : !prev.isPhonePublic
-    }));
+    if (field === 'email') {
+      setIsEmailPublic(!isEmailPublic);
+    } else {
+      setIsPhonePublic(!isPhonePublic);
+    }
   };
 
   const handlePhotoClick = () => {
     fileInputRef.current?.click();
   };
 
-  const handlePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) {
-      const url = URL.createObjectURL(file);
-      setProfile(prev => ({ ...prev, photoUrl: url }));
-    }
+    if (!file || !userProfile) return;
+
+    // For now, just create a local URL. In production, you'd upload to Supabase storage
+    const url = URL.createObjectURL(file);
+    setUserProfile(prev => prev ? { ...prev, avatar_url: url } : null);
   };
 
   const getGoogleMapsUrl = (location: string) => {
     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
   };
+
+  if (loading) {
+    return <LoadingScreen message="Loading profile..." />;
+  }
+
+  if (!userProfile) {
+    return (
+      <div className="min-h-screen bg-gray-50 pb-16">
+        <TopBar title="Profile" />
+        <div className="container mx-auto px-4 py-6">
+          <div className="text-center">
+            <p className="text-muted-foreground">Failed to load profile</p>
+          </div>
+        </div>
+        <BottomNav />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 pb-16">
@@ -110,11 +169,10 @@ const Profile = () => {
           <div className="flex items-start gap-6 mb-3">
             <div className="relative">
               <img
-                src={profile.photoUrl}
+                src={userProfile.avatar_url || avatar}
                 alt="Profile"
                 className="w-24 h-24 rounded-full object-cover"
                 onError={(e) => {
-                  // Fallback to default image if Google image fails to load
                   const target = e.target as HTMLImageElement;
                   target.src = avatar;
                 }}
@@ -141,15 +199,18 @@ const Profile = () => {
               <div className="space-y-1">
                 {isEditing ? (
                   <Input
-                    value={profile.name}
-                    onChange={(e) => setProfile({...profile, name: e.target.value})}
+                    value={userProfile.full_name || ''}
+                    onChange={(e) => setUserProfile(prev => prev ? {...prev, full_name: e.target.value} : null)}
                     placeholder="Your name"
                   />
                 ) : (
                   <>
-                    <h2 className="text-2xl font-semibold">{profile.name}</h2>
+                    <h2 className="text-2xl font-semibold">{userProfile.full_name || 'User'}</h2>
                     <p className="text-sm text-muted-foreground">
-                      Member since {new Date().getFullYear()}
+                      Member since {new Date(userProfile.created_at).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'long'
+                      })}
                     </p>
                     {user?.user_metadata?.provider && (
                       <p className="text-xs text-blue-600">
@@ -182,41 +243,28 @@ const Profile = () => {
               <label className="text-sm font-medium mb-0.5 block">Bio</label>
               {isEditing ? (
                 <Textarea
-                  value={profile.bio}
-                  onChange={(e) => setProfile({...profile, bio: e.target.value})}
+                  value={userProfile.bio || ''}
+                  onChange={(e) => setUserProfile(prev => prev ? {...prev, bio: e.target.value} : null)}
                   placeholder="Tell us about yourself"
                   className="resize-none"
                 />
               ) : (
-                <p className="text-sm text-muted-foreground">{profile.bio}</p>
+                <p className="text-sm text-muted-foreground">{userProfile.bio}</p>
               )}
             </div>
 
             <div className="flex items-center gap-2">
               <Mail className="h-4 w-4 text-muted-foreground flex-shrink-0" />
               <div className="flex-1">
-                {isEditing ? (
-                  <Input
-                    value={profile.email}
-                    onChange={(e) => setProfile({...profile, email: e.target.value})}
-                    placeholder="Your email address"
-                    type="email"
-                  />
-                ) : (
-                  <span className="text-sm">{profile.email}</span>
-                )}
+                <span className="text-sm">{user?.email}</span>
               </div>
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => toggleVisibility('email')}
                 className="h-8 w-8"
+                onClick={() => toggleVisibility('email')}
               >
-                {profile.isEmailPublic ? (
-                  <Eye className="h-4 w-4" />
-                ) : (
-                  <EyeOff className="h-4 w-4" />
-                )}
+                {isEmailPublic ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
               </Button>
             </div>
 
@@ -225,87 +273,73 @@ const Profile = () => {
               <div className="flex-1">
                 {isEditing ? (
                   <Input
-                    value={profile.telephone}
-                    onChange={(e) => setProfile({...profile, telephone: e.target.value})}
+                    value={userProfile.phone || ''}
+                    onChange={(e) => setUserProfile(prev => prev ? {...prev, phone: e.target.value} : null)}
                     placeholder="Your phone number"
                   />
                 ) : (
-                  // Only show phone if present
-                  profile.telephone && profile.telephone.trim() !== "" ? (
-                    <span className="text-sm">{profile.telephone}</span>
-                  ) : (
-                    <span className="text-sm text-muted-foreground italic">No phone number</span>
-                  )
+                  <span className="text-sm">{userProfile.phone || 'No phone number'}</span>
                 )}
               </div>
-              {(isEditing || (profile.telephone && profile.telephone.trim() !== "")) && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => toggleVisibility('phone')}
-                  className="h-8 w-8"
-                >
-                  {profile.isPhonePublic ? (
-                    <Eye className="h-4 w-4" />
-                  ) : (
-                    <EyeOff className="h-4 w-4" />
-                  )}
-                </Button>
-              )}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => toggleVisibility('phone')}
+              >
+                {isPhonePublic ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+              </Button>
             </div>
 
             <div className="flex items-center gap-2">
               <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-              {isEditing ? (
-                <Input
-                  value={profile.location}
-                  onChange={(e) => setProfile({...profile, location: e.target.value})}
-                  placeholder="Your location"
-                />
-              ) : (
-                // Only show location if present
-                profile.location && profile.location.trim() !== "" ? (
-                  <div className="flex items-center gap-2 flex-1">
-                    <a
-                      href={getGoogleMapsUrl(profile.location)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm hover:text-primary transition-colors flex items-center gap-2"
-                    >
-                      {profile.location}
-                      <ExternalLink className="h-4 w-4" />
-                    </a>
-                  </div>
+              <div className="flex-1">
+                {isEditing ? (
+                  <Input
+                    value={userProfile.location || ''}
+                    onChange={(e) => setUserProfile(prev => prev ? {...prev, location: e.target.value} : null)}
+                    placeholder="Your location"
+                  />
                 ) : (
-                  <span className="text-sm text-muted-foreground italic">No location</span>
-                )
+                  <span className="text-sm">{userProfile.location}</span>
+                )}
+              </div>
+              {!isEditing && userProfile.location && userProfile.location !== 'Location not set' && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => window.open(getGoogleMapsUrl(userProfile.location!), '_blank')}
+                >
+                  <ExternalLink className="h-4 w-4" />
+                </Button>
               )}
             </div>
           </div>
         </Card>
 
-        <div className="mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold">My Items</h3>
           <Link to="/post">
-            <Card className="w-full flex items-center gap-4 p-4 hover:border-primary transition-colors cursor-pointer">
-              <ImagePlus className="h-8 w-8 text-primary" />
-              <div className="flex-1">
-                <h3 className="text-sm font-medium">Post Your Item</h3>
-                <p className="text-xs text-muted-foreground">Share what you want to sell</p>
-              </div>
-            </Card>
+            <Button>
+              <ImagePlus className="mr-2 h-4 w-4" />
+              Post Item
+            </Button>
           </Link>
         </div>
 
-        <div>
-          <h3 className="text-lg font-semibold mb-4">My Listings</h3>
-          {user?.id ? (
-            <ItemGrid userId={user.id} isProfile={true} />
-          ) : (
-            <div className="text-center py-8">
-              <p className="text-muted-foreground">Loading your items...</p>
-            </div>
-          )}
-        </div>
+
+        {/* Show ItemGrid only if user is available */}
+        {user?.id ? (
+          <ItemGrid
+            userId={user.id}
+            isProfile={true}
+          />
+        ) : (
+          <div className="text-center py-8">
+            <p className="text-muted-foreground">Loading user information...</p>
+          </div>
+        )}
       </main>
       <BottomNav />
     </div>

@@ -1,13 +1,14 @@
-
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
-import { useParams } from "react-router-dom";
-import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { Card } from "@/components/ui/card";
 import { SellerHeader } from "@/components/seller/SellerHeader";
 import { SellerActions } from "@/components/seller/SellerActions";
 import { SellerItems } from "@/components/seller/SellerItems";
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { LoadingScreen } from "@/components/LoadingScreen";
+import { Button } from "@/components/ui/button";
 
 interface SellerRatings {
   average_rating: number;
@@ -19,77 +20,131 @@ interface SellerRatings {
   one_star_count: number;
 }
 
+interface SellerProfile {
+  id: string;
+  full_name: string;
+  avatar_url: string;
+  location: string;
+  user_id: string;
+  created_at: string;
+}
+
 const SellerProfile = () => {
-  const { id } = useParams();
-  const [seller, setSeller] = useState({
-    name: "",
-    photoUrl: "",
-    location: "",
-    joinDate: "",
-  });
+  const { sellerId } = useParams();
+  const { user } = useAuth();
+  const [seller, setSeller] = useState<SellerProfile | null>(null);
   const [ratings, setRatings] = useState<SellerRatings | null>(null);
   const [isBlocked, setIsBlocked] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchSellerDetails = async () => {
-      if (!id) return;
+      try {
+        setLoading(true);
 
-      // Fetch seller ratings
-      const { data: ratingData, error: ratingError } = await supabase
-        .rpc('get_seller_ratings', { seller_uuid: id });
-
-      if (ratingError) {
-        console.error('Error fetching ratings:', ratingError);
-      } else if (ratingData && ratingData.length > 0) {
-        setRatings(ratingData[0]);
-      }
-
-      // Check if seller is blocked using the RPC function
-      const user = (await supabase.auth.getUser()).data.user;
-      if (user && id) {
-        const { data: isUserBlocked, error: blockCheckError } = await supabase
-          .rpc('check_if_user_is_blocked', { 
-            blocker_uuid: user.id, 
-            blocked_uuid: id 
-          });
-        
-        if (blockCheckError) {
-          console.error('Error checking block status:', blockCheckError);
-        } else {
-          setIsBlocked(!!isUserBlocked);
+        // If no sellerId is provided in the URL, this should not happen for seller profiles
+        if (!sellerId) {
+          console.error('No seller ID provided in URL');
+          setLoading(false);
+          return;
         }
-      }
 
-      // TODO: Fetch seller profile details once profiles table is implemented
-      // For now using mock data
-      setSeller({
-        name: "John Doe",
-        photoUrl: "https://images.unsplash.com/photo-1649972904349-6e44c42644a7",
-        location: "New York, NY",
-        joinDate: "2024",
-      });
+        // Always fetch the profile for the specific seller ID provided
+        const { data: profileData, error: profileError } = await supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('user_id', sellerId)
+          .single();
+
+        if (profileError && profileError.code === 'PGRST116') {
+          // No profile found for this seller ID
+          console.error('No profile found for seller ID:', sellerId);
+          setSeller(null);
+        } else if (!profileError && profileData) {
+          setSeller(profileData);
+        }
+
+        // Fetch seller ratings for the specific seller
+        const { data: ratingsData } = await supabase.rpc('get_seller_ratings', {
+          seller_uuid: sellerId
+        });
+
+        if (ratingsData && ratingsData.length > 0) {
+          setRatings(ratingsData[0]);
+        }
+
+        // Check if current user has blocked this seller
+        if (user && sellerId !== user.id) {
+          const { data: blockedData } = await supabase.rpc('check_if_user_is_blocked', {
+            blocker_uuid: user.id,
+            blocked_uuid: sellerId
+          });
+          setIsBlocked(blockedData || false);
+        }
+
+      } catch (error) {
+        console.error('Error fetching seller details:', error);
+      } finally {
+        setLoading(false);
+      }
     };
 
     fetchSellerDetails();
-  }, [id]);
+  }, [sellerId, user]);
+
+  if (loading) {
+    return <LoadingScreen message="Loading profile..." />;
+  }
+
+  if (!seller) {
+    return (
+      <div className="min-h-screen bg-gray-50 pb-16">
+        <TopBar title="Seller Profile" />
+        <div className="container mx-auto px-4 py-6">
+          <div className="text-center">
+            <p className="text-muted-foreground">Seller profile not found</p>
+            <Button onClick={() => navigate('/home')} className="mt-4">
+              Back to Home
+            </Button>
+          </div>
+        </div>
+        <BottomNav />
+      </div>
+    );
+  }
+
+  const sellerData = {
+    name: seller.full_name || 'Unknown User',
+    photoUrl: seller.avatar_url || '/placeholder.svg',
+    location: seller.location || 'Location not set',
+    joinDate: new Date(seller.created_at).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long'
+    })
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 pb-16">
-      <TopBar title="Seller Profile" showBackButton />
-      <main className="container mx-auto px-4 py-6 space-y-6">
-        <Card className="p-6">
-          <SellerHeader seller={seller} ratings={ratings} />
-          <SellerActions 
-            sellerId={id || ""} 
-            sellerName={seller.name}
-            sellerAvatar={seller.photoUrl}
-            isBlocked={isBlocked}
-            setIsBlocked={setIsBlocked}
-          />
-        </Card>
+      <TopBar title={sellerData.name} />
 
-        <SellerItems sellerName={seller.name} sellerId={id} />
+      <main className="container mx-auto px-4 py-6 space-y-6">
+        <SellerHeader seller={sellerData} ratings={ratings} />
+
+        <SellerActions
+          sellerId={seller.user_id}
+          sellerName={sellerData.name}
+          sellerAvatar={sellerData.photoUrl}
+          isBlocked={isBlocked}
+          setIsBlocked={setIsBlocked}
+        />
+
+        <SellerItems
+          sellerName={sellerData.name}
+          sellerId={seller.user_id}
+        />
       </main>
+
       <BottomNav />
     </div>
   );

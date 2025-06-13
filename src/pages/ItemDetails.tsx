@@ -2,117 +2,198 @@ import { TopBar } from "@/components/TopBar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Eye, Pencil, ShoppingCart, Star, BookmarkPlus } from "lucide-react";
-import { useLocation, useNavigate, Link } from "react-router-dom";
+import { useLocation, useNavigate, Link, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
+
+interface Item {
+  id: string;
+  title: string;
+  price: number;
+  category?: string;
+  images: string[];
+  description?: string;
+  seller_id: string;
+  location_range?: number;
+}
+
+interface Seller {
+  id: string;
+  user_id?: string;
+  full_name: string;
+  avatar_url: string | null;
+  location: string;
+}
 
 const ItemDetails = () => {
-  const location = useLocation();
-  const isOwner = location.state?.fromProfile ?? false;
+  const { id: itemId } = useParams();
   const navigate = useNavigate();
-  const itemId = location.pathname.split('/').pop() || "0";
-  const [itemFetchError, setItemFetchError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
+  const { user } = useAuth();
+  const [item, setItem] = useState<Item | null>(null);
+  const [seller, setSeller] = useState<Seller | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [viewCount, setViewCount] = useState(0);
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  console.log("Attempting to fetch item with ID:", itemId);
-
-  const { data: item, isLoading, error } = useQuery({
-    queryKey: ['item', itemId],
-    queryFn: async () => {
-      try {
-        if (itemId === "1" || itemId === "2") {
-          console.log("Using sample item data for ID:", itemId);
-          return {
-            id: itemId,
-            title: itemId === "1" ? "Vintage Camera" : "Laptop Stand",
-            price: itemId === "1" ? 299 : 49,
-            images: [itemId === "1" 
-              ? "https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d" 
-              : "https://images.unsplash.com/photo-1519389950473-47ba0277781c"],
-            description: itemId === "1" 
-              ? "A beautiful vintage camera in excellent condition." 
-              : "Ergonomic laptop stand for better posture and comfort.",
-            seller_id: "sample-seller"
-          };
-        }
-
-        const { data, error } = await supabase
-          .from('items')
-          .select('*')
-          .eq('id', itemId)
-          .maybeSingle();
-
-        if (error) {
-          console.error("Supabase query error:", error);
-          setItemFetchError(error.message);
-          throw error;
-        }
-        
-        if (!data) {
-          console.error("No item found with ID:", itemId);
-          setItemFetchError("Item not found");
-          throw new Error("Item not found");
-        }
-        
-        console.log("Successfully fetched item:", data);
-        return data;
-      } catch (err) {
-        console.error("Error in queryFn:", err);
-        throw err;
-      }
-    },
-    retry: false
-  });
-
-  const { data: viewCount } = useQuery({
-    queryKey: ['itemViews', itemId],
-    queryFn: async () => {
-      if (itemId === "1" || itemId === "2") {
-        return Math.floor(Math.random() * 50) + 10;
-      }
-      
-      const { data } = await supabase.rpc('get_item_views', { item_uuid: itemId });
-      return data ?? 0;
-    },
-    enabled: !!item
-  });
+  const isOwner = user && item?.seller_id === user.id;
+  const [itemFetchError, setItemFetchError] = useState<string | null>(null);
 
   useEffect(() => {
-    const trackView = async () => {
-      if (itemId === "1" || itemId === "2") return;
-      
-      const user = (await supabase.auth.getUser()).data.user;
-      if (user) {
-        await supabase.from('item_views').insert({
-          item_id: itemId,
-          viewer_id: user.id
-        }).then(({ error }) => {
-          if (error && error.code !== '23505') {
-            console.error('Error tracking view:', error);
+    const fetchItem = async () => {
+      if (!itemId) return;
+
+      try {
+        setIsLoading(true);
+        setError(null);
+
+        // Check if it's a sample item
+        const sampleItems: Item[] = [
+          {
+            id: "1",
+            title: "Vintage Camera",
+            price: 299,
+            category: "cameras",
+            images: ["https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d"],
+            description: "A beautiful vintage camera in excellent condition",
+            seller_id: "sample-user-1",
+            location_range: 10,
+          },
+          {
+            id: "2",
+            title: "Laptop Stand",
+            price: 49,
+            category: "electronics",
+            images: ["https://images.unsplash.com/photo-1519389950473-47ba0277781c"],
+            description: "Ergonomic laptop stand for better workspace",
+            seller_id: "sample-user-2",
+            location_range: 15,
+          },
+          {
+            id: "3",
+            title: "Office Chair",
+            price: 120,
+            category: "furniture",
+            images: ["https://images.unsplash.com/photo-1586023492125-27b2c045efd7"],
+            description: "Comfortable office chair with lumbar support",
+            seller_id: "sample-user-3",
+            location_range: 8,
+          },
+          {
+            id: "4",
+            title: "Designer Jacket",
+            price: 85,
+            category: "fashion",
+            images: ["https://images.unsplash.com/photo-1544022613-e87ca75a784a"],
+            description: "Stylish designer jacket, worn only a few times",
+            seller_id: "sample-user-4",
+            location_range: 12,
+          },
+        ];
+
+        const sampleItem = sampleItems.find(item => item.id === itemId);
+
+        if (sampleItem) {
+          setItem(sampleItem);
+          // Set mock seller for sample items
+          setSeller({
+            id: sampleItem.seller_id,
+            full_name: "Sample User",
+            avatar_url: "https://images.unsplash.com/photo-1649972904349-6e44c42644a7",
+            location: "Sample City"
+          });
+          setViewCount(Math.floor(Math.random() * 100) + 1);
+        } else {
+          // Fetch real item from database
+          const { data, error } = await supabase
+            .from('items')
+            .select('*')
+            .eq('id', itemId)
+            .single();
+
+          if (error) {
+            throw error;
           }
-        });
+
+          if (data) {
+            setItem(data as Item);
+
+            // Fetch seller information
+            const { data: sellerData, error: sellerError } = await supabase
+              .from('user_profiles')
+              .select('*')
+              .eq('user_id', data.seller_id)
+              .single();
+
+            if (sellerError) {
+              console.error('Error fetching seller:', sellerError);
+              // Set default seller if profile not found
+              setSeller({
+                id: data.seller_id,
+                full_name: "User",
+                avatar_url: null,
+                location: "Location not set"
+              });
+            } else {
+              setSeller(sellerData as Seller);
+            }
+
+            // Fetch view count
+            const { data: viewData } = await supabase.rpc('get_item_views', {
+              item_uuid: itemId
+            });
+            setViewCount(viewData || 0);
+          }
+        }
+      } catch (error: unknown) {
+        console.error('Error fetching item:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Failed to load item';
+        setItemFetchError(errorMessage);
+      } finally {
+        setIsLoading(false);
       }
     };
-    
-    if (item) {
+
+    fetchItem();
+  }, [itemId]);
+
+  const trackView = async () => {
+    if (!user || !itemId) return;
+
+    try {
+      await supabase.from('item_views').insert({
+        item_id: itemId,
+        viewer_id: user.id
+      });
+    } catch (error) {
+      console.error('Error tracking view:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (user && itemId && !isOwner) {
       trackView();
     }
-  }, [itemId, item]);
+  }, [user, itemId, isOwner]);
 
   const handleAddToCart = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      
+
       if (!user) {
         toast.error("Please sign in to add items to cart");
         navigate('/');
         return;
       }
 
-      if (itemId === "1" || itemId === "2") {
+      if (!itemId) return;
+
+      // Handle sample items
+      if (itemId === "1" || itemId === "2" || itemId === "3" || itemId === "4") {
         toast.success("Sample item added to cart", {
           duration: 2000
         });
@@ -143,7 +224,7 @@ const ItemDetails = () => {
   const handleSaveItem = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      
+
       if (!user) {
         toast.error("Please sign in to save items");
         navigate('/');
@@ -152,7 +233,7 @@ const ItemDetails = () => {
 
       setSaving(true);
       setSaved(!saved);
-      
+
       setTimeout(() => {
         setSaving(false);
       }, 500);
@@ -166,14 +247,14 @@ const ItemDetails = () => {
   };
 
   const handleContactSeller = () => {
-    const sellerId = item?.seller_id || "sample-seller";
-    
-    navigate(`/messages?userId=${sellerId}`, { 
-      state: { 
-        sellerId: sellerId,
-        sellerName: "John Doe",
-        sellerAvatar: "https://images.unsplash.com/photo-1649972904349-6e44c42644a7" 
-      } 
+    if (!seller || !item) return;
+
+    navigate(`/messages?userId=${seller.user_id || seller.id}`, {
+      state: {
+        sellerId: seller.user_id || seller.id,
+        sellerName: seller.full_name || "User",
+        sellerAvatar: seller.avatar_url || "https://images.unsplash.com/photo-1649972904349-6e44c42644a7"
+      }
     });
   };
 
@@ -244,9 +325,9 @@ const ItemDetails = () => {
                   </div>
                 </div>
               </div>
-              <Button 
-                variant="ghost" 
-                size="icon" 
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={handleSaveItem}
                 className={`transition-transform duration-300 ${saving ? 'scale-150' : ''}`}
               >
@@ -261,24 +342,26 @@ const ItemDetails = () => {
             </div>
             <div>
               <h2 className="font-semibold mb-2">Seller</h2>
-              <Link 
-                to={item.seller_id === "sample-seller" ? '/home' : `/seller/${item.seller_id}`}
+              <Link
+                to={seller?.user_id ? `/seller/${seller.user_id}` : (seller?.id ? `/seller/${seller.id}` : '/home')}
                 className="flex items-center space-x-3 p-2 rounded-lg border border-transparent transition-all duration-200 hover:border-primary/50"
               >
                 <img
-                  src="https://images.unsplash.com/photo-1649972904349-6e44c42644a7"
+                  src={seller?.avatar_url || "https://images.unsplash.com/photo-1649972904349-6e44c42644a7"}
                   alt="Seller"
                   className="w-12 h-12 rounded-full object-cover"
                 />
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <p className="font-medium">John Doe</p>
+                    <p className="font-medium">{seller?.full_name || "User"}</p>
                     <div className="flex items-center text-sm text-muted-foreground">
                       <Star className="h-4 w-4 fill-primary text-primary mr-1" />
                       4.5
                     </div>
                   </div>
-                  <p className="text-sm text-muted-foreground">Member since 2024</p>
+                  <p className="text-sm text-muted-foreground">
+                    {seller?.location || "Location not set"}
+                  </p>
                 </div>
               </Link>
             </div>
@@ -292,9 +375,9 @@ const ItemDetails = () => {
                 <Button size="sm" onClick={handleContactSeller} className="w-full">
                   Contact Seller
                 </Button>
-                <Button 
-                  size="sm" 
-                  variant="outline" 
+                <Button
+                  size="sm"
+                  variant="outline"
                   className="w-full"
                   onClick={handleAddToCart}
                 >

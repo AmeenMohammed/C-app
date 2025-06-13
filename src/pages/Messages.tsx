@@ -1,4 +1,3 @@
-
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
@@ -12,6 +11,8 @@ import type { EmojiClickData } from "emoji-picker-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Message {
   text: string;
@@ -25,6 +26,7 @@ interface Message {
     url: string;
     name?: string;
   };
+  timestamp?: string;
 }
 
 interface Conversation {
@@ -40,6 +42,7 @@ interface Conversation {
 }
 
 const Messages = () => {
+  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
   const selectedUserId = searchParams.get("userId");
@@ -47,198 +50,122 @@ const Messages = () => {
   const [newMessage, setNewMessage] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [attachment, setAttachment] = useState<File | null>(null);
-  const [conversations, setConversations] = useState<Conversation[]>([
-    {
-      id: "sarah",
-      user: {
-        name: "Sarah Smith",
-        avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=Sarah"
-      },
-      lastMessage: "Does it come with the original leather case?",
-      timestamp: "10:30 AM",
-      unread: true,
-      unreadCount: 2
-    },
-    {
-      id: "mike",
-      user: {
-        name: "Mike Johnson",
-        avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=Mike"
-      },
-      lastMessage: "Would you consider trading for a road bike?",
-      timestamp: "Yesterday",
-      unread: false
-    },
-    {
-      id: "emma",
-      user: {
-        name: "Emma Wilson",
-        avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=Emma"
-      },
-      lastMessage: "Great! See you tomorrow at 2 PM.",
-      timestamp: "2 days ago",
-      unread: false
-    },
-    {
-      id: "david",
-      user: {
-        name: "David Chen",
-        avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=David"
-      },
-      lastMessage: "Is the price negotiable?",
-      timestamp: "3 days ago",
-      unread: true,
-      unreadCount: 1
-    }
-  ]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Handle the case where a new conversation needs to be created
+  // Fetch user's conversations from database (placeholder for now)
   useEffect(() => {
-    // Check if we have seller information in the location state
-    const sellerInfo = location.state as { 
-      sellerId?: string; 
-      sellerName?: string; 
-      sellerAvatar?: string; 
-    } | null;
+    const fetchConversations = async () => {
+      if (!user) return;
 
-    if (sellerInfo?.sellerId && selectedUserId) {
-      // Check if this seller is already in our conversations list
-      const existingConversation = conversations.find(conv => conv.id === sellerInfo.sellerId);
-      
-      if (!existingConversation && sellerInfo.sellerName) {
-        // Add this seller to our conversations list
-        const newConversation: Conversation = {
-          id: sellerInfo.sellerId,
-          user: {
-            name: sellerInfo.sellerName,
-            avatar: sellerInfo.sellerAvatar
-          },
-          lastMessage: "Start a conversation...",
-          timestamp: "Just now",
-          unread: false
-        };
-        
-        setConversations(prev => [newConversation, ...prev]);
-        
-        // Start with an empty message list for this new conversation
-        setMessages([]);
+      setLoading(true);
+      try {
+        // TODO: Implement real conversations from database
+        // For now, showing empty state or sample data based on user
+
+        // Check if we have seller information in the location state
+        const sellerInfo = location.state as {
+          sellerId?: string;
+          sellerName?: string;
+          sellerAvatar?: string;
+        } | null;
+
+        if (sellerInfo?.sellerId && sellerInfo?.sellerName) {
+          // Add this seller to our conversations list
+          const newConversation: Conversation = {
+            id: sellerInfo.sellerId,
+            user: {
+              name: sellerInfo.sellerName,
+              avatar: sellerInfo.sellerAvatar || `https://api.dicebear.com/7.x/avatars/svg?seed=${sellerInfo.sellerName}`
+            },
+            lastMessage: "Start a conversation...",
+            timestamp: "Just now",
+            unread: false
+          };
+
+          setConversations([newConversation]);
+        } else {
+          // Show empty state for new users
+          setConversations([]);
+        }
+      } catch (error) {
+        console.error('Error fetching conversations:', error);
+        toast.error("Failed to load conversations");
+      } finally {
+        setLoading(false);
       }
-    }
-  }, [location.state, selectedUserId]);
+    };
 
+    fetchConversations();
+  }, [user, location.state]);
+
+  // Fetch messages for selected conversation (placeholder for now)
   useEffect(() => {
-    if (selectedUserId) {
-      if (selectedUserId === "sarah") {
-        setMessages([
-          { 
-            text: "Hi! I'm interested in the vintage camera you posted. Is it still available?", 
-            isMine: false,
-            user: {
-              name: "Sarah Smith",
-              avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=Sarah"
-            }
-          },
-          { 
-            text: "Yes, it's still available! Would you like to see more photos?", 
-            isMine: true,
-            user: {
-              name: "John Doe",
-              avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=John"
-            }
-          },
-          { 
-            text: "That would be great! Does it come with the original leather case?", 
-            isMine: false,
-            user: {
-              name: "Sarah Smith",
-              avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=Sarah"
-            }
-          }
-        ]);
-      } else if (selectedUserId === "mike") {
-        setMessages([
-          { 
-            text: "Hey, I saw your listing for the mountain bike. What's the frame size?", 
-            isMine: false,
-            user: {
-              name: "Mike Johnson",
-              avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=Mike"
-            }
-          },
-          { 
-            text: "It's a 19-inch frame, perfect for riders 5'9\" to 6'1\"", 
-            isMine: true,
-            user: {
-              name: "John Doe",
-              avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=John"
-            }
-          },
-          { 
-            text: "Would you consider trading for a road bike?", 
-            isMine: false,
-            user: {
-              name: "Mike Johnson",
-              avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=Mike"
-            }
-          }
-        ]);
-      } else if (selectedUserId === "sample-seller" || selectedUserId === "emma" || selectedUserId === "david") {
-        // For new conversations, start with empty messages
+    const fetchMessages = async () => {
+      if (!selectedUserId || !user) return;
+
+      try {
+        // TODO: Implement real messages from database
+        // For now, starting with empty messages for new conversations
         setMessages([]);
+      } catch (error) {
+        console.error('Error fetching messages:', error);
+        toast.error("Failed to load messages");
       }
-    } else {
-      setMessages([]);
-    }
-  }, [selectedUserId]);
+    };
+
+    fetchMessages();
+  }, [selectedUserId, user]);
 
   const selectConversation = (userId: string) => {
     setSearchParams({ userId });
   };
 
-  const handleSendMessage = () => {
-    if ((!newMessage.trim() && !attachment) || !selectedUserId) return;
+  const handleSendMessage = async () => {
+    if ((!newMessage.trim() && !attachment) || !selectedUserId || !user) return;
 
-    const message: Message = {
+    const messageData: Message = {
       text: newMessage,
       isMine: true,
       user: {
-        name: "John Doe",
-        avatar: "https://api.dicebear.com/7.x/avatars/svg?seed=John"
-      }
+        name: user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || "You",
+        avatar: user.user_metadata?.avatar_url || user.user_metadata?.picture
+      },
+      timestamp: new Date().toISOString()
     };
 
     if (attachment) {
       const url = URL.createObjectURL(attachment);
-      const type = attachment.type.startsWith('image/')
-        ? 'image'
-        : attachment.type.startsWith('video/')
-        ? 'video'
-        : 'file';
-      
-      message.attachment = {
-        type,
+      messageData.attachment = {
+        type: attachment.type.startsWith('image/') ? 'image' :
+              attachment.type.startsWith('video/') ? 'video' : 'file',
         url,
         name: attachment.name
       };
     }
 
-    setMessages(prev => [...prev, message]);
-    
-    // Update the last message in the conversations list
-    setConversations(prev => 
-      prev.map(conv => 
-        conv.id === selectedUserId 
-          ? {
-              ...conv,
-              lastMessage: newMessage || 'Sent an attachment',
-              timestamp: 'Just now',
-              unread: false,
-              unreadCount: 0
-            }
+    // Add message to local state immediately for better UX
+    setMessages(prev => [...prev, messageData]);
+
+    // TODO: Save message to database
+    try {
+      // Placeholder for database save
+      console.log('Saving message to database:', messageData);
+
+      // Update last message in conversations
+      setConversations(prev => prev.map(conv =>
+        conv.id === selectedUserId
+          ? { ...conv, lastMessage: newMessage || "📎 Attachment", timestamp: "Just now" }
           : conv
-      )
-    );
-    
+      ));
+
+    } catch (error) {
+      console.error('Error saving message:', error);
+      toast.error("Failed to send message");
+      // Remove message from local state on error
+      setMessages(prev => prev.slice(0, -1));
+    }
+
     setNewMessage("");
     setAttachment(null);
   };
@@ -253,225 +180,231 @@ const Messages = () => {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (file.size > 10 * 1024 * 1024) { // 10MB limit
-      toast.error("File is too large. Maximum size is 10MB.");
-      return;
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) { // 10MB limit
+        toast.error("File size must be less than 10MB");
+        return;
+      }
+      setAttachment(file);
     }
-
-    setAttachment(file);
   };
 
   const removeAttachment = () => {
     setAttachment(null);
   };
 
+  const selectedConversation = conversations.find(conv => conv.id === selectedUserId);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 pb-16">
+        <TopBar title="Messages" />
+        <div className="flex items-center justify-center py-12">
+          <p className="text-muted-foreground">Loading conversations...</p>
+        </div>
+        <BottomNav />
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <TopBar title="My Messages" showBackButton={selectedUserId !== null} />
-      
-      <main className="flex-1 container mx-auto px-2 py-4 overflow-hidden flex flex-col pb-32">
-        {!selectedUserId ? (
+    <div className="min-h-screen bg-gray-50 pb-16">
+      <TopBar title="Messages" />
+
+      <div className="flex h-[calc(100vh-8rem)]">
+        {/* Conversations Sidebar */}
+        <div className="w-80 bg-white border-r flex flex-col">
+          <div className="p-4 border-b">
+            <h2 className="font-semibold text-lg">Conversations</h2>
+            <p className="text-sm text-muted-foreground">
+              {conversations.length === 0 ? "No conversations yet" : `${conversations.length} conversation${conversations.length !== 1 ? 's' : ''}`}
+            </p>
+          </div>
+
           <ScrollArea className="flex-1">
-            <div className="space-y-1">
-              {conversations.map((conversation) => (
+            {conversations.length === 0 ? (
+              <div className="p-4 text-center">
+                <p className="text-muted-foreground text-sm">
+                  No conversations yet. Contact a seller to start chatting!
+                </p>
+              </div>
+            ) : (
+              conversations.map((conversation) => (
                 <div
                   key={conversation.id}
-                  className="bg-white rounded-lg p-3 shadow-sm cursor-pointer border hover:border-2 hover:border-red-500 transition-all"
                   onClick={() => selectConversation(conversation.id)}
+                  className={`p-4 border-b cursor-pointer hover:bg-gray-50 transition-colors ${
+                    selectedUserId === conversation.id ? 'bg-blue-50 border-blue-200' : ''
+                  }`}
                 >
                   <div className="flex items-center gap-3">
                     <Avatar className="h-10 w-10">
                       <AvatarImage src={conversation.user.avatar} />
-                      <AvatarFallback>{conversation.user.name.slice(0, 2)}</AvatarFallback>
+                      <AvatarFallback>{conversation.user.name.charAt(0)}</AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
-                        <h3 className={`text-sm truncate ${conversation.unread ? 'font-bold' : 'font-medium'}`}>
+                        <h3 className="font-medium text-sm truncate">
                           {conversation.user.name}
                         </h3>
-                        <div className="flex items-center gap-2">
-                          {conversation.unread && conversation.unreadCount && (
-                            <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
-                              {conversation.unreadCount}
-                            </span>
-                          )}
-                          <span className="text-xs text-muted-foreground">{conversation.timestamp}</span>
-                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          {conversation.timestamp}
+                        </span>
                       </div>
-                      <p className={`text-xs text-muted-foreground truncate ${conversation.unread ? 'font-semibold' : ''}`}>
+                      <p className="text-sm text-muted-foreground truncate">
                         {conversation.lastMessage}
                       </p>
                     </div>
+                    {conversation.unreadCount && conversation.unreadCount > 0 && (
+                      <div className="bg-blue-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                        {conversation.unreadCount}
+                      </div>
+                    )}
                   </div>
                 </div>
-              ))}
-            </div>
+              ))
+            )}
           </ScrollArea>
-        ) : (
-          <>
-            <ScrollArea className="flex-1">
-              <div className="space-y-3 pb-4">
-                {messages.map((message, index) => (
-                  <div
-                    key={index}
-                    className={`flex ${message.isMine ? 'justify-end' : 'justify-start'}`}
-                  >
-                    <div className="flex items-end gap-2 max-w-[85%]">
-                      {!message.isMine && (
-                        <Avatar className="h-6 w-6">
-                          <AvatarImage src={message.user?.avatar} />
-                          <AvatarFallback>{message.user?.name.slice(0, 2)}</AvatarFallback>
-                        </Avatar>
-                      )}
-                      <div className="space-y-1">
-                        <div
-                          className={`rounded-2xl px-4 py-2 ${
-                            message.isMine
-                              ? 'border-2 border-red-500 text-black rounded-br-sm'
-                              : 'text-black rounded-bl-sm'
-                          }`}
-                        >
-                          {message.attachment && (
-                            <div className="mb-2">
-                              {message.attachment.type === "image" && (
-                                <img 
-                                  src={message.attachment.url} 
-                                  alt="Attached"
-                                  className="rounded-lg max-h-60 object-contain"
-                                />
-                              )}
-                              {message.attachment.type === "video" && (
-                                <video 
-                                  src={message.attachment.url} 
-                                  controls
-                                  className="rounded-lg max-h-60 w-full"
-                                />
-                              )}
-                              {message.attachment.type === "file" && (
-                                <div className="flex items-center gap-2 bg-gray-100 p-2 rounded-lg">
-                                  <Paperclip className="h-4 w-4 text-gray-600" />
-                                  <span className="text-sm truncate">{message.attachment.name}</span>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                          {message.text && <span className="text-sm">{message.text}</span>}
-                        </div>
-                        {message.isMine && message.user && (
-                          <div className="flex items-center justify-end gap-1">
-                            <span className="text-xs text-muted-foreground">
-                              {message.user.name}
-                            </span>
-                            <Avatar className="h-4 w-4">
-                              <AvatarImage src={message.user.avatar} />
-                              <AvatarFallback>{message.user.name.slice(0, 2)}</AvatarFallback>
-                            </Avatar>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                
-                {messages.length === 0 && selectedUserId && (
-                  <div className="flex items-center justify-center h-32">
-                    <p className="text-muted-foreground text-sm">
-                      Start the conversation with{" "}
-                      {conversations.find(c => c.id === selectedUserId)?.user.name || "this seller"}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </ScrollArea>
+        </div>
 
-            <div className="fixed bottom-16 left-0 right-0 bg-white shadow-lg border-t">
-              <div className="container mx-auto p-3">
-                {attachment && (
-                  <div className="flex items-center gap-2 bg-gray-100 p-2 rounded-lg mb-2">
-                    <div className="flex-1 truncate text-sm">
-                      <Paperclip className="h-4 w-4 text-gray-600 inline mr-1" />
-                      {attachment.name}
+        {/* Messages Area */}
+        <div className="flex-1 flex flex-col">
+          {selectedConversation ? (
+            <>
+              {/* Chat Header */}
+              <div className="p-4 border-b bg-white">
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={selectedConversation.user.avatar} />
+                    <AvatarFallback>{selectedConversation.user.name.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                  <h3 className="font-medium">{selectedConversation.user.name}</h3>
+                </div>
+              </div>
+
+              {/* Messages */}
+              <ScrollArea className="flex-1 p-4">
+                <div className="space-y-4">
+                  {messages.length === 0 ? (
+                    <div className="text-center py-8">
+                      <p className="text-muted-foreground">
+                        Start a conversation with {selectedConversation.user.name}
+                      </p>
                     </div>
-                    <Button 
-                      variant="ghost" 
-                      size="icon"
-                      className="h-6 w-6 rounded-full"
-                      onClick={removeAttachment}
-                    >
+                  ) : (
+                    messages.map((message, index) => (
+                      <div
+                        key={index}
+                        className={`flex ${message.isMine ? 'justify-end' : 'justify-start'}`}
+                      >
+                        <div className={`flex gap-2 max-w-xs lg:max-w-md`}>
+                          {!message.isMine && (
+                            <Avatar className="h-6 w-6 mt-2">
+                              <AvatarImage src={message.user?.avatar} />
+                              <AvatarFallback>{message.user?.name?.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                          )}
+                          <div
+                            className={`px-3 py-2 rounded-lg ${
+                              message.isMine
+                                ? 'bg-blue-500 text-white'
+                                : 'bg-gray-100 text-gray-900'
+                            }`}
+                          >
+                            {message.attachment && (
+                              <div className="mb-2">
+                                {message.attachment.type === 'image' ? (
+                                  <img
+                                    src={message.attachment.url}
+                                    alt="Attachment"
+                                    className="max-w-full h-auto rounded"
+                                  />
+                                ) : (
+                                  <div className="flex items-center gap-2 text-sm">
+                                    <Paperclip className="h-4 w-4" />
+                                    <span>{message.attachment.name || 'File'}</span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                            {message.text && (
+                              <p className="text-sm">{message.text}</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </ScrollArea>
+
+              {/* Message Input */}
+              <div className="p-4 border-t bg-white">
+                {attachment && (
+                  <div className="mb-3 p-2 bg-gray-100 rounded-lg flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-sm">
+                      <Paperclip className="h-4 w-4" />
+                      <span>{attachment.name}</span>
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={removeAttachment}>
                       <X className="h-4 w-4" />
                     </Button>
                   </div>
                 )}
-                <div className="flex items-center gap-2">
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button 
-                        variant="ghost" 
-                        size="icon"
-                        className="h-9 w-9 rounded-full"
-                      >
-                        <Smile className="h-5 w-5 text-muted-foreground" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent 
-                      side="top" 
-                      align="start"
-                      className="w-[280px] mb-2"
-                    >
-                      <EmojiPicker
-                        onEmojiClick={onEmojiClick}
-                        width="100%"
-                        height={350}
-                      />
-                    </PopoverContent>
-                  </Popover>
 
-                  <Button 
-                    variant="ghost" 
-                    size="icon"
-                    className="h-9 w-9 rounded-full"
-                    onClick={handleAttachmentClick}
-                  >
-                    <Paperclip className="h-5 w-5 text-muted-foreground" />
-                  </Button>
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    className="hidden"
-                    onChange={handleFileChange}
-                    accept="image/*,video/*,application/*"
-                  />
-
+                <form onSubmit={(e) => { e.preventDefault(); handleSendMessage(); }} className="flex gap-2">
                   <Input
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
                     placeholder="Type a message..."
                     className="flex-1"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSendMessage();
-                      }
-                    }}
                   />
 
-                  <Button 
-                    size="icon"
-                    onClick={handleSendMessage}
-                    disabled={!newMessage.trim() && !attachment}
-                    className="h-9 w-9 rounded-full"
-                  >
-                    <Send className="h-5 w-5" />
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    className="hidden"
+                    accept="image/*,video/*,.pdf,.doc,.docx"
+                  />
+
+                  <Button type="button" variant="ghost" size="icon" onClick={handleAttachmentClick}>
+                    <Paperclip className="h-4 w-4" />
                   </Button>
-                </div>
+
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button type="button" variant="ghost" size="icon">
+                        <Smile className="h-4 w-4" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="p-0">
+                      <EmojiPicker onEmojiClick={onEmojiClick} />
+                    </PopoverContent>
+                  </Popover>
+
+                  <Button type="submit" disabled={!newMessage.trim() && !attachment}>
+                    <Send className="h-4 w-4" />
+                  </Button>
+                </form>
+              </div>
+            </>
+          ) : (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center">
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Welcome to Messages</h3>
+                <p className="text-muted-foreground">
+                  {conversations.length === 0
+                    ? "Contact sellers to start conversations"
+                    : "Select a conversation to start messaging"
+                  }
+                </p>
               </div>
             </div>
-          </>
-        )}
-      </main>
-      
+          )}
+        </div>
+      </div>
+
       <BottomNav />
     </div>
   );

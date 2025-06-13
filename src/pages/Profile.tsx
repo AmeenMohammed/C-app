@@ -10,28 +10,65 @@ import { Input } from "@/components/ui/input";
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import avatar from "../assets/avatar.jpg";
+
 
 const Profile = () => {
   const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [profile, setProfile] = useState({
-    name: "John Doe",
+    name: "User",
     bio: "Hello! I'm a passionate seller on this platform.",
-    email: "john.doe@example.com",
+    email: "user@example.com",
     telephone: "+1 (234) 567-8900",
     location: "New York, NY",
     isEmailPublic: false,
     isPhonePublic: false,
-    photoUrl: "https://images.unsplash.com/photo-1649972904349-6e44c42644a7"
+    photoUrl: avatar
   });
 
   useEffect(() => {
     if (user) {
+      // Extract avatar URL with better fallback logic
+      const googleAvatar = user.user_metadata?.avatar_url ||
+                        user.user_metadata?.picture ||
+                        user.identities?.[0]?.identity_data?.avatar_url ||
+                        user.identities?.[0]?.identity_data?.picture;
+
+
+      // Extract name with better priority
+      const displayName = user.user_metadata?.full_name ||
+                         user.user_metadata?.name ||
+                         user.identities?.[0]?.identity_data?.full_name ||
+                         user.identities?.[0]?.identity_data?.name ||
+                         user.email?.split('@')[0] ||
+                         "User";
+
+      // Extract email with fallback
+      const userEmail = user.email ||
+                       user.user_metadata?.email ||
+                       user.identities?.[0]?.identity_data?.email ||
+                       "No email provided";
+
+      // Extract phone (Google OAuth might not provide this)
+      const userPhone = user.phone ||
+                       user.user_metadata?.phone ||
+                       user.identities?.[0]?.identity_data?.phone ||
+                       "";
+
+      // Extract location (Google OAuth might not provide this)
+      const userLocation = user.user_metadata?.location ||
+                          user.identities?.[0]?.identity_data?.location ||
+                          "";
+
       setProfile(prev => ({
         ...prev,
-        name: user.user_metadata?.name || user.email?.split('@')[0] || "User",
-        email: user.email || "No email provided",
+        name: displayName,
+        email: userEmail,
+        telephone: userPhone,
+        location: userLocation,
+        photoUrl: googleAvatar,
       }));
     }
   }, [user]);
@@ -76,6 +113,11 @@ const Profile = () => {
                 src={profile.photoUrl}
                 alt="Profile"
                 className="w-24 h-24 rounded-full object-cover"
+                onError={(e) => {
+                  // Fallback to default image if Google image fails to load
+                  const target = e.target as HTMLImageElement;
+                  target.src = avatar;
+                }}
               />
               {isEditing && (
                 <>
@@ -106,7 +148,14 @@ const Profile = () => {
                 ) : (
                   <>
                     <h2 className="text-2xl font-semibold">{profile.name}</h2>
-                    <p className="text-sm text-muted-foreground">Member since 2024</p>
+                    <p className="text-sm text-muted-foreground">
+                      Member since {new Date().getFullYear()}
+                    </p>
+                    {user?.user_metadata?.provider && (
+                      <p className="text-xs text-blue-600">
+                        Signed in with {user.user_metadata.provider.charAt(0).toUpperCase() + user.user_metadata.provider.slice(1)}
+                      </p>
+                    )}
                   </>
                 )}
               </div>
@@ -181,21 +230,28 @@ const Profile = () => {
                     placeholder="Your phone number"
                   />
                 ) : (
-                  <span className="text-sm">{profile.telephone}</span>
+                  // Only show phone if present
+                  profile.telephone && profile.telephone.trim() !== "" ? (
+                    <span className="text-sm">{profile.telephone}</span>
+                  ) : (
+                    <span className="text-sm text-muted-foreground italic">No phone number</span>
+                  )
                 )}
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => toggleVisibility('phone')}
-                className="h-8 w-8"
-              >
-                {profile.isPhonePublic ? (
-                  <Eye className="h-4 w-4" />
-                ) : (
-                  <EyeOff className="h-4 w-4" />
-                )}
-              </Button>
+              {(isEditing || (profile.telephone && profile.telephone.trim() !== "")) && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => toggleVisibility('phone')}
+                  className="h-8 w-8"
+                >
+                  {profile.isPhonePublic ? (
+                    <Eye className="h-4 w-4" />
+                  ) : (
+                    <EyeOff className="h-4 w-4" />
+                  )}
+                </Button>
+              )}
             </div>
 
             <div className="flex items-center gap-2">
@@ -207,17 +263,22 @@ const Profile = () => {
                   placeholder="Your location"
                 />
               ) : (
-                <div className="flex items-center gap-2 flex-1">
-                  <a
-                    href={getGoogleMapsUrl(profile.location)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm hover:text-primary transition-colors flex items-center gap-2"
-                  >
-                    {profile.location}
-                    <ExternalLink className="h-4 w-4" />
-                  </a>
-                </div>
+                // Only show location if present
+                profile.location && profile.location.trim() !== "" ? (
+                  <div className="flex items-center gap-2 flex-1">
+                    <a
+                      href={getGoogleMapsUrl(profile.location)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm hover:text-primary transition-colors flex items-center gap-2"
+                    >
+                      {profile.location}
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+                  </div>
+                ) : (
+                  <span className="text-sm text-muted-foreground italic">No location</span>
+                )
               )}
             </div>
           </div>

@@ -9,9 +9,9 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { 
-  Settings, 
-  CreditCard, 
+import {
+  Settings,
+  CreditCard,
   LayoutGrid,
   MessageSquare,
   Bell,
@@ -44,16 +44,16 @@ const menuItems = [
 
 export function AppSidebar() {
   const location = useLocation();
-  
+
   // Don't show sidebar on login or signup pages
   const isAuthPage = location.pathname === "/" || location.pathname === "/signup";
-  
+
   if (isAuthPage) {
     return null;
   }
 
   return (
-    <Sidebar>
+    <Sidebar className="mt-16">
       <SidebarContent>
         {menuItems.map((group, index) => (
           <SidebarGroup key={index}>

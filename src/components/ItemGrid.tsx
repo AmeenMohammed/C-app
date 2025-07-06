@@ -13,15 +13,16 @@ interface ItemGridProps {
   isProfile?: boolean;
   locationRange?: number;
   selectedCategory?: string;
+  userLocation?: {lat: number, lng: number} | null;
 }
 
-export function ItemGrid({ userId, isProfile = false, locationRange = 10, selectedCategory = 'all' }: ItemGridProps) {
+export function ItemGrid({ userId, isProfile = false, locationRange = 10, selectedCategory = 'all', userLocation }: ItemGridProps) {
   const { toast } = useToast();
   const [savingItems, setSavingItems] = useState<Record<string, boolean>>({});
 
   // Query to fetch user items or filtered items based on location and category
   const { data: items, isLoading, error } = useQuery({
-    queryKey: ['items', userId, isProfile, locationRange, selectedCategory],
+    queryKey: ['items', userId, isProfile, locationRange, selectedCategory, userLocation],
     queryFn: async () => {
       try {
         // If on profile page and userId provided, get user's items
@@ -42,26 +43,45 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
           console.log('✅ Found items for user:', data?.length || 0);
           return data || [];
         } else {
-          // Get items from database filtered by location and category
-          let query = supabase
-            .from('items')
-            .select('*')
-            .lte('location_range', locationRange)
-            .order('created_at', { ascending: false });
+          // Use location-based filtering if user location is available
+          if (userLocation) {
+            console.log('🌍 Using location-based filtering:', userLocation);
+            
+            const { data, error } = await supabase.rpc('get_items_within_range', {
+              user_lat: userLocation.lat,
+              user_lon: userLocation.lng,
+              max_distance: locationRange,
+              category_filter: selectedCategory === 'all' ? null : selectedCategory
+            });
 
-          // Filter by category if not 'all'
-          if (selectedCategory && selectedCategory !== 'all') {
-            query = query.eq('category', selectedCategory);
+            if (error) {
+              console.error('Error fetching location-based items:', error);
+              return SAMPLE_ITEMS;
+            }
+
+            return data || [];
+          } else {
+            // Fallback to original filtering when location is not available
+            let query = supabase
+              .from('items')
+              .select('*')
+              .lte('location_range', locationRange)
+              .order('created_at', { ascending: false });
+
+            // Filter by category if not 'all'
+            if (selectedCategory && selectedCategory !== 'all') {
+              query = query.eq('category', selectedCategory);
+            }
+
+            const { data, error } = await query;
+
+            if (error) {
+              console.error('Error fetching items:', error);
+              return SAMPLE_ITEMS;
+            }
+
+            return data || [];
           }
-
-          const { data, error } = await query;
-
-          if (error) {
-            console.error('Error fetching items:', error);
-            return SAMPLE_ITEMS;
-          }
-
-          return data || [];
         }
       } catch (error) {
         console.error('Error fetching items:', error);

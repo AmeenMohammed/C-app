@@ -130,7 +130,9 @@ export type Database = {
           description: string | null
           id: string
           images: string[] | null
+          latitude: number | null
           location_range: number
+          longitude: number | null
           price: number
           promoted: boolean | null
           promoted_at: string | null
@@ -143,7 +145,9 @@ export type Database = {
           description?: string | null
           id?: string
           images?: string[] | null
+          latitude?: number | null
           location_range: number
+          longitude?: number | null
           price: number
           promoted?: boolean | null
           promoted_at?: string | null
@@ -156,7 +160,9 @@ export type Database = {
           description?: string | null
           id?: string
           images?: string[] | null
+          latitude?: number | null
           location_range?: number
+          longitude?: number | null
           price?: number
           promoted?: boolean | null
           promoted_at?: string | null
@@ -324,6 +330,10 @@ export type Database = {
         Args: { blocker_uuid: string; blocked_uuid: string }
         Returns: undefined
       }
+      calculate_distance: {
+        Args: { lat1: number; lon1: number; lat2: number; lon2: number }
+        Returns: number
+      }
       can_rate_seller: {
         Args: { buyer_uuid: string; seller_uuid: string }
         Returns: boolean
@@ -343,6 +353,30 @@ export type Database = {
       get_item_views: {
         Args: { item_uuid: string }
         Returns: number
+      }
+      get_items_within_range: {
+        Args: {
+          user_lat: number
+          user_lon: number
+          max_distance: number
+          category_filter?: string
+        }
+        Returns: {
+          id: string
+          title: string
+          price: number
+          description: string
+          category: string
+          images: string[]
+          seller_id: string
+          created_at: string
+          latitude: number
+          longitude: number
+          location_range: number
+          promoted: boolean
+          promoted_at: string
+          distance: number
+        }[]
       }
       get_seller_ratings: {
         Args: { seller_uuid: string }

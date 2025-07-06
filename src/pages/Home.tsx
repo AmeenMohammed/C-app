@@ -5,7 +5,7 @@ import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { MapPin, ExternalLink, Sofa, Pill, ShoppingBag, Car, Laptop, Camera, Baby, Book, Shirt } from "lucide-react";
 
 const categories = [
@@ -23,19 +23,48 @@ const categories = [
 const Home = () => {
   const [range, setRange] = useState([10]); // Default 10km radius
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
+
+  // Get user's location on component mount
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          });
+        },
+        (error) => {
+          console.error("Error getting location:", error);
+        }
+      );
+    }
+  }, []);
 
   const openGoogleMaps = () => {
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-        const url = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
-        window.open(url, '_blank');
-      },
-      (error) => {
-        console.error("Error getting location:", error);
-        window.open('https://www.google.com/maps', '_blank');
-      }
-    );
+    if (userLocation) {
+      const url = `https://www.google.com/maps/search/?api=1&query=${userLocation.lat},${userLocation.lng}`;
+      window.open(url, '_blank');
+    } else {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          const url = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
+          window.open(url, '_blank');
+        },
+        (error) => {
+          console.error("Error getting location:", error);
+          // Try iPhone Maps as fallback
+          const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+          if (isMobile) {
+            window.open('maps://', '_blank');
+          } else {
+            window.open('https://www.google.com/maps', '_blank');
+          }
+        }
+      );
+    }
   };
 
   return (
@@ -79,6 +108,7 @@ const Home = () => {
         <ItemGrid
           locationRange={range[0]}
           selectedCategory={selectedCategory}
+          userLocation={userLocation}
         />
       </main>
 

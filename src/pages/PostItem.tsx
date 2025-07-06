@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ImagePlus, TrendingUp, MapPin, ExternalLink, X, Sofa, Pill, ShoppingBag, Car, Laptop, Camera, Baby, Book, Shirt } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
 import { toast } from "@/hooks/use-toast";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Slider } from "@/components/ui/slider";
 import {
   Dialog,
@@ -46,6 +46,29 @@ const PostItem = () => {
     category: "",
     range: [10] as number[], // Default 10km radius
   });
+  const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
+
+  // Get user's location on component mount
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          });
+        },
+        (error) => {
+          console.error("Error getting location:", error);
+          toast({
+            title: "Location Error",
+            description: "Could not get your location. Items will be posted without location data.",
+            variant: "destructive",
+          });
+        }
+      );
+    }
+  }, []);
 
   const handlePromoteItem = () => {
     setShowPaymentDialog(true);
@@ -141,6 +164,8 @@ const PostItem = () => {
         description: formData.description,
         category: formData.category,
         location_range: formData.range[0],
+        latitude: userLocation?.lat || null,
+        longitude: userLocation?.lng || null,
         seller_id: user.id,
         images: images,
       });

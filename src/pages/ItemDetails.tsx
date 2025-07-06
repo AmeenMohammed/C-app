@@ -1,7 +1,7 @@
 import { TopBar } from "@/components/TopBar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Eye, Pencil, ShoppingCart, Star, BookmarkPlus } from "lucide-react";
+import { Eye, Pencil, Star, BookmarkPlus } from "lucide-react";
 import { useLocation, useNavigate, Link, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -180,47 +180,6 @@ const ItemDetails = () => {
     }
   }, [user, itemId, isOwner]);
 
-  const handleAddToCart = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-
-      if (!user) {
-        toast.error("Please sign in to add items to cart");
-        navigate('/');
-        return;
-      }
-
-      if (!itemId) return;
-
-      // Handle sample items
-      if (itemId === "1" || itemId === "2" || itemId === "3" || itemId === "4") {
-        toast.success("Sample item added to cart", {
-          duration: 2000
-        });
-        return;
-      }
-
-      const { error } = await supabase
-        .from('cart_items')
-        .upsert({
-          user_id: user.id,
-          item_id: itemId,
-          quantity: 1
-        }, {
-          onConflict: 'user_id,item_id'
-        });
-
-      if (error) throw error;
-
-      toast.success("Item added to cart", {
-        duration: 2000
-      });
-    } catch (error) {
-      console.error('Error adding to cart:', error);
-      toast.error("Failed to add item to cart");
-    }
-  };
-
   const handleSaveItem = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -371,20 +330,9 @@ const ItemDetails = () => {
                 Edit Item
               </Button>
             ) : (
-              <div className="space-y-2">
-                <Button size="sm" onClick={handleContactSeller} className="w-full">
-                  Contact Seller
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="w-full"
-                  onClick={handleAddToCart}
-                >
-                  <ShoppingCart className="h-4 w-4 mr-2" />
-                  Add to Cart
-                </Button>
-              </div>
+              <Button size="sm" onClick={handleContactSeller} className="w-full">
+                Contact Seller
+              </Button>
             )}
           </div>
         </Card>

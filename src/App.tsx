@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -23,7 +24,6 @@ import Settings from "./pages/Settings";
 import PaymentMethods from "./pages/PaymentMethods";
 import HelpSupport from "./pages/HelpSupport";
 import Channels from "./pages/Channels";
-import Cart from "./pages/Cart";
 
 const queryClient = new QueryClient();
 
@@ -109,14 +109,6 @@ const App = () => (
                     element={
                       <ProtectedRoute>
                         <PaymentMethods />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/cart"
-                    element={
-                      <ProtectedRoute>
-                        <Cart />
                       </ProtectedRoute>
                     }
                   />

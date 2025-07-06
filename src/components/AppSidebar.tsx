@@ -17,7 +17,6 @@ import {
   Bell,
   Heart,
   HelpCircle,
-  ShoppingCart
 } from "lucide-react";
 import { useLocation } from "react-router-dom";
 
@@ -29,7 +28,6 @@ const menuItems = [
       { title: "Messages", icon: MessageSquare, url: "/messages" },
       { title: "Notifications", icon: Bell, url: "/notifications" },
       { title: "Saved Items", icon: Heart, url: "/saved-items" },
-      { title: "Cart", icon: ShoppingCart, url: "/cart" },
     ],
   },
   {

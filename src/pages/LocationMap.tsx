@@ -6,10 +6,14 @@ import { TopBar } from '@/components/TopBar';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { MapPin } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from '@/hooks/use-toast';
 
 const LocationMap = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { user } = useAuth();
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const circle = useRef<any>(null);
@@ -17,6 +21,7 @@ const LocationMap = () => {
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
   const [radius, setRadius] = useState([parseInt(searchParams.get('range') || '10')]);
   const [mapboxToken, setMapboxToken] = useState('');
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     // Get user's location
@@ -146,8 +151,43 @@ const LocationMap = () => {
     }
   }, [radius]);
 
-  const handleSave = () => {
-    navigate(`/?range=${radius[0]}`);
+  const handleSave = async () => {
+    if (!user || !userLocation) {
+      navigate(`/?range=${radius[0]}`);
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('user_profiles')
+        .upsert({
+          user_id: user.id,
+          latitude: userLocation.lat,
+          longitude: userLocation.lng,
+          updated_at: new Date().toISOString()
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Location Saved",
+        description: "Your location and search range have been saved successfully.",
+      });
+
+      navigate(`/?range=${radius[0]}`);
+    } catch (error) {
+      console.error('Error saving location:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save location. Please try again.",
+        variant: "destructive",
+      });
+      // Still navigate on error
+      navigate(`/?range=${radius[0]}`);
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (!mapboxToken) {
@@ -213,8 +253,8 @@ const LocationMap = () => {
             <Button variant="outline" onClick={() => navigate('/')} className="flex-1">
               Cancel
             </Button>
-            <Button onClick={handleSave} className="flex-1">
-              Save Range
+            <Button onClick={handleSave} className="flex-1" disabled={saving}>
+              {saving ? "Saving..." : "Save Range"}
             </Button>
           </div>
         </div>

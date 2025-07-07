@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface ItemGridProps {
   userId?: string;
@@ -19,11 +20,39 @@ interface ItemGridProps {
 
 export function ItemGrid({ userId, isProfile = false, locationRange = 10, selectedCategory = 'all', userLocation, searchQuery = '' }: ItemGridProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [savingItems, setSavingItems] = useState<Record<string, boolean>>({});
+
+  // Fetch user's saved location from profile if authenticated
+  const { data: userProfile } = useQuery({
+    queryKey: ['userProfile', user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('latitude, longitude')
+        .eq('user_id', user.id)
+        .single();
+      
+      if (error) {
+        console.log('No saved location found in profile');
+        return null;
+      }
+      
+      return data;
+    },
+    enabled: !!user && !isProfile, // Only fetch for home page, not profile pages
+  });
+
+  // Use saved location from profile if available, otherwise fall back to userLocation prop
+  const effectiveUserLocation = userProfile?.latitude && userProfile?.longitude 
+    ? { lat: userProfile.latitude, lng: userProfile.longitude }
+    : userLocation;
 
   // Query to fetch user items or filtered items based on location and category
   const { data: items, isLoading, error } = useQuery({
-    queryKey: ['items', userId, isProfile, locationRange, selectedCategory, userLocation, searchQuery],
+    queryKey: ['items', userId, isProfile, locationRange, selectedCategory, effectiveUserLocation, searchQuery],
     queryFn: async () => {
       try {
         // If on profile page and userId provided, get user's items
@@ -52,12 +81,12 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
           return data || [];
         } else {
           // Use location-based filtering if user location is available
-          if (userLocation) {
-            console.log('🌍 Using location-based filtering:', userLocation);
+          if (effectiveUserLocation) {
+            console.log('🌍 Using location-based filtering:', effectiveUserLocation);
             
             const { data, error } = await supabase.rpc('get_items_within_range', {
-              user_lat: userLocation.lat,
-              user_lon: userLocation.lng,
+              user_lat: effectiveUserLocation.lat,
+              user_lon: effectiveUserLocation.lng,
               max_distance: locationRange,
               category_filter: selectedCategory === 'all' ? null : selectedCategory
             });

@@ -24,6 +24,7 @@ import Settings from "./pages/Settings";
 import PaymentMethods from "./pages/PaymentMethods";
 import HelpSupport from "./pages/HelpSupport";
 import Channels from "./pages/Channels";
+import LocationMap from "./pages/LocationMap";
 
 const queryClient = new QueryClient();
 
@@ -43,6 +44,7 @@ const App = () => (
                   <Route path="/signup" element={<SignUp />} />
                   <Route path="/auth/callback" element={<AuthCallback />} />
                   <Route path="/home" element={<Home />} />
+                  <Route path="/location-map" element={<LocationMap />} />
                   <Route path="/items/:id" element={<ItemDetails />} />
                   <Route path="/seller/:id" element={<SellerProfile />} />
                   <Route path="/help-support" element={<HelpSupport />} />

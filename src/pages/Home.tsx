@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { MapPin, ExternalLink, Sofa, Pill, ShoppingBag, Car, Laptop, Camera, Baby, Book, Shirt, Search } from "lucide-react";
 
 const categories = [
@@ -22,7 +23,9 @@ const categories = [
 ];
 
 const Home = () => {
-  const [range, setRange] = useState([10]); // Default 10km radius
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [range, setRange] = useState([parseInt(searchParams.get('range') || '10')]); // Get range from URL or default to 10km
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -67,6 +70,10 @@ const Home = () => {
         }
       );
     }
+  };
+
+  const openLocationMap = () => {
+    navigate(`/location-map?range=${range[0]}`);
   };
 
   return (
@@ -132,21 +139,35 @@ const Home = () => {
       <div className="fixed bottom-16 left-0 right-0 bg-white shadow-lg border-t p-2">
         <div className="container mx-auto">
           <div className="flex items-center gap-2">
-            <MapPin className="h-4 w-4 text-primary" />
-            <Slider
-              value={range}
-              onValueChange={setRange}
-              max={50}
-              min={1}
-              step={1}
-              className="flex-1"
-            />
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={openLocationMap}
+              className="h-8 w-8"
+            >
+              <MapPin className="h-4 w-4 text-primary" />
+            </Button>
+            <div 
+              className="flex-1 cursor-pointer" 
+              onClick={openLocationMap}
+              title="Click to open map and adjust search radius"
+            >
+              <Slider
+                value={range}
+                onValueChange={setRange}
+                max={50}
+                min={1}
+                step={1}
+                className="flex-1 pointer-events-none"
+              />
+            </div>
             <span className="text-sm text-muted-foreground min-w-[3rem]">{range}km</span>
             <Button
               variant="ghost"
               size="icon"
               onClick={openGoogleMaps}
               className="h-8 w-8"
+              title="Open in Google Maps"
             >
               <ExternalLink className="h-4 w-4" />
             </Button>

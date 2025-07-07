@@ -3,10 +3,11 @@ import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useEffect } from "react";
-import { MapPin, ExternalLink, Sofa, Pill, ShoppingBag, Car, Laptop, Camera, Baby, Book, Shirt } from "lucide-react";
+import { MapPin, ExternalLink, Sofa, Pill, ShoppingBag, Car, Laptop, Camera, Baby, Book, Shirt, Search } from "lucide-react";
 
 const categories = [
   { id: 'all', label: 'All', icon: ShoppingBag, description: 'All shopping items' },
@@ -24,6 +25,7 @@ const Home = () => {
   const [range, setRange] = useState([10]); // Default 10km radius
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Get user's location on component mount
   useEffect(() => {
@@ -74,6 +76,19 @@ const Home = () => {
       {/* Categories Bar */}
       <div className="bg-white border-b sticky top-14 z-40">
         <div className="container mx-auto px-4">
+          {/* Search Bar */}
+          <div className="flex items-center gap-2 py-2 border-b">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search items..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 h-8"
+              />
+            </div>
+          </div>
+          
           <ScrollArea className="w-full whitespace-nowrap">
             <div className="flex space-x-1 py-2">
               <TooltipProvider>
@@ -109,6 +124,7 @@ const Home = () => {
           locationRange={range[0]}
           selectedCategory={selectedCategory}
           userLocation={userLocation}
+          searchQuery={searchQuery}
         />
       </main>
 

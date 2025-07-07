@@ -14,26 +14,34 @@ interface ItemGridProps {
   locationRange?: number;
   selectedCategory?: string;
   userLocation?: {lat: number, lng: number} | null;
+  searchQuery?: string;
 }
 
-export function ItemGrid({ userId, isProfile = false, locationRange = 10, selectedCategory = 'all', userLocation }: ItemGridProps) {
+export function ItemGrid({ userId, isProfile = false, locationRange = 10, selectedCategory = 'all', userLocation, searchQuery = '' }: ItemGridProps) {
   const { toast } = useToast();
   const [savingItems, setSavingItems] = useState<Record<string, boolean>>({});
 
   // Query to fetch user items or filtered items based on location and category
   const { data: items, isLoading, error } = useQuery({
-    queryKey: ['items', userId, isProfile, locationRange, selectedCategory, userLocation],
+    queryKey: ['items', userId, isProfile, locationRange, selectedCategory, userLocation, searchQuery],
     queryFn: async () => {
       try {
         // If on profile page and userId provided, get user's items
         if (isProfile && userId) {
           console.log('🔍 Fetching items for user profile:', userId);
 
-          const { data, error } = await supabase
+          let query = supabase
             .from('items')
             .select('*')
             .eq('seller_id', userId)
             .order('created_at', { ascending: false });
+
+          // Add search filter if search query exists
+          if (searchQuery.trim()) {
+            query = query.or(`title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`);
+          }
+
+          const { data, error } = await query;
 
           if (error) {
             console.error('❌ Error fetching user items:', error);
@@ -59,7 +67,16 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
               return SAMPLE_ITEMS;
             }
 
-            return data || [];
+            // Filter by search query if provided
+            let filteredData = data || [];
+            if (searchQuery.trim()) {
+              filteredData = filteredData.filter(item => 
+                item.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                item.description?.toLowerCase().includes(searchQuery.toLowerCase())
+              );
+            }
+
+            return filteredData;
           } else {
             // Fallback to original filtering when location is not available
             let query = supabase
@@ -71,6 +88,11 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
             // Filter by category if not 'all'
             if (selectedCategory && selectedCategory !== 'all') {
               query = query.eq('category', selectedCategory);
+            }
+
+            // Add search filter if search query exists
+            if (searchQuery.trim()) {
+              query = query.or(`title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`);
             }
 
             const { data, error } = await query;

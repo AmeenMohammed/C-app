@@ -23,28 +23,12 @@ export default function Cart() {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchCartItems = async () => {
+  const fetchCartItems = () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data, error } = await supabase
-        .from('cart_items')
-        .select(`
-          id,
-          quantity,
-          item:items (
-            id,
-            title,
-            price,
-            images,
-            description
-          )
-        `)
-        .eq('user_id', user.id);
-
-      if (error) throw error;
-      setCartItems(data || []);
+      // Using localStorage for cart items since cart_items table doesn't exist
+      const savedCart = localStorage.getItem('cartItems');
+      const items = savedCart ? JSON.parse(savedCart) : [];
+      setCartItems(items);
     } catch (error) {
       console.error('Error fetching cart items:', error);
       toast.error('Failed to load cart items');
@@ -57,16 +41,11 @@ export default function Cart() {
     fetchCartItems();
   }, []);
 
-  const removeFromCart = async (cartItemId: string) => {
+  const removeFromCart = (cartItemId: string) => {
     try {
-      const { error } = await supabase
-        .from('cart_items')
-        .delete()
-        .eq('id', cartItemId);
-
-      if (error) throw error;
-      
-      setCartItems(cartItems.filter(item => item.id !== cartItemId));
+      const updatedItems = cartItems.filter(item => item.id !== cartItemId);
+      setCartItems(updatedItems);
+      localStorage.setItem('cartItems', JSON.stringify(updatedItems));
       toast.success('Item removed from cart');
     } catch (error) {
       console.error('Error removing item from cart:', error);
@@ -74,20 +53,15 @@ export default function Cart() {
     }
   };
 
-  const updateQuantity = async (cartItemId: string, newQuantity: number) => {
+  const updateQuantity = (cartItemId: string, newQuantity: number) => {
     if (newQuantity < 1) return;
     
     try {
-      const { error } = await supabase
-        .from('cart_items')
-        .update({ quantity: newQuantity })
-        .eq('id', cartItemId);
-
-      if (error) throw error;
-      
-      setCartItems(cartItems.map(item => 
+      const updatedItems = cartItems.map(item => 
         item.id === cartItemId ? { ...item, quantity: newQuantity } : item
-      ));
+      );
+      setCartItems(updatedItems);
+      localStorage.setItem('cartItems', JSON.stringify(updatedItems));
     } catch (error) {
       console.error('Error updating quantity:', error);
       toast.error('Failed to update quantity');

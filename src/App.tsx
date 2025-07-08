@@ -24,6 +24,7 @@ import Settings from "./pages/Settings";
 import PaymentMethods from "./pages/PaymentMethods";
 import HelpSupport from "./pages/HelpSupport";
 import Channels from "./pages/Channels";
+import CreateChannel from "./pages/CreateChannel";
 import LocationMap from "./pages/LocationMap";
 
 const queryClient = new QueryClient();
@@ -55,6 +56,14 @@ const App = () => (
                     element={
                       <ProtectedRoute>
                         <Channels />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/channels/create"
+                    element={
+                      <ProtectedRoute>
+                        <CreateChannel />
                       </ProtectedRoute>
                     }
                   />

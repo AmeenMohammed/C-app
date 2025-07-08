@@ -3,7 +3,7 @@ import { BottomNav } from "@/components/BottomNav";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Lock, Globe, MapPin, ExternalLink, Users, Send, Smile, Search, Paperclip, X } from "lucide-react";
+import { Lock, Globe, MapPin, ExternalLink, Users, Send, Smile, Search, Paperclip, X, Plus } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { Slider } from "@/components/ui/slider";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -15,6 +15,7 @@ import type { EmojiClickData } from "emoji-picker-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
 
 interface MessageAttachment {
   type: "image" | "video" | "file";
@@ -46,6 +47,7 @@ interface Channel {
 
 const Channels = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [discoverSearchQuery, setDiscoverSearchQuery] = useState("");
   const [joinedSearchQuery, setJoinedSearchQuery] = useState("");
   const [range, setRange] = useState([10]); // Default 10km radius
@@ -309,6 +311,16 @@ const Channels = () => {
 
             <TabsContent value="discover" className="mt-4">
               <div className="space-y-4">
+                <div className="flex gap-2">
+                  <Button 
+                    onClick={() => navigate("/channels/create")}
+                    className="flex items-center gap-2"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Create Channel
+                  </Button>
+                </div>
+
                 <div className="relative">
                   <Input
                     type="search"

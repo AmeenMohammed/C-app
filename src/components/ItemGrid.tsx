@@ -93,7 +93,7 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
 
             if (error) {
               console.error('Error fetching location-based items:', error);
-              return SAMPLE_ITEMS;
+              return [];
             }
 
             // Filter by search query if provided
@@ -128,7 +128,7 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
 
             if (error) {
               console.error('Error fetching items:', error);
-              return SAMPLE_ITEMS;
+              return [];
             }
 
             return data || [];
@@ -136,11 +136,8 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
         }
       } catch (error) {
         console.error('Error fetching items:', error);
-        if (isProfile) {
-          // For profile pages, return empty array instead of sample items
-          return [];
-        }
-        return SAMPLE_ITEMS;
+        // Return empty array for all cases
+        return [];
       }
     },
   });
@@ -149,11 +146,18 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
   const { data: viewCounts } = useQuery({
     queryKey: ['itemViews', items],
     queryFn: async () => {
-      const itemsToFetch = items || SAMPLE_ITEMS;
+      const itemsToFetch = items || [];
+      if (itemsToFetch.length === 0) return {};
+      
       const viewPromises = itemsToFetch.map(async (item) => {
         if (!item.id) return { itemId: item.id, views: 0 };
 
         try {
+          // Skip UUID validation for sample items with string IDs
+          if (typeof item.id === 'string' && !item.id.includes('-')) {
+            return { itemId: item.id, views: 0 };
+          }
+          
           const { data } = await supabase.rpc('get_item_views', { item_uuid: item.id });
           return { itemId: item.id, views: data ?? 0 };
         } catch (error) {
@@ -168,14 +172,56 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
     enabled: !!items,
   });
 
-  const handleSave = (e: React.MouseEvent, itemId: string) => {
+  const handleSave = async (e: React.MouseEvent, itemId: string) => {
     e.preventDefault(); // Prevent navigation
+
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to save items",
+        variant: "destructive",
+      });
+      return;
+    }
 
     // Show animation
     setSavingItems(prev => ({ ...prev, [itemId]: true }));
-    setTimeout(() => {
-      setSavingItems(prev => ({ ...prev, [itemId]: false }));
-    }, 500);
+    
+    try {
+      const { error } = await supabase
+        .from('saved_items')
+        .insert({
+          user_id: user.id,
+          item_id: itemId
+        });
+
+      if (error) {
+        if (error.code === '23505') { // Unique constraint violation
+          toast({
+            title: "Already saved",
+            description: "This item is already in your saved items",
+          });
+        } else {
+          throw error;
+        }
+      } else {
+        toast({
+          title: "Item saved",
+          description: "Added to your saved items",
+        });
+      }
+    } catch (error) {
+      console.error('Error saving item:', error);
+      toast({
+        title: "Error saving item",
+        description: "Please try again later",
+        variant: "destructive",
+      });
+    } finally {
+      setTimeout(() => {
+        setSavingItems(prev => ({ ...prev, [itemId]: false }));
+      }, 500);
+    }
   };
 
   const handleContact = (e: React.MouseEvent, itemId: string) => {
@@ -274,7 +320,7 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
     );
   }
 
-  const displayItems = items || SAMPLE_ITEMS;
+  const displayItems = items || [];
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">

@@ -10,6 +10,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 const CreateChannel = () => {
   const { user } = useAuth();
@@ -34,13 +35,20 @@ const CreateChannel = () => {
 
     setLoading(true);
     try {
-      // TODO: Implement channel creation in database
-      console.log('Creating channel:', {
-        name: channelName,
-        description,
-        isPrivate,
-        creatorId: user.id
-      });
+      const { error } = await supabase
+        .from('channels')
+        .insert([
+          {
+            name: channelName.trim(),
+            description: description.trim() || null,
+            is_private: isPrivate,
+            creator_id: user.id
+          }
+        ]);
+
+      if (error) {
+        throw error;
+      }
 
       toast.success("Channel created successfully!");
       navigate("/channels");

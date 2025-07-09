@@ -35,7 +35,7 @@ interface Message {
 }
 
 interface Channel {
-  id: number;
+  id: string;
   name: string;
   description: string;
   members: number;
@@ -43,6 +43,9 @@ interface Channel {
   isJoined?: boolean;
   unreadCount?: number;
   messages?: Message[];
+  creator_id: string;
+  created_at: string;
+  updated_at: string;
 }
 
 const Channels = () => {
@@ -65,57 +68,47 @@ const Channels = () => {
 
       setLoading(true);
       try {
-        // TODO: Implement real channels from database
-        // For now, showing sample channels but making them user-specific
-        const sampleChannels: Channel[] = [
-          {
-            id: 1,
-            name: "Local Marketplace",
-            description: "Buy and sell items in your area",
-            members: Math.floor(Math.random() * 1000) + 100,
-            isPrivate: false,
-            isJoined: false,
-            messages: []
-          },
-          {
-            id: 2,
-            name: "Tech Gadgets Exchange",
-            description: "Trade and discuss latest tech gadgets",
-            members: Math.floor(Math.random() * 500) + 50,
-            isPrivate: false,
-            isJoined: false,
-            messages: []
-          },
-          {
-            id: 3,
-            name: "Books & Literature",
-            description: "Exchange books, novels, and educational materials",
-            members: Math.floor(Math.random() * 800) + 200,
-            isPrivate: false,
-            isJoined: false,
-            messages: []
-          },
-          {
-            id: 4,
-            name: "Sports Equipment",
-            description: "Buy, sell, and trade sports gear",
-            members: Math.floor(Math.random() * 600) + 150,
-            isPrivate: false,
-            isJoined: false,
-            messages: []
-          },
-          {
-            id: 5,
-            name: "Art & Crafts",
-            description: "Creative community for artists and crafters",
-            members: Math.floor(Math.random() * 400) + 80,
-            isPrivate: false,
-            isJoined: false,
-            messages: []
-          }
-        ];
+        // Fetch channels from database
+        const { data: channelsData, error: channelsError } = await supabase
+          .from('channels')
+          .select('*');
 
-        setChannels(sampleChannels);
+        if (channelsError) throw channelsError;
+
+        // Get user's channel memberships
+        const { data: membershipsData, error: membershipsError } = await supabase
+          .from('channel_members')
+          .select('channel_id, role')
+          .eq('user_id', user.id);
+
+        if (membershipsError) throw membershipsError;
+
+        const userChannelIds = new Set(membershipsData.map(m => m.channel_id));
+
+        // Get member counts for each channel
+        const channelsWithMembers = await Promise.all(
+          channelsData.map(async (channel) => {
+            const { count } = await supabase
+              .from('channel_members')
+              .select('*', { count: 'exact', head: true })
+              .eq('channel_id', channel.id);
+
+            return {
+              id: channel.id,
+              name: channel.name,
+              description: channel.description || '',
+              members: count || 0,
+              isPrivate: channel.is_private,
+              isJoined: userChannelIds.has(channel.id),
+              creator_id: channel.creator_id,
+              created_at: channel.created_at,
+              updated_at: channel.updated_at,
+              messages: []
+            };
+          })
+        );
+
+        setChannels(channelsWithMembers);
       } catch (error) {
         console.error('Error fetching channels:', error);
         toast.error("Failed to load channels");
@@ -148,7 +141,16 @@ const Channels = () => {
     }
 
     try {
-      // TODO: Implement real channel joining in database
+      const { error } = await supabase
+        .from('channel_members')
+        .insert({
+          channel_id: channel.id,
+          user_id: user.id,
+          role: 'member'
+        });
+
+      if (error) throw error;
+
       setChannels(prev => prev.map(c =>
         c.id === channel.id
           ? { ...c, isJoined: true, members: c.members + 1 }
@@ -167,7 +169,14 @@ const Channels = () => {
     if (!user) return;
 
     try {
-      // TODO: Implement real channel leaving in database
+      const { error } = await supabase
+        .from('channel_members')
+        .delete()
+        .eq('channel_id', channel.id)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
       setChannels(prev => prev.map(c =>
         c.id === channel.id
           ? { ...c, isJoined: false, members: Math.max(c.members - 1, 0) }

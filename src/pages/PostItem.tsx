@@ -45,6 +45,7 @@ const PostItem = () => {
     description: "",
     category: "",
     range: [10] as number[], // Default 10km radius
+    listingType: "sell" as "sell" | "rent" | "request",
   });
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
 
@@ -196,6 +197,36 @@ const PostItem = () => {
         <Card className="p-6">
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div className="space-y-2">
+              <label className="text-sm font-medium">Listing Type</label>
+              <div className="grid grid-cols-3 gap-2">
+                <Button
+                  type="button"
+                  variant={formData.listingType === "sell" ? "default" : "outline"}
+                  className="w-full"
+                  onClick={() => setFormData(prev => ({ ...prev, listingType: "sell" }))}
+                >
+                  Sell
+                </Button>
+                <Button
+                  type="button"
+                  variant={formData.listingType === "rent" ? "default" : "outline"}
+                  className="w-full"
+                  onClick={() => setFormData(prev => ({ ...prev, listingType: "rent" }))}
+                >
+                  Rent
+                </Button>
+                <Button
+                  type="button"
+                  variant={formData.listingType === "request" ? "default" : "outline"}
+                  className="w-full"
+                  onClick={() => setFormData(prev => ({ ...prev, listingType: "request" }))}
+                >
+                  Request
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-2">
               <label className="text-sm font-medium">Photos</label>
               <div className="border-2 border-dashed rounded-lg p-4">
                 <div className="grid grid-cols-4 gap-2 mb-4">
@@ -243,18 +274,26 @@ const PostItem = () => {
             <div className="space-y-2">
               <label className="text-sm font-medium">Title</label>
               <Input
-                placeholder="What are you selling?"
+                placeholder={
+                  formData.listingType === "sell" 
+                    ? "What are you selling?" 
+                    : formData.listingType === "rent" 
+                    ? "What are you renting out?" 
+                    : "What are you looking for?"
+                }
                 value={formData.title}
                 onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
               />
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Price</label>
+              <label className="text-sm font-medium">
+                {formData.listingType === "request" ? "Budget" : "Price"}
+              </label>
               <Input
                 type="number"
                 step="1"
-                placeholder="0"
+                placeholder={formData.listingType === "request" ? "Max budget" : "0"}
                 value={formData.price}
                 onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
               />
@@ -336,7 +375,14 @@ const PostItem = () => {
             </div>
 
             <Button className="w-full" type="submit" disabled={loading}>
-              {loading ? "Posting..." : "Post Item"}
+              {loading 
+                ? "Posting..." 
+                : formData.listingType === "sell"
+                ? "Post Item for Sale"
+                : formData.listingType === "rent"
+                ? "Post Item for Rent"
+                : "Post Request"
+              }
             </Button>
           </form>
         </Card>

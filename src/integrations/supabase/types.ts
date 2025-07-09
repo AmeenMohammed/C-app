@@ -572,6 +572,14 @@ export type Database = {
         Args: { blocker_uuid: string; blocked_uuid: string }
         Returns: undefined
       }
+      user_is_channel_admin: {
+        Args: { channel_uuid: string; user_uuid: string }
+        Returns: boolean
+      }
+      user_is_channel_member: {
+        Args: { channel_uuid: string; user_uuid: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never

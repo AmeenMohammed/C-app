@@ -109,6 +109,50 @@ export type Database = {
           },
         ]
       }
+      channel_messages: {
+        Row: {
+          attachment_name: string | null
+          attachment_type: string | null
+          attachment_url: string | null
+          channel_id: string
+          content: string
+          created_at: string
+          id: string
+          sender_id: string
+          updated_at: string
+        }
+        Insert: {
+          attachment_name?: string | null
+          attachment_type?: string | null
+          attachment_url?: string | null
+          channel_id: string
+          content: string
+          created_at?: string
+          id?: string
+          sender_id: string
+          updated_at?: string
+        }
+        Update: {
+          attachment_name?: string | null
+          attachment_type?: string | null
+          attachment_url?: string | null
+          channel_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          sender_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_channel_messages_channel_id"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       channels: {
         Row: {
           created_at: string
@@ -225,6 +269,7 @@ export type Database = {
           id: string
           images: string[] | null
           latitude: number | null
+          listing_type: string
           location_range: number
           longitude: number | null
           price: number
@@ -240,6 +285,7 @@ export type Database = {
           id?: string
           images?: string[] | null
           latitude?: number | null
+          listing_type?: string
           location_range: number
           longitude?: number | null
           price: number
@@ -255,6 +301,7 @@ export type Database = {
           id?: string
           images?: string[] | null
           latitude?: number | null
+          listing_type?: string
           location_range?: number
           longitude?: number | null
           price?: number

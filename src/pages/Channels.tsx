@@ -24,6 +24,7 @@ interface MessageAttachment {
 }
 
 interface Message {
+  id: string;
   text: string;
   isMine: boolean;
   user?: {
@@ -120,6 +121,79 @@ const Channels = () => {
     fetchChannels();
   }, [user]);
 
+  // Fetch messages for active channel
+  useEffect(() => {
+    const fetchMessages = async () => {
+      if (!activeChannel || !user) return;
+
+      try {
+        const { data: messagesData, error } = await supabase
+          .from('channel_messages')
+          .select(`
+            id,
+            content,
+            sender_id,
+            attachment_type,
+            attachment_url,
+            attachment_name,
+            created_at
+          `)
+          .eq('channel_id', activeChannel.id)
+          .order('created_at', { ascending: true });
+
+        if (error) throw error;
+
+        // Get user profiles for message senders
+        const senderIds = [...new Set(messagesData.map(m => m.sender_id))];
+        const { data: profilesData } = await supabase
+          .from('user_profiles')
+          .select('user_id, full_name, avatar_url')
+          .in('user_id', senderIds);
+
+        const profilesMap = new Map(profilesData?.map(p => [p.user_id, p]) || []);
+
+        const formattedMessages: Message[] = messagesData.map(msg => {
+          const profile = profilesMap.get(msg.sender_id);
+          const isCurrentUser = msg.sender_id === user.id;
+          
+          return {
+            id: msg.id,
+            text: msg.content,
+            isMine: isCurrentUser,
+            user: {
+              name: isCurrentUser 
+                ? (user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || "You")
+                : (profile?.full_name || "Unknown User"),
+              avatar: isCurrentUser 
+                ? (user.user_metadata?.avatar_url || user.user_metadata?.picture)
+                : profile?.avatar_url
+            },
+            attachment: msg.attachment_type ? {
+              type: msg.attachment_type as "image" | "video" | "file",
+              url: msg.attachment_url!,
+              name: msg.attachment_name || undefined
+            } : undefined,
+            timestamp: msg.created_at
+          };
+        });
+
+        setChannels(prev => prev.map(c =>
+          c.id === activeChannel.id
+            ? { ...c, messages: formattedMessages }
+            : c
+        ));
+
+        // Update activeChannel to trigger re-render
+        setActiveChannel(prev => prev ? { ...prev, messages: formattedMessages } : null);
+      } catch (error) {
+        console.error('Error fetching messages:', error);
+        toast.error("Failed to load messages");
+      }
+    };
+
+    fetchMessages();
+  }, [activeChannel?.id, user]);
+
   const filteredChannels = channels
     .filter(channel => !channel.isJoined)
     .filter(channel =>
@@ -198,36 +272,58 @@ const Channels = () => {
     e.preventDefault();
     if ((!newMessage.trim() && !attachment) || !activeChannel || !user) return;
 
-    const newMsg: Message = {
-      text: newMessage,
-      isMine: true,
-      user: {
-        name: user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || "You",
-        avatar: user.user_metadata?.avatar_url || user.user_metadata?.picture
-      },
-      timestamp: new Date().toISOString()
-    };
-
-    if (attachment) {
-      const url = URL.createObjectURL(attachment);
-      const type = attachment.type.startsWith('image/')
-        ? 'image'
-        : attachment.type.startsWith('video/')
-        ? 'video'
-        : 'file';
-
-      newMsg.attachment = {
-        type,
-        url,
-        name: attachment.name
-      };
-    }
-
     try {
-      // TODO: Save message to database
-      console.log('Saving channel message to database:', newMsg);
+      let attachmentData = null;
+      
+      // Handle file upload if there's an attachment
+      if (attachment) {
+        // For now, create blob URL for immediate display
+        // In production, you'd upload to storage and get the real URL
+        const url = URL.createObjectURL(attachment);
+        const type = attachment.type.startsWith('image/')
+          ? 'image'
+          : attachment.type.startsWith('video/')
+          ? 'video'
+          : 'file';
 
-      const updatedChannels = channels.map(channel => {
+        attachmentData = {
+          type,
+          url,
+          name: attachment.name
+        };
+      }
+
+      // Save message to database
+      const { data: messageData, error } = await supabase
+        .from('channel_messages')
+        .insert({
+          channel_id: activeChannel.id,
+          sender_id: user.id,
+          content: newMessage.trim() || '',
+          attachment_type: attachmentData?.type || null,
+          attachment_url: attachmentData?.url || null,
+          attachment_name: attachmentData?.name || null
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Create the message object for immediate UI update
+      const newMsg: Message = {
+        id: messageData.id,
+        text: newMessage.trim() || '',
+        isMine: true,
+        user: {
+          name: user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || "You",
+          avatar: user.user_metadata?.avatar_url || user.user_metadata?.picture
+        },
+        attachment: attachmentData,
+        timestamp: messageData.created_at
+      };
+
+      // Update local state immediately for better UX
+      setChannels(prev => prev.map(channel => {
         if (channel.id === activeChannel.id) {
           return {
             ...channel,
@@ -235,11 +331,17 @@ const Channels = () => {
           };
         }
         return channel;
-      });
-      setChannels(updatedChannels);
+      }));
+
+      // Update active channel
+      setActiveChannel(prev => prev ? {
+        ...prev,
+        messages: [...(prev.messages || []), newMsg]
+      } : null);
 
       setNewMessage("");
       setAttachment(null);
+      toast.success("Message sent!");
     } catch (error) {
       console.error('Error sending message:', error);
       toast.error("Failed to send message");

@@ -3,13 +3,17 @@ import { BottomNav } from "@/components/BottomNav";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Lock, Globe, MapPin, ExternalLink, Users, Send, Smile, Search, Paperclip, X, Plus } from "lucide-react";
+import { Lock, Globe, MapPin, ExternalLink, Users, Send, Smile, Search, Paperclip, X, Plus, Settings, Info, Edit3, Trash2, MoreVertical } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { Slider } from "@/components/ui/slider";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import EmojiPicker from "emoji-picker-react";
 import type { EmojiClickData } from "emoji-picker-react";
 import { toast } from "sonner";
@@ -60,6 +64,9 @@ const Channels = () => {
   const [channels, setChannels] = useState<Channel[]>([]);
   const [attachment, setAttachment] = useState<File | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showChannelInfo, setShowChannelInfo] = useState(false);
+  const [editingChannel, setEditingChannel] = useState<Channel | null>(null);
+  const [editForm, setEditForm] = useState({ name: "", description: "", isPrivate: false });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch channels from database
@@ -385,6 +392,74 @@ const Channels = () => {
     );
   };
 
+  const handleEditChannel = async () => {
+    if (!editingChannel || !user) return;
+
+    try {
+      const { error } = await supabase
+        .from('channels')
+        .update({
+          name: editForm.name,
+          description: editForm.description,
+          is_private: editForm.isPrivate
+        })
+        .eq('id', editingChannel.id);
+
+      if (error) throw error;
+
+      // Update local state
+      setChannels(prev => prev.map(c =>
+        c.id === editingChannel.id
+          ? { ...c, name: editForm.name, description: editForm.description, isPrivate: editForm.isPrivate }
+          : c
+      ));
+
+      if (activeChannel?.id === editingChannel.id) {
+        setActiveChannel(prev => prev ? {
+          ...prev,
+          name: editForm.name,
+          description: editForm.description,
+          isPrivate: editForm.isPrivate
+        } : null);
+      }
+
+      setEditingChannel(null);
+      toast.success("Channel updated successfully!");
+    } catch (error) {
+      console.error('Error updating channel:', error);
+      toast.error("Failed to update channel");
+    }
+  };
+
+  const handleDeleteChannel = async (channel: Channel) => {
+    if (!user || channel.creator_id !== user.id) return;
+
+    try {
+      const { error } = await supabase
+        .from('channels')
+        .delete()
+        .eq('id', channel.id);
+
+      if (error) throw error;
+
+      // Update local state
+      setChannels(prev => prev.filter(c => c.id !== channel.id));
+
+      if (activeChannel?.id === channel.id) {
+        setActiveChannel(null);
+      }
+
+      toast.success("Channel deleted successfully!");
+    } catch (error) {
+      console.error('Error deleting channel:', error);
+      toast.error("Failed to delete channel");
+    }
+  };
+
+  const isChannelOwner = (channel: Channel) => {
+    return user && channel.creator_id === user.id;
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 pb-16">
@@ -608,19 +683,118 @@ const Channels = () => {
         <main className="flex-1 container mx-auto px-4 py-6 overflow-hidden flex flex-col h-[calc(100vh-160px)]">
           <div className="mb-4 p-4 border-b bg-white rounded-lg">
             <div className="flex items-center justify-between">
-              <div>
-                <h2 className="font-semibold">{activeChannel.name}</h2>
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <h2 className="font-semibold">{activeChannel.name}</h2>
+                  {activeChannel.isPrivate ? (
+                    <Lock className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <Globe className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </div>
                 <p className="text-sm text-muted-foreground">
                   {activeChannel.members} members • {activeChannel.isPrivate ? 'Private' : 'Public'}
                 </p>
+                {activeChannel.description && (
+                  <p className="text-sm text-muted-foreground mt-1">{activeChannel.description}</p>
+                )}
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleLeaveChannel(activeChannel)}
-              >
-                Leave Channel
-              </Button>
+              
+              <div className="flex items-center gap-2">
+                <Dialog open={showChannelInfo} onOpenChange={setShowChannelInfo}>
+                  <DialogTrigger asChild>
+                    <Button variant="ghost" size="icon">
+                      <Info className="h-4 w-4" />
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle className="flex items-center gap-2">
+                        <span>{activeChannel.name}</span>
+                        {activeChannel.isPrivate ? (
+                          <Lock className="h-4 w-4 text-muted-foreground" />
+                        ) : (
+                          <Globe className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div>
+                        <h4 className="font-medium text-sm">About</h4>
+                        <p className="text-sm text-muted-foreground">
+                          {activeChannel.description || "No description provided."}
+                        </p>
+                      </div>
+                      <div>
+                        <h4 className="font-medium text-sm">Details</h4>
+                        <div className="text-sm text-muted-foreground space-y-1">
+                          <p>• {activeChannel.members} members</p>
+                          <p>• {activeChannel.isPrivate ? 'Private' : 'Public'} channel</p>
+                          <p>• Created {new Date(activeChannel.created_at).toLocaleDateString()}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+
+                {isChannelOwner(activeChannel) && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        onClick={() => {
+                          setEditingChannel(activeChannel);
+                          setEditForm({
+                            name: activeChannel.name,
+                            description: activeChannel.description,
+                            isPrivate: activeChannel.isPrivate
+                          });
+                        }}
+                      >
+                        <Edit3 className="h-4 w-4 mr-2" />
+                        Edit Channel
+                      </DropdownMenuItem>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete Channel
+                          </DropdownMenuItem>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Channel</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to delete "{activeChannel.name}"? This action cannot be undone and all messages will be permanently lost.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => handleDeleteChannel(activeChannel)}
+                              className="bg-red-600 hover:bg-red-700"
+                            >
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleLeaveChannel(activeChannel)}
+                >
+                  Leave
+                </Button>
+              </div>
             </div>
           </div>
 
@@ -778,6 +952,54 @@ const Channels = () => {
           </div>
         </main>
       )}
+
+      {/* Edit Channel Dialog */}
+      <Dialog open={!!editingChannel} onOpenChange={(open) => !open && setEditingChannel(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Channel</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium">Channel Name</label>
+              <Input
+                value={editForm.name}
+                onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="Enter channel name"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Description</label>
+              <Textarea
+                value={editForm.description}
+                onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="Enter channel description"
+                rows={3}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="private"
+                checked={editForm.isPrivate}
+                onChange={(e) => setEditForm(prev => ({ ...prev, isPrivate: e.target.checked }))}
+                className="h-4 w-4"
+              />
+              <label htmlFor="private" className="text-sm font-medium">
+                Private Channel
+              </label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingChannel(null)}>
+              Cancel
+            </Button>
+            <Button onClick={handleEditChannel}>
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <BottomNav />
     </div>

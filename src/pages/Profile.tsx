@@ -47,9 +47,9 @@ const Profile = () => {
           .from('user_profiles')
           .select('*')
           .eq('user_id', user.id)
-          .single();
+          .maybeSingle();
 
-        if (error && error.code === 'PGRST116') {
+        if (!existingProfile && (!error || error.code === 'PGRST116')) {
           // No profile found, create one
           const newProfile = {
             user_id: user.id,
@@ -76,8 +76,11 @@ const Profile = () => {
           } else {
             setUserProfile(createdProfile);
           }
-        } else if (!error && existingProfile) {
+        } else if (existingProfile) {
           setUserProfile(existingProfile);
+        } else if (error) {
+          console.error('Error fetching profile:', error);
+          toast.error('Failed to load profile');
         }
       } catch (error) {
         console.error('Error fetching/creating profile:', error);
@@ -90,11 +93,35 @@ const Profile = () => {
     fetchOrCreateProfile();
   }, [user]);
 
+  // Refetch profile data when component becomes visible
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && user) {
+        // Refetch profile when page becomes visible
+        const refetchProfile = async () => {
+          const { data: updatedProfile } = await supabase
+            .from('user_profiles')
+            .select('*')
+            .eq('user_id', user.id)
+            .maybeSingle();
+          
+          if (updatedProfile) {
+            setUserProfile(updatedProfile);
+          }
+        };
+        refetchProfile();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [user]);
+
   const handleSave = async () => {
     if (!userProfile || !user) return;
 
     try {
-      const { error } = await supabase
+      const { data: updatedProfile, error } = await supabase
         .from('user_profiles')
         .update({
           full_name: userProfile.full_name,
@@ -103,12 +130,16 @@ const Profile = () => {
           location: userProfile.location,
           updated_at: new Date().toISOString()
         })
-        .eq('user_id', user.id);
+        .eq('user_id', user.id)
+        .select()
+        .single();
 
       if (error) {
         toast.error('Failed to update profile');
         console.error('Error updating profile:', error);
       } else {
+        // Update local state with the saved data
+        setUserProfile(updatedProfile);
         toast.success('Profile updated successfully');
         setIsEditing(false);
       }

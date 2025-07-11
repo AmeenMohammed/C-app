@@ -46,7 +46,7 @@ const SellerProfile = () => {
         // If no sellerId is provided in the URL, this should not happen for seller profiles
         if (!sellerId) {
           console.error('No seller ID provided in URL');
-          setLoading(false);
+          navigate('/home');
           return;
         }
 

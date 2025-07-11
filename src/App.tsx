@@ -12,6 +12,7 @@ import Index from "./pages/Index";
 import Home from "./pages/Home";
 import ItemDetails from "./pages/ItemDetails";
 import PostItem from "./pages/PostItem";
+import EditItem from "./pages/EditItem";
 import Profile from "./pages/Profile";
 import SellerProfile from "./pages/SellerProfile";
 import NotFound from "./pages/NotFound";
@@ -72,6 +73,14 @@ const App = () => (
                     element={
                       <ProtectedRoute>
                         <PostItem />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/edit-item/:id"
+                    element={
+                      <ProtectedRoute>
+                        <EditItem />
                       </ProtectedRoute>
                     }
                   />

@@ -52,64 +52,9 @@ const ItemDetails = () => {
         setError(null);
 
         // Check if it's a sample item
-        const sampleItems: Item[] = [
-          {
-            id: "1",
-            title: "Vintage Camera",
-            price: 299,
-            category: "cameras",
-            images: ["https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d"],
-            description: "A beautiful vintage camera in excellent condition",
-            seller_id: "sample-user-1",
-            location_range: 10,
-          },
-          {
-            id: "2",
-            title: "Laptop Stand",
-            price: 49,
-            category: "electronics",
-            images: ["https://images.unsplash.com/photo-1519389950473-47ba0277781c"],
-            description: "Ergonomic laptop stand for better workspace",
-            seller_id: "sample-user-2",
-            location_range: 15,
-          },
-          {
-            id: "3",
-            title: "Office Chair",
-            price: 120,
-            category: "furniture",
-            images: ["https://images.unsplash.com/photo-1586023492125-27b2c045efd7"],
-            description: "Comfortable office chair with lumbar support",
-            seller_id: "sample-user-3",
-            location_range: 8,
-          },
-          {
-            id: "4",
-            title: "Designer Jacket",
-            price: 85,
-            category: "fashion",
-            images: ["https://images.unsplash.com/photo-1544022613-e87ca75a784a"],
-            description: "Stylish designer jacket, worn only a few times",
-            seller_id: "sample-user-4",
-            location_range: 12,
-          },
-        ];
-
-        const sampleItem = sampleItems.find(item => item.id === itemId);
-
-        if (sampleItem) {
-          setItem(sampleItem);
-          // Set mock seller for sample items
-          setSeller({
-            id: sampleItem.seller_id,
-            full_name: "Sample User",
-            avatar_url: "https://images.unsplash.com/photo-1649972904349-6e44c42644a7",
-            location: "Sample City"
-          });
-          setViewCount(Math.floor(Math.random() * 100) + 1);
-        } else {
-          // Fetch real item from database
-          const { data, error } = await supabase
+        // Only fetch real items from database
+        // Fetch item from database
+        const { data, error } = await supabase
             .from('items')
             .select('*')
             .eq('id', itemId)
@@ -148,7 +93,6 @@ const ItemDetails = () => {
             });
             setViewCount(viewData || 0);
           }
-        }
       } catch (error: unknown) {
         console.error('Error fetching item:', error);
         const errorMessage = error instanceof Error ? error.message : 'Failed to load item';
@@ -325,7 +269,7 @@ const ItemDetails = () => {
               </Link>
             </div>
             {isOwner ? (
-              <Button onClick={() => navigate('/edit-item')} variant="outline" className="w-full">
+              <Button onClick={() => navigate(`/edit-item/${item.id}`)} variant="outline" className="w-full">
                 <Pencil className="h-4 w-4 mr-2" />
                 Edit Item
               </Button>

@@ -53,17 +53,60 @@ const Messages = () => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Fetch user's conversations from database (placeholder for now)
+  // Fetch user's conversations from database
   useEffect(() => {
     const fetchConversations = async () => {
       if (!user) return;
 
       setLoading(true);
       try {
-        // TODO: Implement real conversations from database
-        // For now, showing empty state or sample data based on user
+        const { data, error } = await supabase
+          .from('conversations')
+          .select(`
+            id,
+            participant1_id,
+            participant2_id,
+            updated_at,
+            messages (
+              content,
+              created_at
+            )
+          `)
+          .or(`participant1_id.eq.${user.id},participant2_id.eq.${user.id}`)
+          .order('updated_at', { ascending: false });
 
-        // Check if we have seller information in the location state
+        if (error) throw error;
+
+        const conversationsWithUsers = await Promise.all(
+          (data || []).map(async (conv) => {
+            const otherUserId = conv.participant1_id === user.id ? conv.participant2_id : conv.participant1_id;
+            
+            const { data: profile } = await supabase
+              .from('user_profiles')
+              .select('full_name, avatar_url')
+              .eq('user_id', otherUserId)
+              .single();
+
+            const lastMessage = conv.messages && conv.messages.length > 0 
+              ? conv.messages[0].content 
+              : "Start a conversation...";
+
+            return {
+              id: otherUserId,
+              user: {
+                name: profile?.full_name || "User",
+                avatar: profile?.avatar_url || `https://api.dicebear.com/7.x/avatars/svg?seed=${profile?.full_name}`
+              },
+              lastMessage,
+              timestamp: conv.updated_at ? new Date(conv.updated_at).toLocaleDateString() : "Now",
+              unread: false
+            };
+          })
+        );
+
+        setConversations(conversationsWithUsers);
+
+        // Handle new conversation from location state
         const sellerInfo = location.state as {
           sellerId?: string;
           sellerName?: string;
@@ -71,22 +114,20 @@ const Messages = () => {
         } | null;
 
         if (sellerInfo?.sellerId && sellerInfo?.sellerName) {
-          // Add this seller to our conversations list
-          const newConversation: Conversation = {
-            id: sellerInfo.sellerId,
-            user: {
-              name: sellerInfo.sellerName,
-              avatar: sellerInfo.sellerAvatar || `https://api.dicebear.com/7.x/avatars/svg?seed=${sellerInfo.sellerName}`
-            },
-            lastMessage: "Start a conversation...",
-            timestamp: "Just now",
-            unread: false
-          };
-
-          setConversations([newConversation]);
-        } else {
-          // Show empty state for new users
-          setConversations([]);
+          const existingConv = conversationsWithUsers.find(c => c.id === sellerInfo.sellerId);
+          if (!existingConv) {
+            const newConversation: Conversation = {
+              id: sellerInfo.sellerId,
+              user: {
+                name: sellerInfo.sellerName,
+                avatar: sellerInfo.sellerAvatar || `https://api.dicebear.com/7.x/avatars/svg?seed=${sellerInfo.sellerName}`
+              },
+              lastMessage: "Start a conversation...",
+              timestamp: "Just now",
+              unread: false
+            };
+            setConversations(prev => [newConversation, ...prev]);
+          }
         }
       } catch (error) {
         console.error('Error fetching conversations:', error);
@@ -99,15 +140,38 @@ const Messages = () => {
     fetchConversations();
   }, [user, location.state]);
 
-  // Fetch messages for selected conversation (placeholder for now)
+  // Fetch messages for selected conversation
   useEffect(() => {
     const fetchMessages = async () => {
       if (!selectedUserId || !user) return;
 
       try {
-        // TODO: Implement real messages from database
-        // For now, starting with empty messages for new conversations
-        setMessages([]);
+        const { data, error } = await supabase
+          .from('messages')
+          .select(`
+            id,
+            content,
+            sender_id,
+            created_at,
+            conversation_id
+          `)
+          .in('conversation_id', (await supabase
+            .from('conversations')
+            .select('id')
+            .or(`participant1_id.eq.${user.id},participant2_id.eq.${user.id}`)
+            .or(`participant1_id.eq.${selectedUserId},participant2_id.eq.${selectedUserId}`)
+          ).data?.map(c => c.id) || [])
+          .order('created_at', { ascending: true });
+
+        if (error) throw error;
+
+        const formattedMessages: Message[] = (data || []).map(msg => ({
+          text: msg.content,
+          isMine: msg.sender_id === user.id,
+          timestamp: msg.created_at
+        }));
+
+        setMessages(formattedMessages);
       } catch (error) {
         console.error('Error fetching messages:', error);
         toast.error("Failed to load messages");
@@ -147,10 +211,48 @@ const Messages = () => {
     // Add message to local state immediately for better UX
     setMessages(prev => [...prev, messageData]);
 
-    // TODO: Save message to database
+    // Save message to database
     try {
-      // Placeholder for database save
-      console.log('Saving message to database:', messageData);
+      // Find or create conversation
+      let { data: conversation } = await supabase
+        .from('conversations')
+        .select('id')
+        .or(`participant1_id.eq.${user.id},participant2_id.eq.${user.id}`)
+        .or(`participant1_id.eq.${selectedUserId},participant2_id.eq.${selectedUserId}`)
+        .single();
+
+      let conversationId = conversation?.id;
+
+      if (!conversationId) {
+        const { data: newConv, error: convError } = await supabase
+          .from('conversations')
+          .insert({
+            participant1_id: user.id,
+            participant2_id: selectedUserId
+          })
+          .select('id')
+          .single();
+
+        if (convError) throw convError;
+        conversationId = newConv.id;
+      }
+
+      // Save the message
+      const { error: messageError } = await supabase
+        .from('messages')
+        .insert({
+          conversation_id: conversationId,
+          sender_id: user.id,
+          content: newMessage
+        });
+
+      if (messageError) throw messageError;
+
+      // Update conversation timestamp
+      await supabase
+        .from('conversations')
+        .update({ updated_at: new Date().toISOString() })
+        .eq('id', conversationId);
 
       // Update last message in conversations
       setConversations(prev => prev.map(conv =>

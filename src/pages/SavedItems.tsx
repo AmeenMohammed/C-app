@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Heart, Trash2, Eye } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 interface SavedItem {
   id: string;
@@ -18,31 +20,71 @@ interface SavedItem {
 }
 
 const SavedItems = () => {
+  const { user } = useAuth();
   const [savedItems, setSavedItems] = useState<SavedItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const loadSavedItems = () => {
+    const loadSavedItems = async () => {
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+
       try {
-        const saved = localStorage.getItem('savedItems');
-        if (saved) {
-          setSavedItems(JSON.parse(saved));
-        }
+        const { data, error } = await supabase
+          .from('saved_items')
+          .select(`
+            id,
+            created_at,
+            items (
+              id,
+              title,
+              price,
+              images,
+              description
+            )
+          `)
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        const formattedItems = data?.map(savedItem => ({
+          id: savedItem.items?.id || '',
+          title: savedItem.items?.title || '',
+          price: savedItem.items?.price || 0,
+          images: savedItem.items?.images || [],
+          description: savedItem.items?.description || '',
+          savedAt: savedItem.created_at
+        })) || [];
+
+        setSavedItems(formattedItems);
       } catch (error) {
         console.error('Error loading saved items:', error);
+        toast.error('Failed to load saved items');
       } finally {
         setLoading(false);
       }
     };
 
     loadSavedItems();
-  }, []);
+  }, [user]);
 
-  const removeFromSaved = (itemId: string) => {
+  const removeFromSaved = async (itemId: string) => {
+    if (!user) return;
+
     try {
+      const { error } = await supabase
+        .from('saved_items')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('item_id', itemId);
+
+      if (error) throw error;
+
       const updatedItems = savedItems.filter(item => item.id !== itemId);
       setSavedItems(updatedItems);
-      localStorage.setItem('savedItems', JSON.stringify(updatedItems));
       toast.success('Item removed from saved items');
     } catch (error) {
       console.error('Error removing saved item:', error);
@@ -50,10 +92,18 @@ const SavedItems = () => {
     }
   };
 
-  const clearAllSaved = () => {
+  const clearAllSaved = async () => {
+    if (!user) return;
+
     try {
+      const { error } = await supabase
+        .from('saved_items')
+        .delete()
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
       setSavedItems([]);
-      localStorage.removeItem('savedItems');
       toast.success('All saved items cleared');
     } catch (error) {
       console.error('Error clearing saved items:', error);

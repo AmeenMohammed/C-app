@@ -224,11 +224,43 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
     }
   };
 
-  const handleContact = (e: React.MouseEvent, itemId: string) => {
+  const handleContact = async (e: React.MouseEvent, itemId: string, sellerId: string) => {
     e.preventDefault(); // Prevent navigation
-    toast({
-      description: "Opening chat with seller...",
-    });
+    
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to message sellers",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Get seller information
+      const { data: sellerData } = await supabase
+        .from('user_profiles')
+        .select('user_id, full_name, avatar_url')
+        .eq('user_id', sellerId)
+        .single();
+
+      if (sellerData) {
+        window.location.href = `/messages?userId=${sellerId}`;
+      } else {
+        toast({
+          title: "Error",
+          description: "Could not find seller information",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error getting seller info:', error);
+      toast({
+        title: "Error",
+        description: "Failed to open chat with seller",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleShare = async (e: React.MouseEvent, itemId: string, title: string) => {
@@ -332,22 +364,26 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
         >
           <Card className="overflow-hidden relative group">
             <div className="absolute top-2 right-2 flex gap-2 z-10">
-              <Button
-                variant="secondary"
-                size="icon"
-                className={`h-8 w-8 opacity-0 group-hover:opacity-100 transition-all ${savingItems[item.id] ? 'opacity-100 scale-125' : ''}`}
-                onClick={(e) => handleSave(e, item.id)}
-              >
-                <BookmarkPlus className={`h-4 w-4 transition-all ${savingItems[item.id] ? 'text-primary fill-primary' : ''}`} />
-              </Button>
-              <Button
-                variant="secondary"
-                size="icon"
-                className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                onClick={(e) => handleContact(e, item.id)}
-              >
-                <MessageSquare className="h-4 w-4" />
-              </Button>
+              {!isProfile || item.seller_id !== user?.id ? (
+                <>
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    className={`h-8 w-8 opacity-0 group-hover:opacity-100 transition-all ${savingItems[item.id] ? 'opacity-100 scale-125' : ''}`}
+                    onClick={(e) => handleSave(e, item.id)}
+                  >
+                    <BookmarkPlus className={`h-4 w-4 transition-all ${savingItems[item.id] ? 'text-primary fill-primary' : ''}`} />
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={(e) => handleContact(e, item.id, item.seller_id)}
+                  >
+                    <MessageSquare className="h-4 w-4" />
+                  </Button>
+                </>
+              ) : null}
               <Button
                 variant="secondary"
                 size="icon"

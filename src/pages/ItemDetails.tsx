@@ -92,6 +92,18 @@ const ItemDetails = () => {
               item_uuid: itemId
             });
             setViewCount(viewData || 0);
+
+            // Check if item is saved by current user
+            if (user) {
+              const { data: savedData } = await supabase
+                .from('saved_items')
+                .select('id')
+                .eq('user_id', user.id)
+                .eq('item_id', itemId)
+                .single();
+              
+              setSaved(!!savedData);
+            }
           }
       } catch (error: unknown) {
         console.error('Error fetching item:', error);
@@ -125,40 +137,101 @@ const ItemDetails = () => {
   }, [user, itemId, isOwner]);
 
   const handleSaveItem = async () => {
+    if (!user || !itemId) {
+      toast.error("Please sign in to save items");
+      navigate('/');
+      return;
+    }
+
+    setSaving(true);
+
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      if (saved) {
+        // Remove from saved items
+        const { error } = await supabase
+          .from('saved_items')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('item_id', itemId);
 
-      if (!user) {
-        toast.error("Please sign in to save items");
-        navigate('/');
-        return;
+        if (error) throw error;
+        
+        setSaved(false);
+        toast.success("Item removed from saved items");
+      } else {
+        // Add to saved items
+        const { error } = await supabase
+          .from('saved_items')
+          .insert({
+            user_id: user.id,
+            item_id: itemId
+          });
+
+        if (error) {
+          if (error.code === '23505') {
+            toast.error("Item is already in your saved items");
+          } else {
+            throw error;
+          }
+        } else {
+          setSaved(true);
+          toast.success("Item saved successfully");
+        }
       }
-
-      setSaving(true);
-      setSaved(!saved);
-
-      setTimeout(() => {
-        setSaving(false);
-      }, 500);
-
-      console.log(`Item ${itemId} ${saved ? 'unsaved' : 'saved'} by user ${user.id}`);
-
     } catch (error) {
       console.error('Error saving item:', error);
       toast.error("Failed to save item");
+    } finally {
+      setTimeout(() => {
+        setSaving(false);
+      }, 500);
     }
   };
 
-  const handleContactSeller = () => {
-    if (!seller || !item) return;
+  const handleContactSeller = async () => {
+    if (!seller || !item || !user) return;
 
-    navigate(`/messages?userId=${seller.user_id || seller.id}`, {
-      state: {
-        sellerId: seller.user_id || seller.id,
-        sellerName: seller.full_name || "User",
-        sellerAvatar: seller.avatar_url || "https://images.unsplash.com/photo-1649972904349-6e44c42644a7"
+    try {
+      // Create or find conversation
+      const { data: existingConversation } = await supabase
+        .from('conversations')
+        .select('id')
+        .or(`participant1_id.eq.${user.id},participant2_id.eq.${user.id}`)
+        .or(`participant1_id.eq.${seller.user_id || seller.id},participant2_id.eq.${seller.user_id || seller.id}`)
+        .eq('item_id', item.id)
+        .single();
+
+      let conversationId = existingConversation?.id;
+
+      if (!conversationId) {
+        // Create new conversation
+        const { data: newConversation, error } = await supabase
+          .from('conversations')
+          .insert({
+            participant1_id: user.id,
+            participant2_id: seller.user_id || seller.id,
+            item_id: item.id
+          })
+          .select('id')
+          .single();
+
+        if (error) throw error;
+        conversationId = newConversation.id;
       }
-    });
+
+      navigate(`/messages?userId=${seller.user_id || seller.id}`, {
+        state: {
+          sellerId: seller.user_id || seller.id,
+          sellerName: seller.full_name || "User",
+          sellerAvatar: seller.avatar_url || "https://images.unsplash.com/photo-1649972904349-6e44c42644a7",
+          conversationId,
+          itemId: item.id
+        }
+      });
+    } catch (error) {
+      console.error('Error creating conversation:', error);
+      toast.error("Failed to start conversation");
+    }
   };
 
   if (isLoading) {

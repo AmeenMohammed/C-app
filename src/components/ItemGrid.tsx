@@ -28,25 +28,25 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
     queryKey: ['userProfile', user?.id],
     queryFn: async () => {
       if (!user) return null;
-      
+
       const { data, error } = await supabase
         .from('user_profiles')
         .select('latitude, longitude')
         .eq('user_id', user.id)
         .single();
-      
+
       if (error) {
         console.log('No saved location found in profile');
         return null;
       }
-      
+
       return data;
     },
     enabled: !!user && !isProfile, // Only fetch for home page, not profile pages
   });
 
   // Use saved location from profile if available, otherwise fall back to userLocation prop
-  const effectiveUserLocation = userProfile?.latitude && userProfile?.longitude 
+  const effectiveUserLocation = userProfile?.latitude && userProfile?.longitude
     ? { lat: userProfile.latitude, lng: userProfile.longitude }
     : userLocation;
 
@@ -83,7 +83,7 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
           // Use location-based filtering if user location is available
           if (effectiveUserLocation) {
             console.log('🌍 Using location-based filtering:', effectiveUserLocation);
-            
+
             const { data, error } = await supabase.rpc('get_items_within_range', {
               user_lat: effectiveUserLocation.lat,
               user_lon: effectiveUserLocation.lng,
@@ -99,7 +99,7 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
             // Filter by search query if provided
             let filteredData = data || [];
             if (searchQuery.trim()) {
-              filteredData = filteredData.filter(item => 
+              filteredData = filteredData.filter(item =>
                 item.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 item.description?.toLowerCase().includes(searchQuery.toLowerCase())
               );
@@ -108,20 +108,42 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
             return filteredData;
           } else {
             // Fallback to original filtering when location is not available
+            const baseQuery = {
+              from: 'items',
+              select: '*',
+              lte: ['location_range', locationRange],
+              order: ['created_at', { ascending: false }]
+            };
+
+            // Build query parameters
+            const filters: Record<string, string> = {};
+
+            // Filter by category if not 'all' - for now use the old field name
+            if (selectedCategory && selectedCategory !== 'all') {
+              filters.category = selectedCategory;
+            }
+
+            // Add search filter if search query exists
+            let searchFilter = '';
+            if (searchQuery.trim()) {
+              searchFilter = `title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`;
+            }
+
+            // Execute query
             let query = supabase
               .from('items')
               .select('*')
               .lte('location_range', locationRange)
               .order('created_at', { ascending: false });
 
-            // Filter by category if not 'all'
-            if (selectedCategory && selectedCategory !== 'all') {
-              query = query.eq('category', selectedCategory);
+            // Apply category filter
+            if (filters.category) {
+              query = query.eq('category', filters.category);
             }
 
-            // Add search filter if search query exists
-            if (searchQuery.trim()) {
-              query = query.or(`title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`);
+            // Apply search filter
+            if (searchFilter) {
+              query = query.or(searchFilter);
             }
 
             const { data, error } = await query;
@@ -148,7 +170,7 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
     queryFn: async () => {
       const itemsToFetch = items || [];
       if (itemsToFetch.length === 0) return {};
-      
+
       const viewPromises = itemsToFetch.map(async (item) => {
         if (!item.id) return { itemId: item.id, views: 0 };
 
@@ -157,7 +179,7 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
           if (typeof item.id === 'string' && !item.id.includes('-')) {
             return { itemId: item.id, views: 0 };
           }
-          
+
           const { data } = await supabase.rpc('get_item_views', { item_uuid: item.id });
           return { itemId: item.id, views: data ?? 0 };
         } catch (error) {
@@ -186,7 +208,7 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
 
     // Show animation
     setSavingItems(prev => ({ ...prev, [itemId]: true }));
-    
+
     try {
       const { error } = await supabase
         .from('saved_items')
@@ -226,7 +248,7 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
 
   const handleContact = async (e: React.MouseEvent, itemId: string, sellerId: string) => {
     e.preventDefault(); // Prevent navigation
-    
+
     if (!user) {
       toast({
         title: "Authentication required",

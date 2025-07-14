@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ImagePlus, TrendingUp, MapPin, ExternalLink, X, Sofa, Pill, ShoppingBag, Car, Laptop, Camera, Baby, Book, Shirt } from "lucide-react";
+import { ImagePlus, TrendingUp, MapPin, ExternalLink, X } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
 import { toast } from "@/hooks/use-toast";
 import { useState, useRef, useEffect } from "react";
@@ -18,17 +18,8 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-
-const categories = [
-  { id: 'furniture', label: 'Furniture', icon: Sofa, description: 'Home and office furniture' },
-  { id: 'medicine', label: 'Medicine', icon: Pill, description: 'Medical and health items' },
-  { id: 'electronics', label: 'Electronics', icon: Laptop, description: 'Electronic devices' },
-  { id: 'vehicles', label: 'Vehicles', icon: Car, description: 'Cars and vehicles' },
-  { id: 'cameras', label: 'Cameras', icon: Camera, description: 'Cameras and photography gear' },
-  { id: 'baby', label: 'Baby Items', icon: Baby, description: 'Baby products and accessories' },
-  { id: 'books', label: 'Books', icon: Book, description: 'Books and publications' },
-  { id: 'fashion', label: 'Fashion', icon: Shirt, description: 'Clothing and accessories' },
-];
+import { useCategories } from "@/hooks/useCategories";
+import { LoadingScreen } from "@/components/LoadingScreen";
 
 const PostItem = () => {
   const navigate = useNavigate();
@@ -48,6 +39,9 @@ const PostItem = () => {
     listingType: "sell" as "sell" | "rent" | "request",
   });
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
+
+  // Fetch categories dynamically
+  const { data: categories, isLoading: categoriesLoading, error: categoriesError } = useCategories();
 
   // Get user's location on component mount
   useEffect(() => {
@@ -159,19 +153,35 @@ const PostItem = () => {
 
     setLoading(true);
     try {
-      const { error } = await supabase.from('items').insert({
+      // Try to insert with category_id first, fallback to category if needed
+      const itemData = {
         title: formData.title,
         price: parseFloat(formData.price),
         description: formData.description,
-        category: formData.category,
         location_range: formData.range[0],
         latitude: userLocation?.lat || null,
         longitude: userLocation?.lng || null,
         seller_id: user.id,
         images: images,
+      };
+
+      // Try inserting with category_id first
+      const { error } = await supabase.from('items').insert({
+        ...itemData,
+        category_id: formData.category,
       });
 
-      if (error) throw error;
+      // If that fails, try with the old category field
+      if (error && error.code === '42703') { // Column doesn't exist
+        const { error: fallbackError } = await supabase.from('items').insert({
+          ...itemData,
+          category: formData.category,
+        });
+
+        if (fallbackError) throw fallbackError;
+      } else if (error) {
+        throw error;
+      }
 
       toast({
         title: "Success",
@@ -190,113 +200,107 @@ const PostItem = () => {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-gray-50 pb-16">
-      <TopBar title="Post New Item" showBackButton={showBackButton} />
-      <main className="container mx-auto px-4 py-6 space-y-6">
-        <Card className="p-6">
-          <form className="space-y-6" onSubmit={handleSubmit}>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Listing Type</label>
-              <div className="grid grid-cols-3 gap-2">
-                <Button
-                  type="button"
-                  variant={formData.listingType === "sell" ? "default" : "outline"}
-                  className="w-full"
-                  onClick={() => setFormData(prev => ({ ...prev, listingType: "sell" }))}
-                >
-                  Sell
-                </Button>
-                <Button
-                  type="button"
-                  variant={formData.listingType === "rent" ? "default" : "outline"}
-                  className="w-full"
-                  onClick={() => setFormData(prev => ({ ...prev, listingType: "rent" }))}
-                >
-                  Rent
-                </Button>
-                <Button
-                  type="button"
-                  variant={formData.listingType === "request" ? "default" : "outline"}
-                  className="w-full"
-                  onClick={() => setFormData(prev => ({ ...prev, listingType: "request" }))}
-                >
-                  Request
-                </Button>
-              </div>
-            </div>
+  if (categoriesLoading) {
+    return <LoadingScreen message="Loading categories..." />;
+  }
 
+  if (categoriesError) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold mb-2">Error Loading Categories</h2>
+          <p className="text-muted-foreground">Please try again later</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Filter out the "All" category for posting
+  const postCategories = categories?.filter(cat => cat.id !== 'all') || [];
+
+  return (
+    <div className="min-h-screen bg-gray-50 pb-24">
+      <TopBar title="Post Item" showBackButton={showBackButton} />
+
+      <div className="container mx-auto px-4 py-6">
+        <Card className="max-w-2xl mx-auto p-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Image Upload */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">Photos</label>
-              <div className="border-2 border-dashed rounded-lg p-4">
-                <div className="grid grid-cols-4 gap-2 mb-4">
-                  {images.map((url, index) => (
-                    <div key={index} className="relative w-20 h-20">
-                      <img
-                        src={url}
-                        alt={`Item ${index + 1}`}
-                        className="w-full h-full object-cover rounded-md"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removeImage(index)}
-                        className="absolute -top-1 -right-1 p-0.5 bg-white rounded-full shadow-md hover:bg-gray-100"
-                      >
-                        <X className="h-3 w-3 text-gray-500" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-                <div className="text-center">
-                  <Input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    className="hidden"
-                    id="image-upload"
-                    ref={fileInputRef}
-                    disabled={loading}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="mx-auto text-sm"
-                    disabled={loading}
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <ImagePlus className="mr-2 h-4 w-4" />
-                    Add Photos
-                  </Button>
-                </div>
+              <label className="text-sm font-medium">Images</label>
+              <div className="grid grid-cols-3 gap-2">
+                {images.map((image, index) => (
+                  <div key={index} className="relative">
+                    <img src={image} alt={`Upload ${index + 1}`} className="w-full h-24 object-cover rounded" />
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="icon"
+                      className="absolute top-1 right-1 h-6 w-6"
+                      onClick={() => removeImage(index)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-24 border-dashed"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={loading}
+                >
+                  <ImagePlus className="h-6 w-6" />
+                </Button>
               </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                className="hidden"
+              />
             </div>
 
             <div className="space-y-2">
               <label className="text-sm font-medium">Title</label>
               <Input
-                placeholder={
-                  formData.listingType === "sell" 
-                    ? "What are you selling?" 
-                    : formData.listingType === "rent" 
-                    ? "What are you renting out?" 
-                    : "What are you looking for?"
-                }
+                placeholder="What are you selling?"
                 value={formData.title}
                 onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                required
               />
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">
-                {formData.listingType === "request" ? "Budget" : "Price"}
-              </label>
+              <label className="text-sm font-medium">Price</label>
               <Input
                 type="number"
-                step="1"
-                placeholder={formData.listingType === "request" ? "Max budget" : "0"}
+                step="0.01"
+                placeholder="0.00"
                 value={formData.price}
                 onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
+                required
               />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Category</label>
+              <Select value={formData.category} onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {postCategories.map((category) => (
+                    <SelectItem key={category.id} value={category.id}>
+                      <div className="flex items-center gap-2">
+                        <category.iconComponent className="h-4 w-4" />
+                        <span>{category.label}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
@@ -335,86 +339,46 @@ const PostItem = () => {
               />
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Category</label>
-              <Select
-                value={formData.category}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((category) => (
-                    <SelectItem key={category.id} value={category.id}>
-                      {category.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="relative group">
-              <Card
-                className="w-full flex items-center gap-4 p-4 transition-all duration-200 cursor-pointer bg-gray-50 border-primary/10 shadow-sm"
+            <div className="flex gap-2">
+              <Button type="submit" className="flex-1" disabled={loading}>
+                {loading ? "Posting..." : "Post Item"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
                 onClick={handlePromoteItem}
+                className="flex items-center gap-2"
               >
-                <div className="rounded-full bg-primary/5 p-2">
-                  <TrendingUp className="h-6 w-6 text-primary" />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-medium">Move to Top</h3>
-                    <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">10 EGP</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground">Promote your items for more visibility</p>
-                </div>
-              </Card>
-              {/* Pseudo-element for the hover effect without layout shift */}
-              <div className="absolute inset-0 pointer-events-none border-2 border-transparent rounded-lg group-hover:border-red-500 transition-colors duration-200"></div>
+                <TrendingUp className="h-4 w-4" />
+                Promote
+              </Button>
             </div>
-
-            <Button className="w-full" type="submit" disabled={loading}>
-              {loading 
-                ? "Posting..." 
-                : formData.listingType === "sell"
-                ? "Post Item for Sale"
-                : formData.listingType === "rent"
-                ? "Post Item for Rent"
-                : "Post Request"
-              }
-            </Button>
           </form>
         </Card>
-      </main>
+      </div>
+
+      <BottomNav />
 
       <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Choose Payment Method</DialogTitle>
+            <DialogTitle>Promote Your Item</DialogTitle>
           </DialogHeader>
-          <div className="grid gap-4">
-            {[
-              { name: "Fawry", icon: "💳" },
-              { name: "Visa", icon: "💳" },
-              { name: "Instapay", icon: "🏦" },
-              { name: "App Wallet", icon: "👝" },
-            ].map((method) => (
-              <Button
-                key={method.name}
-                variant="outline"
-                className="w-full justify-start text-left"
-                onClick={() => handlePayment(method.name)}
-              >
-                <span className="mr-2">{method.icon}</span>
-                {method.name}
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Boost your item's visibility by promoting it to the top of search results.
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <Button onClick={() => handlePayment('PayPal')}>
+                Pay with PayPal
               </Button>
-            ))}
+              <Button onClick={() => handlePayment('Card')}>
+                Pay with Card
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
-
-      <BottomNav />
     </div>
   );
 };

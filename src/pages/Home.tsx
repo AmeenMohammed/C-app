@@ -8,19 +8,9 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { MapPin, ExternalLink, Sofa, Pill, ShoppingBag, Car, Laptop, Camera, Baby, Book, Shirt, Search } from "lucide-react";
-
-const categories = [
-  { id: 'all', label: 'All', icon: ShoppingBag, description: 'All shopping items' },
-  { id: 'furniture', label: 'Furniture', icon: Sofa, description: 'Home and office furniture' },
-  { id: 'medicine', label: 'Medicine', icon: Pill, description: 'Medical and health items' },
-  { id: 'electronics', label: 'Electronics', icon: Laptop, description: 'Electronic devices' },
-  { id: 'vehicles', label: 'Vehicles', icon: Car, description: 'Cars and vehicles' },
-  { id: 'cameras', label: 'Cameras', icon: Camera, description: 'Cameras and photography gear' },
-  { id: 'baby', label: 'Baby Items', icon: Baby, description: 'Baby products and accessories' },
-  { id: 'books', label: 'Books', icon: Book, description: 'Books and publications' },
-  { id: 'fashion', label: 'Fashion', icon: Shirt, description: 'Clothing and accessories' },
-];
+import { MapPin, ExternalLink, Search } from "lucide-react";
+import { useCategories } from "@/hooks/useCategories";
+import { LoadingScreen } from "@/components/LoadingScreen";
 
 const Home = () => {
   const navigate = useNavigate();
@@ -29,6 +19,9 @@ const Home = () => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Fetch categories dynamically
+  const { data: categories, isLoading: categoriesLoading, error: categoriesError } = useCategories();
 
   // Get user's location on component mount
   useEffect(() => {
@@ -76,6 +69,21 @@ const Home = () => {
     navigate(`/location-map?range=${range[0]}`);
   };
 
+  if (categoriesLoading) {
+    return <LoadingScreen message="Loading categories..." />;
+  }
+
+  if (categoriesError) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold mb-2">Error Loading Categories</h2>
+          <p className="text-muted-foreground">Please try again later</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
       <TopBar title="Home" showBackButton={false} />
@@ -95,12 +103,12 @@ const Home = () => {
               />
             </div>
           </div>
-          
+
           <ScrollArea className="w-full whitespace-nowrap">
             <div className="flex space-x-1 py-2">
               <TooltipProvider>
-                {categories.map((category) => {
-                  const Icon = category.icon;
+                {categories?.map((category) => {
+                  const IconComponent = category.iconComponent;
                   return (
                     <Tooltip key={category.id}>
                       <TooltipTrigger asChild>
@@ -110,7 +118,7 @@ const Home = () => {
                           className="h-8 w-8"
                           onClick={() => setSelectedCategory(category.id)}
                         >
-                          <Icon className="h-4 w-4" />
+                          <IconComponent className="h-4 w-4" />
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
@@ -147,8 +155,8 @@ const Home = () => {
             >
               <MapPin className="h-4 w-4 text-primary" />
             </Button>
-            <div 
-              className="flex-1 cursor-pointer" 
+            <div
+              className="flex-1 cursor-pointer"
               onClick={openLocationMap}
               title="Click to open map and adjust search radius"
             >

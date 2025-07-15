@@ -30,7 +30,7 @@ interface SellerProfile {
 }
 
 const SellerProfile = () => {
-  const { sellerId } = useParams();
+  const { id: sellerId } = useParams(); // Fixed: route parameter is :id, not :sellerId
   const { user } = useAuth();
   const [seller, setSeller] = useState<SellerProfile | null>(null);
   const [ratings, setRatings] = useState<SellerRatings | null>(null);
@@ -50,18 +50,30 @@ const SellerProfile = () => {
           return;
         }
 
-        // Always fetch the profile for the specific seller ID provided
+        // Try to fetch the profile for the specific seller ID provided
         const { data: profileData, error: profileError } = await supabase
           .from('user_profiles')
           .select('*')
           .eq('user_id', sellerId)
-          .single();
+          .maybeSingle(); // Use maybeSingle() instead of single() to avoid PGRST116
 
-        if (profileError && profileError.code === 'PGRST116') {
-          // No profile found for this seller ID
-          console.error('No profile found for seller ID:', sellerId);
+        if (profileError) {
+          console.error('Error fetching seller profile:', profileError);
           setSeller(null);
-        } else if (!profileError && profileData) {
+        } else if (!profileData) {
+          // No profile found for this seller ID, create a fallback profile
+          console.log('No profile found for seller ID:', sellerId, 'Creating fallback profile');
+
+          // Create a simple fallback seller profile
+          setSeller({
+            id: sellerId,
+            user_id: sellerId,
+            full_name: 'User',
+            avatar_url: null,
+            location: 'Location not set',
+            created_at: new Date().toISOString()
+          });
+        } else {
           setSeller(profileData);
         }
 
@@ -85,13 +97,14 @@ const SellerProfile = () => {
 
       } catch (error) {
         console.error('Error fetching seller details:', error);
+        setSeller(null);
       } finally {
         setLoading(false);
       }
     };
 
     fetchSellerDetails();
-  }, [sellerId, user]);
+  }, [sellerId, user, navigate]);
 
   if (loading) {
     return <LoadingScreen message="Loading profile..." />;

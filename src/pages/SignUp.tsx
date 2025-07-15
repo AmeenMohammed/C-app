@@ -66,7 +66,7 @@ const SignUp = () => {
 
       if (error) {
         console.error('Google OAuth error:', error);
-        toast.error(error.message || "Failed to sign in with Google");
+        toast.error(error.message || "Failed to continue with Google");
         setLoading(false);
         return;
       }
@@ -75,7 +75,7 @@ const SignUp = () => {
       // The loading state will be maintained until the redirect completes
     } catch (error) {
       console.error('Unexpected Google OAuth error:', error);
-      toast.error("An unexpected error occurred while signing in with Google.");
+      toast.error("An unexpected error occurred while continuing with Google.");
       setLoading(false);
     }
   };
@@ -92,7 +92,7 @@ const SignUp = () => {
 
       if (error) {
         console.error('Apple OAuth error:', error);
-        toast.error(error.message || "Failed to sign in with Apple");
+        toast.error(error.message || "Failed to continue with Apple");
         setLoading(false);
         return;
       }
@@ -101,7 +101,7 @@ const SignUp = () => {
       // The loading state will be maintained until the redirect completes
     } catch (error) {
       console.error('Unexpected Apple OAuth error:', error);
-      toast.error("An unexpected error occurred while signing in with Apple.");
+      toast.error("An unexpected error occurred while continuing with Apple.");
       setLoading(false);
     }
   };

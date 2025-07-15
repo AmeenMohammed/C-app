@@ -1,5 +1,5 @@
 import { Card } from "@/components/ui/card";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { BookmarkPlus, MessageSquare, Eye, Share2, ImagePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -22,6 +22,7 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
   const { toast } = useToast();
   const { user } = useAuth();
   const [savingItems, setSavingItems] = useState<Record<string, boolean>>({});
+  const navigate = useNavigate();
 
   // Fetch user's saved location from profile if authenticated
   const { data: userProfile } = useQuery({
@@ -258,16 +259,48 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
       return;
     }
 
+    // Prevent users from contacting themselves
+    if (sellerId === user.id) {
+      toast({
+        title: "Cannot message yourself",
+        description: "You cannot send messages to yourself",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
-      // Get seller information
-      const { data: sellerData } = await supabase
+      // Get seller information from user_profiles using seller_id (which is auth.users.id)
+      const { data: sellerData, error: sellerError } = await supabase
         .from('user_profiles')
         .select('user_id, full_name, avatar_url')
         .eq('user_id', sellerId)
         .single();
 
+      if (sellerError) {
+        console.error('Error fetching seller profile:', sellerError);
+        // Still navigate to messages with basic info if profile not found
+        navigate(`/messages?userId=${sellerId}`, {
+          state: {
+            sellerId: sellerId,
+            sellerName: "User",
+            sellerAvatar: "https://images.unsplash.com/photo-1649972904349-6e44c42644a7",
+            itemId: itemId
+          }
+        });
+        return;
+      }
+
       if (sellerData) {
-        window.location.href = `/messages?userId=${sellerId}`;
+        // Navigate to messages with seller information
+        navigate(`/messages?userId=${sellerId}`, {
+          state: {
+            sellerId: sellerId,
+            sellerName: sellerData.full_name || "User",
+            sellerAvatar: sellerData.avatar_url || "https://images.unsplash.com/photo-1649972904349-6e44c42644a7",
+            itemId: itemId
+          }
+        });
       } else {
         toast({
           title: "Error",
@@ -326,14 +359,17 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
   const trackView = async (itemId: string) => {
     const user = (await supabase.auth.getUser()).data.user;
     if (user) {
-      await supabase.from('item_views').insert({
-        item_id: itemId,
-        viewer_id: user.id
-      }).then(({ error }) => {
-        if (error && error.code !== '23505') { // Ignore unique violation errors
+      try {
+        await supabase.from('item_views').insert({
+          item_id: itemId,
+          viewer_id: user.id
+        });
+      } catch (error) {
+        // Ignore unique constraint violation errors (409 Conflict)
+        if (error && typeof error === 'object' && 'code' in error && (error as { code: string }).code !== '23505') {
           console.error('Error tracking view:', error);
         }
-      });
+      }
     }
   };
 
@@ -386,7 +422,8 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
         >
           <Card className="overflow-hidden relative group">
             <div className="absolute top-2 right-2 flex gap-2 z-10">
-              {!isProfile || item.seller_id !== user?.id ? (
+              {/* Only show save and message buttons if it's not the user's own item */}
+              {item.seller_id !== user?.id && (
                 <>
                   <Button
                     variant="secondary"
@@ -405,7 +442,8 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
                     <MessageSquare className="h-4 w-4" />
                   </Button>
                 </>
-              ) : null}
+              )}
+              {/* Share button is always visible */}
               <Button
                 variant="secondary"
                 size="icon"

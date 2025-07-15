@@ -41,6 +41,18 @@ const ItemDetails = () => {
   const [saving, setSaving] = useState(false);
 
   const isOwner = user && item?.seller_id === user.id;
+
+  // Debug logging to help troubleshoot ownership issues
+  useEffect(() => {
+    if (user && item) {
+      console.log('🔍 Owner check:', {
+        userId: user.id,
+        itemSellerId: item.seller_id,
+        isOwner: user.id === item.seller_id
+      });
+    }
+  }, [user, item]);
+
   const [itemFetchError, setItemFetchError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -51,60 +63,68 @@ const ItemDetails = () => {
         setIsLoading(true);
         setError(null);
 
-        // Check if it's a sample item
-        // Only fetch real items from database
         // Fetch item from database
         const { data, error } = await supabase
-            .from('items')
-            .select('*')
-            .eq('id', itemId)
-            .single();
+          .from('items')
+          .select('*')
+          .eq('id', itemId)
+          .single();
 
-          if (error) {
-            throw error;
+        if (error) {
+          throw error;
+        }
+
+        if (data) {
+          setItem(data as Item);
+
+          // Fetch seller information
+          const { data: sellerData, error: sellerError } = await supabase
+            .from('user_profiles')
+            .select('*')
+            .eq('user_id', data.seller_id)
+            .maybeSingle(); // Use maybeSingle() instead of single() to avoid PGRST116
+
+          if (sellerError) {
+            console.error('Error fetching seller:', sellerError);
+            // Set default seller if there's an actual error
+            setSeller({
+              id: data.seller_id,
+              user_id: data.seller_id,
+              full_name: "User",
+              avatar_url: null,
+              location: "Location not set"
+            });
+          } else if (!sellerData) {
+            // No profile found, create fallback
+            setSeller({
+              id: data.seller_id,
+              user_id: data.seller_id,
+              full_name: "User",
+              avatar_url: null,
+              location: "Location not set"
+            });
+          } else {
+            setSeller(sellerData as Seller);
           }
 
-          if (data) {
-            setItem(data as Item);
+          // Fetch view count
+          const { data: viewData } = await supabase.rpc('get_item_views', {
+            item_uuid: itemId
+          });
+          setViewCount(viewData || 0);
 
-            // Fetch seller information
-            const { data: sellerData, error: sellerError } = await supabase
-              .from('user_profiles')
-              .select('*')
-              .eq('user_id', data.seller_id)
+          // Check if item is saved by current user
+          if (user) {
+            const { data: savedData } = await supabase
+              .from('saved_items')
+              .select('id')
+              .eq('user_id', user.id)
+              .eq('item_id', itemId)
               .single();
 
-            if (sellerError) {
-              console.error('Error fetching seller:', sellerError);
-              // Set default seller if profile not found
-              setSeller({
-                id: data.seller_id,
-                full_name: "User",
-                avatar_url: null,
-                location: "Location not set"
-              });
-            } else {
-              setSeller(sellerData as Seller);
-            }
-
-            // Fetch view count
-            const { data: viewData } = await supabase.rpc('get_item_views', {
-              item_uuid: itemId
-            });
-            setViewCount(viewData || 0);
-
-            // Check if item is saved by current user
-            if (user) {
-              const { data: savedData } = await supabase
-                .from('saved_items')
-                .select('id')
-                .eq('user_id', user.id)
-                .eq('item_id', itemId)
-                .single();
-              
-              setSaved(!!savedData);
-            }
+            setSaved(!!savedData);
           }
+        }
       } catch (error: unknown) {
         console.error('Error fetching item:', error);
         const errorMessage = error instanceof Error ? error.message : 'Failed to load item';
@@ -121,12 +141,16 @@ const ItemDetails = () => {
     if (!user || !itemId) return;
 
     try {
+      // Insert view, ignore duplicate constraint errors
       await supabase.from('item_views').insert({
         item_id: itemId,
         viewer_id: user.id
       });
     } catch (error) {
-      console.error('Error tracking view:', error);
+      // Ignore unique constraint violation errors (409 Conflict)
+      if (error && typeof error === 'object' && 'code' in error && (error as { code: string }).code !== '23505') {
+        console.error('Error tracking view:', error);
+      }
     }
   };
 
@@ -155,7 +179,7 @@ const ItemDetails = () => {
           .eq('item_id', itemId);
 
         if (error) throw error;
-        
+
         setSaved(false);
         toast.success("Item removed from saved items");
       } else {
@@ -192,13 +216,21 @@ const ItemDetails = () => {
     if (!seller || !item || !user) return;
 
     try {
-      // Create or find conversation
+      // The seller_id from items table is the auth.users.id
+      // The seller object from user_profiles has user_id field
+      const sellerId = seller.user_id || seller.id; // Use user_id if available, fallback to id
+
+      // Prevent users from contacting themselves
+      if (sellerId === user.id) {
+        toast.error("You cannot message yourself");
+        return;
+      }
+
+      // Check if conversation already exists
       const { data: existingConversation } = await supabase
         .from('conversations')
         .select('id')
-        .or(`participant1_id.eq.${user.id},participant2_id.eq.${user.id}`)
-        .or(`participant1_id.eq.${seller.user_id || seller.id},participant2_id.eq.${seller.user_id || seller.id}`)
-        .eq('item_id', item.id)
+        .or(`and(participant1_id.eq.${user.id},participant2_id.eq.${sellerId}),and(participant1_id.eq.${sellerId},participant2_id.eq.${user.id})`)
         .single();
 
       let conversationId = existingConversation?.id;
@@ -209,7 +241,7 @@ const ItemDetails = () => {
           .from('conversations')
           .insert({
             participant1_id: user.id,
-            participant2_id: seller.user_id || seller.id,
+            participant2_id: sellerId,
             item_id: item.id
           })
           .select('id')
@@ -219,9 +251,10 @@ const ItemDetails = () => {
         conversationId = newConversation.id;
       }
 
-      navigate(`/messages?userId=${seller.user_id || seller.id}`, {
+      // Navigate to messages with proper seller information
+      navigate(`/messages?userId=${sellerId}`, {
         state: {
-          sellerId: seller.user_id || seller.id,
+          sellerId: sellerId,
           sellerName: seller.full_name || "User",
           sellerAvatar: seller.avatar_url || "https://images.unsplash.com/photo-1649972904349-6e44c42644a7",
           conversationId,
@@ -301,14 +334,17 @@ const ItemDetails = () => {
                   </div>
                 </div>
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleSaveItem}
-                className={`transition-transform duration-300 ${saving ? 'scale-150' : ''}`}
-              >
-                <BookmarkPlus className={`h-5 w-5 transition-all ${saving || saved ? 'text-primary fill-primary' : ''}`} />
-              </Button>
+              {/* Only show save button if it's not the user's own item */}
+              {!isOwner && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleSaveItem}
+                  className={`transition-transform duration-300 ${saving ? 'scale-150' : ''}`}
+                >
+                  <BookmarkPlus className={`h-5 w-5 transition-all ${saving || saved ? 'text-primary fill-primary' : ''}`} />
+                </Button>
+              )}
             </div>
             <div>
               <h2 className="font-semibold mb-2">Description</h2>
@@ -319,7 +355,7 @@ const ItemDetails = () => {
             <div>
               <h2 className="font-semibold mb-2">Seller</h2>
               <Link
-                to={seller?.user_id ? `/seller/${seller.user_id}` : (seller?.id ? `/seller/${seller.id}` : '/home')}
+                to={item?.seller_id ? `/seller/${item.seller_id}` : '/home'}
                 className="flex items-center space-x-3 p-2 rounded-lg border border-transparent transition-all duration-200 hover:border-primary/50"
               >
                 <img
@@ -341,6 +377,7 @@ const ItemDetails = () => {
                 </div>
               </Link>
             </div>
+            {/* Show different buttons based on ownership */}
             {isOwner ? (
               <Button onClick={() => navigate(`/edit-item/${item.id}`)} variant="outline" className="w-full">
                 <Pencil className="h-4 w-4 mr-2" />

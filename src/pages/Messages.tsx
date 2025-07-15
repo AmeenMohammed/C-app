@@ -60,17 +60,16 @@ const Messages = () => {
 
       setLoading(true);
       try {
-        const { data, error } = await supabase
+        // Get conversations where user is participant
+        const { data: conversationsData, error } = await supabase
           .from('conversations')
           .select(`
             id,
             participant1_id,
             participant2_id,
+            item_id,
             updated_at,
-            messages (
-              content,
-              created_at
-            )
+            created_at
           `)
           .or(`participant1_id.eq.${user.id},participant2_id.eq.${user.id}`)
           .order('updated_at', { ascending: false });
@@ -78,27 +77,36 @@ const Messages = () => {
         if (error) throw error;
 
         const conversationsWithUsers = await Promise.all(
-          (data || []).map(async (conv) => {
+          (conversationsData || []).map(async (conv) => {
             const otherUserId = conv.participant1_id === user.id ? conv.participant2_id : conv.participant1_id;
-            
-            const { data: profile } = await supabase
+
+            // Get user profile for the other participant
+            const { data: profile, error: profileError } = await supabase
               .from('user_profiles')
               .select('full_name, avatar_url')
               .eq('user_id', otherUserId)
               .single();
 
-            const lastMessage = conv.messages && conv.messages.length > 0 
-              ? conv.messages[0].content 
-              : "Start a conversation...";
+            // Get last message for this conversation
+            const { data: lastMessage } = await supabase
+              .from('messages')
+              .select('content, created_at')
+              .eq('conversation_id', conv.id)
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .single();
 
             return {
               id: otherUserId,
+              conversationId: conv.id,
               user: {
                 name: profile?.full_name || "User",
-                avatar: profile?.avatar_url || `https://api.dicebear.com/7.x/avatars/svg?seed=${profile?.full_name}`
+                avatar: profile?.avatar_url || `https://api.dicebear.com/7.x/avatars/svg?seed=${profile?.full_name || 'user'}`
               },
-              lastMessage,
-              timestamp: conv.updated_at ? new Date(conv.updated_at).toLocaleDateString() : "Now",
+              lastMessage: lastMessage?.content || "Start a conversation...",
+              timestamp: lastMessage?.created_at
+                ? new Date(lastMessage.created_at).toLocaleDateString()
+                : new Date(conv.created_at).toLocaleDateString(),
               unread: false
             };
           })
@@ -111,6 +119,7 @@ const Messages = () => {
           sellerId?: string;
           sellerName?: string;
           sellerAvatar?: string;
+          itemId?: string;
         } | null;
 
         if (sellerInfo?.sellerId && sellerInfo?.sellerName) {
@@ -146,21 +155,33 @@ const Messages = () => {
       if (!selectedUserId || !user) return;
 
       try {
+        // Find the conversation between current user and selected user
+        const { data: conversation, error: convError } = await supabase
+          .from('conversations')
+          .select('id')
+          .or(`and(participant1_id.eq.${user.id},participant2_id.eq.${selectedUserId}),and(participant1_id.eq.${selectedUserId},participant2_id.eq.${user.id})`)
+          .single();
+
+        if (convError && convError.code !== 'PGRST116') {
+          throw convError;
+        }
+
+        if (!conversation) {
+          // No conversation exists yet
+          setMessages([]);
+          return;
+        }
+
+        // Get messages for this conversation
         const { data, error } = await supabase
           .from('messages')
           .select(`
             id,
             content,
             sender_id,
-            created_at,
-            conversation_id
+            created_at
           `)
-          .in('conversation_id', (await supabase
-            .from('conversations')
-            .select('id')
-            .or(`participant1_id.eq.${user.id},participant2_id.eq.${user.id}`)
-            .or(`participant1_id.eq.${selectedUserId},participant2_id.eq.${selectedUserId}`)
-          ).data?.map(c => c.id) || [])
+          .eq('conversation_id', conversation.id)
           .order('created_at', { ascending: true });
 
         if (error) throw error;
@@ -214,11 +235,10 @@ const Messages = () => {
     // Save message to database
     try {
       // Find or create conversation
-      let { data: conversation } = await supabase
+      const { data: conversation } = await supabase
         .from('conversations')
         .select('id')
-        .or(`participant1_id.eq.${user.id},participant2_id.eq.${user.id}`)
-        .or(`participant1_id.eq.${selectedUserId},participant2_id.eq.${selectedUserId}`)
+        .or(`and(participant1_id.eq.${user.id},participant2_id.eq.${selectedUserId}),and(participant1_id.eq.${selectedUserId},participant2_id.eq.${user.id})`)
         .single();
 
       let conversationId = conversation?.id;

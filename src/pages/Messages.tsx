@@ -26,6 +26,12 @@ interface Message {
     url: string;
     name?: string;
   };
+  itemDetails?: {
+    title: string;
+    price: number;
+    image: string;
+    link: string;
+  };
   timestamp?: string;
 }
 
@@ -53,6 +59,7 @@ const Messages = () => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [showMobileChat, setShowMobileChat] = useState(false);
+  const [locationStateProcessed, setLocationStateProcessed] = useState(false);
 
   // Fetch user's conversations from database
   useEffect(() => {
@@ -86,7 +93,7 @@ const Messages = () => {
               .from('user_profiles')
               .select('full_name, avatar_url')
               .eq('user_id', otherUserId)
-              .single();
+              .maybeSingle();
 
             // Get last message for this conversation
             const { data: lastMessage } = await supabase
@@ -95,7 +102,7 @@ const Messages = () => {
               .eq('conversation_id', conv.id)
               .order('created_at', { ascending: false })
               .limit(1)
-              .single();
+              .maybeSingle();
 
             return {
               id: otherUserId,
@@ -115,29 +122,57 @@ const Messages = () => {
 
         setConversations(conversationsWithUsers);
 
-        // Handle new conversation from location state
-        const sellerInfo = location.state as {
-          sellerId?: string;
-          sellerName?: string;
-          sellerAvatar?: string;
-          itemId?: string;
-        } | null;
-
-        if (sellerInfo?.sellerId && sellerInfo?.sellerName) {
-          const existingConv = conversationsWithUsers.find(c => c.id === sellerInfo.sellerId);
-          if (!existingConv) {
-            const newConversation: Conversation = {
-              id: sellerInfo.sellerId,
-              user: {
-                name: sellerInfo.sellerName,
-                avatar: sellerInfo.sellerAvatar || `https://api.dicebear.com/7.x/avatars/svg?seed=${sellerInfo.sellerName}`
-              },
-              lastMessage: "Start a conversation...",
-              timestamp: "Just now",
-              unread: false
+        // Handle new conversation from location state (only once)
+        if (!locationStateProcessed) {
+          const sellerInfo = location.state as {
+            sellerId?: string;
+            sellerName?: string;
+            sellerAvatar?: string;
+            itemId?: string;
+            itemDetails?: {
+              title: string;
+              price: number;
+              image: string;
+              link: string;
             };
-            setConversations(prev => [newConversation, ...prev]);
+          } | null;
+
+          if (sellerInfo?.sellerId && sellerInfo?.sellerName) {
+            console.log('👤 Seller info received:', sellerInfo);
+
+            const existingConv = conversationsWithUsers.find(c => c.id === sellerInfo.sellerId);
+            if (!existingConv) {
+              console.log('🆕 Creating new conversation UI entry');
+              const newConversation: Conversation = {
+                id: sellerInfo.sellerId,
+                user: {
+                  name: sellerInfo.sellerName,
+                  avatar: sellerInfo.sellerAvatar || `https://api.dicebear.com/7.x/avatars/svg?seed=${sellerInfo.sellerName}`
+                },
+                lastMessage: "Start a conversation...",
+                timestamp: "Just now",
+                unread: false
+              };
+              setConversations(prev => [newConversation, ...prev]);
+            } else {
+              console.log('📱 Found existing conversation UI entry');
+            }
+
+            // Auto-send default message with item details if provided
+            // Always send for new item inquiries, regardless of conversation status
+            if (sellerInfo.itemDetails) {
+              console.log('📦 Item details found, scheduling default message');
+              setTimeout(() => {
+                sendDefaultItemMessage(sellerInfo.sellerId!, sellerInfo.itemDetails!);
+              }, 1000); // Increase delay to ensure everything is ready
+            } else {
+              console.log('❌ No item details found in seller info');
+            }
+          } else {
+            console.log('❌ No seller info found in location state');
           }
+
+          setLocationStateProcessed(true);
         }
       } catch (error) {
         console.error('Error fetching conversations:', error);
@@ -148,7 +183,7 @@ const Messages = () => {
     };
 
     fetchConversations();
-  }, [user, location.state]);
+  }, [user, locationStateProcessed]);
 
   // Fetch messages for selected conversation
   useEffect(() => {
@@ -157,15 +192,21 @@ const Messages = () => {
 
       try {
         // Find the conversation between current user and selected user
-        const { data: conversation, error: convError } = await supabase
+        const { data: conversations, error: convError } = await supabase
           .from('conversations')
-          .select('id')
-          .or(`and(participant1_id.eq.${user.id},participant2_id.eq.${selectedUserId}),and(participant1_id.eq.${selectedUserId},participant2_id.eq.${user.id})`)
-          .single();
+          .select('id, participant1_id, participant2_id')
+          .or(`participant1_id.eq.${user.id},participant2_id.eq.${user.id}`)
+          .or(`participant1_id.eq.${selectedUserId},participant2_id.eq.${selectedUserId}`);
 
-        if (convError && convError.code !== 'PGRST116') {
+        if (convError) {
           throw convError;
         }
+
+        // Find conversation where both users are participants
+        const conversation = conversations?.find(conv =>
+          (conv.participant1_id === user.id && conv.participant2_id === selectedUserId) ||
+          (conv.participant1_id === selectedUserId && conv.participant2_id === user.id)
+        );
 
         if (!conversation) {
           // No conversation exists yet
@@ -213,6 +254,114 @@ const Messages = () => {
     setSearchParams({}); // Clear the selected user from URL params
   };
 
+  const sendDefaultItemMessage = async (sellerId: string, itemDetails: { title: string; price: number; image: string; link: string; }) => {
+    if (!user) return;
+
+    console.log('🚀 Sending default item message:', { sellerId, itemDetails });
+
+    try {
+      // Create default message with item details
+      const defaultMessage = `Hi! I'm interested in this item:\n\n📦 ${itemDetails.title}\n💰 $${itemDetails.price}\n🔗 ${itemDetails.link}`;
+
+      // Find or create conversation
+      const { data: conversations } = await supabase
+        .from('conversations')
+        .select('id, participant1_id, participant2_id')
+        .or(`participant1_id.eq.${user.id},participant2_id.eq.${user.id}`)
+        .or(`participant1_id.eq.${sellerId},participant2_id.eq.${sellerId}`);
+
+      console.log('📋 Found conversations:', conversations);
+
+      // Find conversation where both users are participants
+      const conversation = conversations?.find(conv =>
+        (conv.participant1_id === user.id && conv.participant2_id === sellerId) ||
+        (conv.participant1_id === sellerId && conv.participant2_id === user.id)
+      );
+
+      let conversationId = conversation?.id;
+
+      if (!conversationId) {
+        console.log('🆕 Creating new conversation');
+        const { data: newConv, error: convError } = await supabase
+          .from('conversations')
+          .insert({
+            participant1_id: user.id,
+            participant2_id: sellerId
+          })
+          .select('id')
+          .single();
+
+        if (convError) {
+          console.error('❌ Error creating conversation:', convError);
+          throw convError;
+        }
+        conversationId = newConv.id;
+        console.log('✅ Created conversation:', conversationId);
+      } else {
+        console.log('📱 Using existing conversation:', conversationId);
+      }
+
+      // Check if this exact message already exists to avoid duplicates
+      const { data: existingMessages } = await supabase
+        .from('messages')
+        .select('id')
+        .eq('conversation_id', conversationId)
+        .eq('sender_id', user.id)
+        .eq('content', defaultMessage)
+        .limit(1);
+
+      if (existingMessages && existingMessages.length > 0) {
+        console.log('📬 Message already exists, skipping');
+        return;
+      }
+
+      // Save the default message
+      const { error: messageError } = await supabase
+        .from('messages')
+        .insert({
+          conversation_id: conversationId,
+          sender_id: user.id,
+          content: defaultMessage
+        });
+
+      if (messageError) {
+        console.error('❌ Error saving message:', messageError);
+        throw messageError;
+      }
+
+      console.log('✅ Default message sent successfully');
+
+      // Update conversation timestamp
+      await supabase
+        .from('conversations')
+        .update({ updated_at: new Date().toISOString() })
+        .eq('id', conversationId);
+
+      // Update local state if this is the current conversation
+      if (selectedUserId === sellerId) {
+        const messageData: Message = {
+          text: defaultMessage,
+          isMine: true,
+          timestamp: new Date().toISOString(),
+          itemDetails: itemDetails
+        };
+        setMessages(prev => [...prev, messageData]);
+      }
+
+      // Update last message in conversations
+      setConversations(prev => prev.map(conv =>
+        conv.id === sellerId
+          ? { ...conv, lastMessage: `📦 ${itemDetails.title}`, timestamp: "Just now" }
+          : conv
+      ));
+
+    } catch (error) {
+      console.error('❌ Error sending default message:', error);
+      // Show user-friendly error
+      toast.error("Failed to send item details. Please try again.");
+    }
+  };
+
   const handleSendMessage = async () => {
     if ((!newMessage.trim() && !attachment) || !selectedUserId || !user) return;
 
@@ -242,11 +391,17 @@ const Messages = () => {
     // Save message to database
     try {
       // Find or create conversation
-      const { data: conversation } = await supabase
+      const { data: conversations } = await supabase
         .from('conversations')
-        .select('id')
-        .or(`and(participant1_id.eq.${user.id},participant2_id.eq.${selectedUserId}),and(participant1_id.eq.${selectedUserId},participant2_id.eq.${user.id})`)
-        .single();
+        .select('id, participant1_id, participant2_id')
+        .or(`participant1_id.eq.${user.id},participant2_id.eq.${user.id}`)
+        .or(`participant1_id.eq.${selectedUserId},participant2_id.eq.${selectedUserId}`);
+
+      // Find conversation where both users are participants
+      const conversation = conversations?.find(conv =>
+        (conv.participant1_id === user.id && conv.participant2_id === selectedUserId) ||
+        (conv.participant1_id === selectedUserId && conv.participant2_id === user.id)
+      );
 
       let conversationId = conversation?.id;
 
@@ -478,6 +633,37 @@ const Messages = () => {
                             )}
                             {message.text && (
                               <p className="text-sm">{message.text}</p>
+                            )}
+                            {message.itemDetails && (
+                              <div className={`mt-2 p-3 rounded-lg border ${
+                                message.isMine
+                                  ? 'bg-blue-50 border-blue-200 text-blue-900'
+                                  : 'bg-gray-50 border-gray-200 text-gray-900'
+                              }`}>
+                                <div className="flex items-center gap-2 mb-2">
+                                  <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100">
+                                    <img
+                                      src={message.itemDetails.image}
+                                      alt={message.itemDetails.title}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <h4 className="font-semibold text-sm truncate">{message.itemDetails.title}</h4>
+                                    <p className="text-sm font-medium">${message.itemDetails.price}</p>
+                                  </div>
+                                </div>
+                                <a
+                                  href={message.itemDetails.link}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className={`text-xs underline ${
+                                    message.isMine ? 'text-blue-700' : 'text-blue-600'
+                                  }`}
+                                >
+                                  View Item Details →
+                                </a>
+                              </div>
                             )}
                           </div>
                         </div>

@@ -9,6 +9,14 @@ import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 
+interface Item {
+  id: string;
+  title: string;
+  price: number;
+  images?: string[];
+  seller_id: string;
+}
+
 interface ItemGridProps {
   userId?: string;
   isProfile?: boolean;
@@ -247,7 +255,7 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
     }
   };
 
-  const handleContact = async (e: React.MouseEvent, itemId: string, sellerId: string) => {
+  const handleContact = async (e: React.MouseEvent, item: Item) => {
     e.preventDefault(); // Prevent navigation
 
     if (!user) {
@@ -260,7 +268,7 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
     }
 
     // Prevent users from contacting themselves
-    if (sellerId === user.id) {
+    if (item.seller_id === user.id) {
       toast({
         title: "Cannot message yourself",
         description: "You cannot send messages to yourself",
@@ -274,38 +282,60 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
       const { data: sellerData, error: sellerError } = await supabase
         .from('user_profiles')
         .select('user_id, full_name, avatar_url')
-        .eq('user_id', sellerId)
-        .single();
+        .eq('user_id', item.seller_id)
+        .maybeSingle();
 
       if (sellerError) {
         console.error('Error fetching seller profile:', sellerError);
         // Still navigate to messages with basic info if profile not found
-        navigate(`/messages?userId=${sellerId}`, {
+        navigate(`/messages?userId=${item.seller_id}`, {
           state: {
-            sellerId: sellerId,
+            sellerId: item.seller_id,
             sellerName: "User",
             sellerAvatar: "https://images.unsplash.com/photo-1649972904349-6e44c42644a7",
-            itemId: itemId
+            itemId: item.id,
+            itemDetails: {
+              title: item.title,
+              price: item.price,
+              image: item.images?.[0] || "https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d",
+              link: `${window.location.origin}/items/${item.id}`
+            }
           }
         });
         return;
       }
 
       if (sellerData) {
-        // Navigate to messages with seller information
-        navigate(`/messages?userId=${sellerId}`, {
+        // Navigate to messages with seller information and item details
+        navigate(`/messages?userId=${item.seller_id}`, {
           state: {
-            sellerId: sellerId,
+            sellerId: item.seller_id,
             sellerName: sellerData.full_name || "User",
             sellerAvatar: sellerData.avatar_url || "https://images.unsplash.com/photo-1649972904349-6e44c42644a7",
-            itemId: itemId
+            itemId: item.id,
+            itemDetails: {
+              title: item.title,
+              price: item.price,
+              image: item.images?.[0] || "https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d",
+              link: `${window.location.origin}/items/${item.id}`
+            }
           }
         });
       } else {
-        toast({
-          title: "Error",
-          description: "Could not find seller information",
-          variant: "destructive",
+        // Handle case where no seller profile exists
+        navigate(`/messages?userId=${item.seller_id}`, {
+          state: {
+            sellerId: item.seller_id,
+            sellerName: "User",
+            sellerAvatar: "https://images.unsplash.com/photo-1649972904349-6e44c42644a7",
+            itemId: item.id,
+            itemDetails: {
+              title: item.title,
+              price: item.price,
+              image: item.images?.[0] || "https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d",
+              link: `${window.location.origin}/items/${item.id}`
+            }
+          }
         });
       }
     } catch (error) {
@@ -360,15 +390,30 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
     const user = (await supabase.auth.getUser()).data.user;
     if (user) {
       try {
-        await supabase.from('item_views').insert({
-          item_id: itemId,
-          viewer_id: user.id
-        });
-      } catch (error) {
-        // Ignore unique constraint violation errors (409 Conflict)
-        if (error && typeof error === 'object' && 'code' in error && (error as { code: string }).code !== '23505') {
-          console.error('Error tracking view:', error);
+        // First check if the view already exists
+        const { data: existingView } = await supabase
+          .from('item_views')
+          .select('id')
+          .eq('item_id', itemId)
+          .eq('viewer_id', user.id)
+          .maybeSingle();
+
+        // Only insert if the view doesn't exist
+        if (!existingView) {
+          const { error } = await supabase
+            .from('item_views')
+            .insert({
+              item_id: itemId,
+              viewer_id: user.id
+            });
+
+          if (error) {
+            console.error('Error tracking view:', error);
+          }
         }
+      } catch (error) {
+        // Handle any other errors silently to not disrupt user experience
+        console.error('Error tracking view:', error);
       }
     }
   };
@@ -437,7 +482,7 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
                     variant="secondary"
                     size="icon"
                     className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={(e) => handleContact(e, item.id, item.seller_id)}
+                    onClick={(e) => handleContact(e, item)}
                   >
                     <MessageSquare className="h-4 w-4" />
                   </Button>

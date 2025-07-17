@@ -120,7 +120,7 @@ const ItemDetails = () => {
               .select('id')
               .eq('user_id', user.id)
               .eq('item_id', itemId)
-              .single();
+              .maybeSingle();
 
             setSaved(!!savedData);
           }
@@ -141,16 +141,30 @@ const ItemDetails = () => {
     if (!user || !itemId) return;
 
     try {
-      // Insert view, ignore duplicate constraint errors
-      await supabase.from('item_views').insert({
-        item_id: itemId,
-        viewer_id: user.id
-      });
-    } catch (error) {
-      // Ignore unique constraint violation errors (409 Conflict)
-      if (error && typeof error === 'object' && 'code' in error && (error as { code: string }).code !== '23505') {
-        console.error('Error tracking view:', error);
+      // First check if the view already exists
+      const { data: existingView } = await supabase
+        .from('item_views')
+        .select('id')
+        .eq('item_id', itemId)
+        .eq('viewer_id', user.id)
+        .maybeSingle();
+
+      // Only insert if the view doesn't exist
+      if (!existingView) {
+        const { error } = await supabase
+          .from('item_views')
+          .insert({
+            item_id: itemId,
+            viewer_id: user.id
+          });
+
+        if (error) {
+          console.error('Error tracking view:', error);
+        }
       }
+    } catch (error) {
+      // Handle any other errors silently to not disrupt user experience
+      console.error('Error tracking view:', error);
     }
   };
 
@@ -227,11 +241,17 @@ const ItemDetails = () => {
       }
 
       // Check if conversation already exists
-      const { data: existingConversation } = await supabase
+      const { data: conversations } = await supabase
         .from('conversations')
-        .select('id')
-        .or(`and(participant1_id.eq.${user.id},participant2_id.eq.${sellerId}),and(participant1_id.eq.${sellerId},participant2_id.eq.${user.id})`)
-        .single();
+        .select('id, participant1_id, participant2_id')
+        .or(`participant1_id.eq.${user.id},participant2_id.eq.${user.id}`)
+        .or(`participant1_id.eq.${sellerId},participant2_id.eq.${sellerId}`);
+
+      // Find conversation where both users are participants
+      const existingConversation = conversations?.find(conv =>
+        (conv.participant1_id === user.id && conv.participant2_id === sellerId) ||
+        (conv.participant1_id === sellerId && conv.participant2_id === user.id)
+      );
 
       let conversationId = existingConversation?.id;
 
@@ -251,14 +271,20 @@ const ItemDetails = () => {
         conversationId = newConversation.id;
       }
 
-      // Navigate to messages with proper seller information
+      // Navigate to messages with proper seller information and item details
       navigate(`/messages?userId=${sellerId}`, {
         state: {
           sellerId: sellerId,
           sellerName: seller.full_name || "User",
           sellerAvatar: seller.avatar_url || "https://images.unsplash.com/photo-1649972904349-6e44c42644a7",
           conversationId,
-          itemId: item.id
+          itemId: item.id,
+          itemDetails: {
+            title: item.title,
+            price: item.price,
+            image: item.images?.[0] || "https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d",
+            link: `${window.location.origin}/items/${item.id}`
+          }
         }
       });
     } catch (error) {

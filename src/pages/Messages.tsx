@@ -1,7 +1,7 @@
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
-import { Send, Smile, Paperclip, X } from "lucide-react";
+import { Send, Smile, Paperclip, X, ArrowLeft } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useLocation } from "react-router-dom";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -52,6 +52,7 @@ const Messages = () => {
   const [attachment, setAttachment] = useState<File | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showMobileChat, setShowMobileChat] = useState(false);
 
   // Fetch user's conversations from database
   useEffect(() => {
@@ -202,8 +203,14 @@ const Messages = () => {
     fetchMessages();
   }, [selectedUserId, user]);
 
-  const selectConversation = (userId: string) => {
-    setSearchParams({ userId });
+  const selectConversation = (conversationId: string) => {
+    setSearchParams({ userId: conversationId });
+    setShowMobileChat(true); // Show chat on mobile when conversation is selected
+  };
+
+  const handleBackToConversations = () => {
+    setShowMobileChat(false);
+    setSearchParams({}); // Clear the selected user from URL params
   };
 
   const handleSendMessage = async () => {
@@ -330,12 +337,21 @@ const Messages = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-16">
-      <TopBar title="Messages" />
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <h1 className="text-2xl font-bold text-gray-900">Messages</h1>
+          </div>
+        </div>
+      </div>
 
       <div className="flex h-[calc(100vh-8rem)]">
         {/* Conversations Sidebar */}
-        <div className="w-80 bg-white border-r flex flex-col">
+        <div className={`w-full md:w-80 bg-white border-r flex flex-col ${
+          showMobileChat ? 'hidden md:flex' : 'flex'
+        }`}>
           <div className="p-4 border-b">
             <h2 className="font-semibold text-lg">Conversations</h2>
             <p className="text-sm text-muted-foreground">
@@ -390,12 +406,23 @@ const Messages = () => {
         </div>
 
         {/* Messages Area */}
-        <div className="flex-1 flex flex-col">
+        <div className={`flex-1 flex flex-col ${
+          showMobileChat ? 'flex' : 'hidden md:flex'
+        }`}>
           {selectedConversation ? (
             <>
               {/* Chat Header */}
               <div className="p-4 border-b bg-white">
                 <div className="flex items-center gap-3">
+                  {/* Back button for mobile */}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleBackToConversations}
+                    className="md:hidden"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                  </Button>
                   <Avatar className="h-8 w-8">
                     <AvatarImage src={selectedConversation.user.avatar} />
                     <AvatarFallback>{selectedConversation.user.name.charAt(0)}</AvatarFallback>

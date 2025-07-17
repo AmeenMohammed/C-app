@@ -1,6 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { ShoppingBag, Sofa, Pill, Laptop, Car, Camera, Baby, Book, Shirt } from 'lucide-react';
+import {
+  ShoppingBag, Sofa, Pill, Laptop, Car, Camera, Baby, Book, Shirt,
+  Wrench, Search, Hammer, Sparkles, Heart, MoreHorizontal
+} from 'lucide-react';
 
 // Map icon names to actual icon components
 const iconMap = {
@@ -13,6 +16,13 @@ const iconMap = {
   'baby': Baby,
   'book': Book,
   'shirt': Shirt,
+  // New icons for additional categories
+  'wrench': Wrench,
+  'search': Search,
+  'hammer': Hammer,
+  'sparkles': Sparkles,
+  'heart': Heart,
+  'more-horizontal': MoreHorizontal,
 };
 
 export interface Category {

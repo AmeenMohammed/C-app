@@ -67,7 +67,25 @@ const Channels = () => {
   const [showChannelInfo, setShowChannelInfo] = useState(false);
   const [editingChannel, setEditingChannel] = useState<Channel | null>(null);
   const [editForm, setEditForm] = useState({ name: "", description: "", isPrivate: false });
+  const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Get user's location on component mount
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          });
+        },
+        (error) => {
+          console.error("Error getting location:", error);
+        }
+      );
+    }
+  }, []);
 
   // Fetch channels from database
   useEffect(() => {
@@ -76,7 +94,49 @@ const Channels = () => {
 
       setLoading(true);
       try {
-        // Fetch channels from database
+        // If user location is available, try location-based filtering
+        if (userLocation) {
+          try {
+            const { data: locationChannels, error: locationError } = await (supabase as any)
+              .rpc('get_channels_within_range', {
+                user_lat: userLocation.lat,
+                user_lon: userLocation.lng,
+                max_distance: range[0]
+              });
+
+            if (!locationError && locationChannels) {
+              // Get user's channel memberships
+              const { data: membershipsData, error: membershipsError } = await supabase
+                .from('channel_members')
+                .select('channel_id, role')
+                .eq('user_id', user.id);
+
+              if (membershipsError) throw membershipsError;
+
+              const userChannelIds = new Set(membershipsData.map(m => m.channel_id));
+
+              const channelsWithMembers = (locationChannels || []).map((channel: any) => ({
+                id: channel.id,
+                name: channel.name,
+                description: channel.description || '',
+                members: Number(channel.member_count) || 0,
+                isPrivate: channel.is_private,
+                isJoined: userChannelIds.has(channel.id),
+                creator_id: channel.creator_id,
+                created_at: channel.created_at,
+                updated_at: channel.updated_at,
+                messages: []
+              }));
+
+              setChannels(channelsWithMembers);
+              return;
+            }
+          } catch (error) {
+            console.error('Location-based fetch failed, falling back to all channels:', error);
+          }
+        }
+
+        // Fallback to original method
         const { data: channelsData, error: channelsError } = await supabase
           .from('channels')
           .select('*');
@@ -126,7 +186,7 @@ const Channels = () => {
     };
 
     fetchChannels();
-  }, [user]);
+  }, [user, userLocation, range]);
 
   // Fetch messages for active channel
   useEffect(() => {
@@ -162,16 +222,16 @@ const Channels = () => {
         const formattedMessages: Message[] = messagesData.map(msg => {
           const profile = profilesMap.get(msg.sender_id);
           const isCurrentUser = msg.sender_id === user.id;
-          
+
           return {
             id: msg.id,
             text: msg.content,
             isMine: isCurrentUser,
             user: {
-              name: isCurrentUser 
+              name: isCurrentUser
                 ? (user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || "You")
                 : (profile?.full_name || "Unknown User"),
-              avatar: isCurrentUser 
+              avatar: isCurrentUser
                 ? (user.user_metadata?.avatar_url || user.user_metadata?.picture)
                 : profile?.avatar_url
             },
@@ -281,7 +341,7 @@ const Channels = () => {
 
     try {
       let attachmentData = null;
-      
+
       // Handle file upload if there's an attachment
       if (attachment) {
         // For now, create blob URL for immediate display
@@ -498,7 +558,7 @@ const Channels = () => {
             <TabsContent value="discover" className="mt-4">
               <div className="space-y-4">
                 <div className="flex gap-2">
-                  <Button 
+                  <Button
                     onClick={() => navigate("/channels/create")}
                     className="flex items-center gap-2"
                   >
@@ -699,7 +759,7 @@ const Channels = () => {
                   <p className="text-sm text-muted-foreground mt-1">{activeChannel.description}</p>
                 )}
               </div>
-              
+
               <div className="flex items-center gap-2">
                 <Dialog open={showChannelInfo} onOpenChange={setShowChannelInfo}>
                   <DialogTrigger asChild>

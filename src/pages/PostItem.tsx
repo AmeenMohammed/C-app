@@ -142,6 +142,15 @@ const PostItem = () => {
       return;
     }
 
+    if (!formData.range[0] || formData.range[0] < 1) {
+      toast({
+        title: "Error",
+        description: "Please select a location range for your item",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!user) {
       toast({
         title: "Error",

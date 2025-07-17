@@ -152,24 +152,21 @@ const Home = () => {
               size="icon"
               onClick={openLocationMap}
               className="h-8 w-8"
+              title="Open location map"
             >
               <MapPin className="h-4 w-4 text-primary" />
             </Button>
-            <div
-              className="flex-1 cursor-pointer"
-              onClick={openLocationMap}
-              title="Click to open map and adjust search radius"
-            >
+            <div className="flex-1">
               <Slider
                 value={range}
                 onValueChange={setRange}
                 max={50}
                 min={1}
                 step={1}
-                className="flex-1 pointer-events-none"
+                className="flex-1"
               />
             </div>
-            <span className="text-sm text-muted-foreground min-w-[3rem]">{range}km</span>
+            <span className="text-sm text-muted-foreground min-w-[3rem]">{range[0]}km</span>
             <Button
               variant="ghost"
               size="icon"

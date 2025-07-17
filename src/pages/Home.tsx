@@ -104,33 +104,30 @@ const Home = () => {
             </div>
           </div>
 
-          <ScrollArea className="w-full whitespace-nowrap">
-            <div className="flex space-x-1 py-2">
-              <TooltipProvider>
-                {categories?.map((category) => {
-                  const IconComponent = category.iconComponent;
-                  return (
-                    <Tooltip key={category.id}>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant={selectedCategory === category.id ? "default" : "outline"}
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => setSelectedCategory(category.id)}
-                        >
-                          <IconComponent className="h-4 w-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>{category.description}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  );
-                })}
-              </TooltipProvider>
-            </div>
-            <ScrollBar orientation="horizontal" />
-          </ScrollArea>
+          <div className="flex flex-wrap gap-2 py-2">
+            <TooltipProvider>
+              {categories?.map((category) => {
+                const IconComponent = category.iconComponent;
+                return (
+                  <Tooltip key={category.id}>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant={selectedCategory === category.id ? "default" : "outline"}
+                        size="icon"
+                        className="h-8 w-8 flex-shrink-0"
+                        onClick={() => setSelectedCategory(category.id)}
+                      >
+                        <IconComponent className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{category.description}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                );
+              })}
+            </TooltipProvider>
+          </div>
         </div>
       </div>
 

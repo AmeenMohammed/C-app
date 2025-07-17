@@ -42,6 +42,36 @@ const SignUp = () => {
         return;
       }
 
+      if (data.user) {
+        // For email signups, try to create a profile immediately
+        // This is a fallback in case the database trigger doesn't work
+        try {
+          const { error: profileError } = await supabase
+            .from('user_profiles')
+            .insert({
+              user_id: data.user.id,
+              full_name: data.user.user_metadata?.full_name ||
+                        data.user.user_metadata?.name ||
+                        data.user.email?.split('@')[0] ||
+                        'User',
+              avatar_url: data.user.user_metadata?.avatar_url ||
+                         data.user.user_metadata?.picture ||
+                         null,
+              bio: 'Hello! I\'m new to this platform.',
+              phone: data.user.phone || '',
+              location: 'Location not set'
+            });
+
+          if (profileError) {
+            console.log('Profile creation via fallback failed (may already exist):', profileError);
+            // Don't show error to user as the trigger might have created it
+          }
+        } catch (profileError) {
+          console.log('Profile creation fallback error:', profileError);
+          // Don't show error to user as the trigger might have created it
+        }
+      }
+
       toast.success("Check your email to confirm your account!");
     } catch (error) {
       toast.error("An error occurred during sign up.");

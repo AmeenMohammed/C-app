@@ -37,9 +37,9 @@ const App = () => (
         <TooltipProvider>
           <SidebarProvider>
             <div className="min-h-screen flex w-full">
-              <AppSidebar />
+              {/* <AppSidebar /> */}
               <main className="flex-1">
-                <SidebarTrigger className="fixed top-4 left-4 z-50" />
+                {/* <SidebarTrigger className="fixed top-4 left-4 z-50" /> */}
                 <Routes>
                   {/* Public Routes */}
                   <Route path="/" element={<Index />} />

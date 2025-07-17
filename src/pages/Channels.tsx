@@ -59,6 +59,7 @@ const Channels = () => {
   const [discoverSearchQuery, setDiscoverSearchQuery] = useState("");
   const [joinedSearchQuery, setJoinedSearchQuery] = useState("");
   const [range, setRange] = useState([10]); // Default 10km radius
+  const [debouncedRange, setDebouncedRange] = useState([10]); // Debounced version for API calls
   const [activeChannel, setActiveChannel] = useState<Channel | null>(null);
   const [newMessage, setNewMessage] = useState("");
   const [channels, setChannels] = useState<Channel[]>([]);
@@ -87,6 +88,15 @@ const Channels = () => {
     }
   }, []);
 
+  // Debounce the range value to prevent excessive API calls
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedRange(range);
+    }, 500); // 500ms delay
+
+    return () => clearTimeout(timer);
+  }, [range]);
+
   // Fetch channels from database
   useEffect(() => {
     const fetchChannels = async () => {
@@ -97,11 +107,12 @@ const Channels = () => {
         // If user location is available, try location-based filtering
         if (userLocation) {
           try {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const { data: locationChannels, error: locationError } = await (supabase as any)
               .rpc('get_channels_within_range', {
                 user_lat: userLocation.lat,
                 user_lon: userLocation.lng,
-                max_distance: range[0]
+                max_distance: debouncedRange[0]
               });
 
             if (!locationError && locationChannels) {
@@ -115,6 +126,7 @@ const Channels = () => {
 
               const userChannelIds = new Set(membershipsData.map(m => m.channel_id));
 
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               const channelsWithMembers = (locationChannels || []).map((channel: any) => ({
                 id: channel.id,
                 name: channel.name,
@@ -186,7 +198,7 @@ const Channels = () => {
     };
 
     fetchChannels();
-  }, [user, userLocation, range]);
+  }, [user, userLocation, debouncedRange]);
 
   // Fetch messages for active channel
   useEffect(() => {

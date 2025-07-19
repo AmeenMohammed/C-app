@@ -10,14 +10,14 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
   fullScreen = true
 }) => {
   const containerClass = fullScreen
-    ? "min-h-screen flex items-center justify-center bg-gray-50"
+    ? "min-h-screen flex items-center justify-center bg-background"
     : "flex items-center justify-center py-8";
 
   return (
     <div className={containerClass}>
-      <div className="flex flex-col items-center gap-4">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="text-sm text-muted-foreground">{message}</p>
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+        <p className="text-muted-foreground">{message}</p>
       </div>
     </div>
   );

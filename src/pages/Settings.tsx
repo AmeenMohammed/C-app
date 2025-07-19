@@ -37,17 +37,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useTheme } from "next-themes";
 
 const Settings = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { theme, setTheme } = useTheme();
   const [openEditProfile, setOpenEditProfile] = useState(false);
   const [openChangePassword, setOpenChangePassword] = useState(false);
   const [openPrivacySettings, setOpenPrivacySettings] = useState(false);
   const [openNotifications, setOpenNotifications] = useState(false);
   const [openLanguage, setOpenLanguage] = useState(false);
   const [openTheme, setOpenTheme] = useState(false);
-  
+
   // Form state
   const [profileName, setProfileName] = useState("");
   const [profileEmail, setProfileEmail] = useState("");
@@ -67,15 +69,14 @@ const Settings = () => {
     dealAlerts: true,
   });
   const [language, setLanguage] = useState("english");
-  const [theme, setTheme] = useState("light");
-  
+
   const handleSaveProfile = () => {
     toast({
       description: "Profile updated successfully",
     });
     setOpenEditProfile(false);
   };
-  
+
   const handleChangePassword = () => {
     if (newPassword !== confirmPassword) {
       toast({
@@ -84,7 +85,7 @@ const Settings = () => {
       });
       return;
     }
-    
+
     toast({
       description: "Password changed successfully",
     });
@@ -93,28 +94,28 @@ const Settings = () => {
     setNewPassword("");
     setConfirmPassword("");
   };
-  
+
   const handleSavePrivacySettings = () => {
     toast({
       description: "Privacy settings updated",
     });
     setOpenPrivacySettings(false);
   };
-  
+
   const handleSaveNotifications = () => {
     toast({
       description: "Notification preferences updated",
     });
     setOpenNotifications(false);
   };
-  
+
   const handleSaveLanguage = () => {
     toast({
       description: `Language changed to ${language}`,
     });
     setOpenLanguage(false);
   };
-  
+
   const handleSaveTheme = () => {
     toast({
       description: `Theme changed to ${theme} mode`,
@@ -132,7 +133,7 @@ const Settings = () => {
         });
         return;
       }
-      
+
       await supabase.auth.signOut();
       navigate("/");
       toast({
@@ -147,30 +148,30 @@ const Settings = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       <TopBar title="Settings" showBackButton={true} />
       <main className="container mx-auto px-4 py-6">
         <div className="space-y-6 pb-16">
-          <div className="rounded-lg bg-white p-6 shadow">
+          <div className="rounded-lg bg-card p-6 shadow">
             <h2 className="text-lg font-medium">Account Settings</h2>
             <Separator className="my-4" />
             <div className="space-y-4">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="w-full justify-start"
                 onClick={() => setOpenEditProfile(true)}
               >
                 Edit Profile
               </Button>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="w-full justify-start"
                 onClick={() => setOpenChangePassword(true)}
               >
                 Change Password
               </Button>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="w-full justify-start"
                 onClick={() => setOpenPrivacySettings(true)}
               >
@@ -178,27 +179,27 @@ const Settings = () => {
               </Button>
             </div>
           </div>
-          
-          <div className="rounded-lg bg-white p-6 shadow">
+
+          <div className="rounded-lg bg-card p-6 shadow">
             <h2 className="text-lg font-medium">Preferences</h2>
             <Separator className="my-4" />
             <div className="space-y-4">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="w-full justify-start"
                 onClick={() => setOpenNotifications(true)}
               >
                 Notifications
               </Button>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="w-full justify-start"
                 onClick={() => setOpenLanguage(true)}
               >
                 Language
               </Button>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="w-full justify-start"
                 onClick={() => setOpenTheme(true)}
               >
@@ -207,14 +208,14 @@ const Settings = () => {
             </div>
           </div>
 
-          <div className="rounded-lg bg-white p-6 shadow">
+          <div className="rounded-lg bg-card p-6 shadow">
             <h2 className="text-lg font-medium text-destructive">Danger Zone</h2>
             <Separator className="my-4" />
             <div className="space-y-4">
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button 
-                    variant="destructive" 
+                  <Button
+                    variant="destructive"
                     className="w-full justify-start"
                   >
                     Delete Account
@@ -230,7 +231,7 @@ const Settings = () => {
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction 
+                    <AlertDialogAction
                       onClick={handleDeleteAccount}
                       className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                     >
@@ -371,7 +372,7 @@ const Settings = () => {
               <Switch
                 id="profile-visibility"
                 checked={privacySettings.profileVisibility}
-                onCheckedChange={(checked) => 
+                onCheckedChange={(checked) =>
                   setPrivacySettings({...privacySettings, profileVisibility: checked})
                 }
               />
@@ -383,7 +384,7 @@ const Settings = () => {
               <Switch
                 id="direct-messages"
                 checked={privacySettings.allowDirectMessages}
-                onCheckedChange={(checked) => 
+                onCheckedChange={(checked) =>
                   setPrivacySettings({...privacySettings, allowDirectMessages: checked})
                 }
               />
@@ -395,7 +396,7 @@ const Settings = () => {
               <Switch
                 id="activity-status"
                 checked={privacySettings.showActivityStatus}
-                onCheckedChange={(checked) => 
+                onCheckedChange={(checked) =>
                   setPrivacySettings({...privacySettings, showActivityStatus: checked})
                 }
               />
@@ -427,7 +428,7 @@ const Settings = () => {
               <Switch
                 id="push-notifications"
                 checked={notifications.pushNotifications}
-                onCheckedChange={(checked) => 
+                onCheckedChange={(checked) =>
                   setNotifications({...notifications, pushNotifications: checked})
                 }
               />
@@ -439,7 +440,7 @@ const Settings = () => {
               <Switch
                 id="email-notifications"
                 checked={notifications.emailNotifications}
-                onCheckedChange={(checked) => 
+                onCheckedChange={(checked) =>
                   setNotifications({...notifications, emailNotifications: checked})
                 }
               />
@@ -451,7 +452,7 @@ const Settings = () => {
               <Switch
                 id="message-notifications"
                 checked={notifications.messageNotifications}
-                onCheckedChange={(checked) => 
+                onCheckedChange={(checked) =>
                   setNotifications({...notifications, messageNotifications: checked})
                 }
               />
@@ -463,7 +464,7 @@ const Settings = () => {
               <Switch
                 id="deal-alerts"
                 checked={notifications.dealAlerts}
-                onCheckedChange={(checked) => 
+                onCheckedChange={(checked) =>
                   setNotifications({...notifications, dealAlerts: checked})
                 }
               />
@@ -521,10 +522,11 @@ const Settings = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
-            <Tabs defaultValue={theme} className="w-full" onValueChange={setTheme}>
-              <TabsList className="grid w-full grid-cols-2">
+            <Tabs value={theme} className="w-full" onValueChange={setTheme}>
+              <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="light">Light</TabsTrigger>
                 <TabsTrigger value="dark">Dark</TabsTrigger>
+                <TabsTrigger value="system">System</TabsTrigger>
               </TabsList>
               <TabsContent value="light" className="mt-4">
                 <div className="rounded-md border border-gray-200 p-4 bg-white">
@@ -534,10 +536,17 @@ const Settings = () => {
                 </div>
               </TabsContent>
               <TabsContent value="dark" className="mt-4">
-                <div className="rounded-md border border-gray-700 p-4 bg-gray-800">
+                <div className="rounded-md border border-gray-700 p-4 bg-gray-900 text-white">
                   <div className="h-16 rounded bg-gray-700 mb-2"></div>
                   <div className="h-4 w-3/4 rounded bg-gray-600 mb-2"></div>
                   <div className="h-4 w-1/2 rounded bg-gray-600"></div>
+                </div>
+              </TabsContent>
+              <TabsContent value="system" className="mt-4">
+                <div className="rounded-md border p-4 bg-gradient-to-r from-white to-gray-900 text-gray-800">
+                  <div className="h-16 rounded bg-gradient-to-r from-gray-100 to-gray-700 mb-2"></div>
+                  <div className="h-4 w-3/4 rounded bg-gradient-to-r from-gray-200 to-gray-600 mb-2"></div>
+                  <div className="h-4 w-1/2 rounded bg-gradient-to-r from-gray-200 to-gray-600"></div>
                 </div>
               </TabsContent>
             </Tabs>

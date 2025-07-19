@@ -6,13 +6,37 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { Slider } from "@/components/ui/slider";
-import { MapPin, ExternalLink } from "lucide-react";
+import { MapPin } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+
+// Fix for default markers in React-Leaflet
+interface LeafletIconDefault extends L.Icon.Default {
+  _getIconUrl?: () => string;
+}
+
+delete (L.Icon.Default.prototype as LeafletIconDefault)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
+
+// Custom component to handle map click events
+function LocationSelector({ onLocationChange }: { onLocationChange: (lat: number, lng: number) => void }) {
+  useMapEvents({
+    click: (e) => {
+      onLocationChange(e.latlng.lat, e.latlng.lng);
+    },
+  });
+  return null;
+}
 
 const CreateChannel = () => {
   const { user } = useAuth();
@@ -20,45 +44,154 @@ const CreateChannel = () => {
   const [channelName, setChannelName] = useState("");
   const [description, setDescription] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
-  const [range, setRange] = useState([10]); // Default 10km radius
+  const [city, setCity] = useState(""); // Replace range with city
   const [loading, setLoading] = useState(false);
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [showLocationSelector, setShowLocationSelector] = useState(false);
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [geocodeTimeout, setGeocodeTimeout] = useState<NodeJS.Timeout | null>(null);
 
   // Get user's location on component mount
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation({
+        async (position) => {
+          const location = {
             lat: position.coords.latitude,
             lng: position.coords.longitude,
-          });
+          };
+          setUserLocation(location);
+
+          // Automatically populate city field with current location
+          if (!city.trim()) { // Only populate if city field is empty
+            setLocationLoading(true);
+            try {
+              const cityName = await reverseGeocode(location.lat, location.lng);
+              setCity(cityName);
+              toast.success("Current location detected and set automatically!");
+            } catch (error) {
+              console.error("Failed to get city name:", error);
+            } finally {
+              setLocationLoading(false);
+            }
+          }
         },
         (error) => {
           console.error("Error getting location:", error);
-          toast.error("Could not get your location. Channel will be created without location data.");
+          toast.error("Click 'Set Location on Map' to manually set your channel's location.");
+          // Set a default location (New York) so the map can still work
+          setUserLocation({ lat: 40.7128, lng: -74.0060 });
         }
       );
     }
+
+    // Cleanup timeout on unmount
+    return () => {
+      if (geocodeTimeout) {
+        clearTimeout(geocodeTimeout);
+      }
+    };
   }, []);
 
-  const openGoogleMaps = () => {
-    if (userLocation) {
-      const url = `https://www.google.com/maps/search/?api=1&query=${userLocation.lat},${userLocation.lng}`;
-      window.open(url, '_blank');
-    } else {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          const url = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
-          window.open(url, '_blank');
-        },
-        (error) => {
-          console.error("Error getting location:", error);
-          window.open('https://www.google.com/maps', '_blank');
-        }
+  const reverseGeocode = async (lat: number, lng: number): Promise<string> => {
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10&addressdetails=1`
       );
+      const data = await response.json();
+
+      if (data.address) {
+        const { city, town, village, suburb, state, country } = data.address;
+        // Build a readable address
+        const cityName = city || town || village || suburb || 'Unknown Location';
+        const stateName = state ? `, ${state}` : '';
+        const countryName = country ? `, ${country}` : '';
+        return `${cityName}${stateName}${countryName}`;
+      }
+
+      return `Location: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    } catch (error) {
+      console.error('Reverse geocoding failed:', error);
+      return `Location: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
     }
+  };
+
+  const forwardGeocode = async (cityName: string): Promise<{lat: number, lng: number} | null> => {
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(cityName)}&limit=1`
+      );
+      const data = await response.json();
+
+      if (data && data.length > 0) {
+        const lat = parseFloat(data[0].lat);
+        const lng = parseFloat(data[0].lon);
+        return { lat, lng };
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Forward geocoding failed:', error);
+      return null;
+    }
+  };
+
+  const handleLocationChange = async (lat: number, lng: number) => {
+    setUserLocation({ lat, lng });
+    setLocationLoading(true);
+
+    // Get city name from coordinates
+    const cityName = await reverseGeocode(lat, lng);
+    setCity(cityName);
+    setLocationLoading(false);
+
+    // Don't close the map automatically - let user confirm
+    toast.success("Location updated! Click 'Confirm Location' when ready.");
+  };
+
+  const handleCityInputChange = async (value: string) => {
+    setCity(value);
+
+    // Clear any existing timeout
+    if (geocodeTimeout) {
+      clearTimeout(geocodeTimeout);
+    }
+
+    // First try to parse coordinates if user enters them (e.g., "40.7128, -74.0060")
+    const coordPattern = /^(-?\d+\.?\d*),\s*(-?\d+\.?\d*)$/;
+    const match = value.match(coordPattern);
+
+    if (match) {
+      const lat = parseFloat(match[1]);
+      const lng = parseFloat(match[2]);
+
+      // Validate coordinates
+      if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+        setUserLocation({ lat, lng });
+        toast.success("Map updated with the entered coordinates.");
+        return;
+      }
+    }
+
+    // If not coordinates, set up debounced geocoding for city names
+    if (value.trim().length >= 5) { // Increased from 2 to 5 characters
+      const timeoutId = setTimeout(async () => {
+        setLocationLoading(true);
+        const coordinates = await forwardGeocode(value.trim());
+        if (coordinates) {
+          setUserLocation(coordinates);
+          toast.success("Map updated with the city location.");
+        }
+        setLocationLoading(false);
+      }, 1000); // Wait 1 second after user stops typing
+
+      setGeocodeTimeout(timeoutId);
+    }
+  };
+
+  const confirmLocation = () => {
+    setShowLocationSelector(false);
+    toast.success("Channel location confirmed successfully.");
   };
 
   const handleCreateChannel = async (e: React.FormEvent) => {
@@ -69,8 +202,8 @@ const CreateChannel = () => {
       return;
     }
 
-    if (!range[0] || range[0] < 1) {
-      toast.error("Please select a location range for your channel");
+    if (!userLocation) {
+      toast.error("Please set your channel's location on the map");
       return;
     }
 
@@ -89,9 +222,8 @@ const CreateChannel = () => {
             description: description.trim() || null,
             is_private: isPrivate,
             creator_id: user.id,
-            latitude: userLocation?.lat || null,
-            longitude: userLocation?.lng || null,
-            location_range: range[0]
+            latitude: userLocation.lat,
+            longitude: userLocation.lng
           }
         ]);
 
@@ -148,30 +280,60 @@ const CreateChannel = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="location-range">Location Range</Label>
-                <div className="flex items-center gap-2 mt-2">
-                  <MapPin className="h-4 w-4 text-primary" />
-                  <Slider
-                    value={range}
-                    onValueChange={setRange}
-                    max={50}
-                    min={1}
-                    step={1}
-                    className="flex-1"
+                <Label htmlFor="city">Location</Label>
+                <div className="space-y-2">
+                  <Input
+                    id="city"
+                    placeholder="Enter your city or area"
+                    value={city}
+                    onChange={(e) => handleCityInputChange(e.target.value)}
                   />
                   <Button
                     type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={openGoogleMaps}
-                    className="h-8 w-8"
+                    variant="outline"
+                    onClick={() => setShowLocationSelector(!showLocationSelector)}
+                    className="w-full flex items-center gap-2"
+                    disabled={locationLoading}
                   >
-                    <ExternalLink className="h-4 w-4" />
+                    <MapPin className="h-4 w-4" />
+                    {locationLoading ? "Finding Location..." : userLocation ? "Update Location on Map" : "Set Location on Map"}
                   </Button>
-                  <span className="text-sm text-muted-foreground min-w-[3rem] text-right">
-                    {range[0]}km
-                  </span>
+
+                  {userLocation && (
+                    <div className="text-xs text-muted-foreground">
+                      Current location: {userLocation.lat.toFixed(4)}, {userLocation.lng.toFixed(4)}
+                    </div>
+                  )}
                 </div>
+
+                {showLocationSelector && userLocation && (
+                  <div className="border rounded-lg overflow-hidden" style={{ height: '350px' }}>
+                    <MapContainer
+                      center={[userLocation.lat, userLocation.lng]}
+                      zoom={13}
+                      style={{ height: '300px', width: '100%' }}
+                      key={`${userLocation.lat}-${userLocation.lng}`}
+                    >
+                      <TileLayer
+                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                      />
+                      <LocationSelector onLocationChange={handleLocationChange} />
+                      <Marker position={[userLocation.lat, userLocation.lng]} />
+                    </MapContainer>
+                    <div className="p-2 bg-muted text-xs flex justify-between items-center">
+                      <span>Click anywhere on the map to set your channel's location</span>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={confirmLocation}
+                        className="ml-2"
+                      >
+                        Confirm Location
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center justify-between p-4 border rounded-lg">
@@ -202,7 +364,7 @@ const CreateChannel = () => {
                 </Button>
                 <Button
                   type="submit"
-                  disabled={loading || !channelName.trim() || !range[0]}
+                  disabled={loading || !channelName.trim() || !userLocation}
                   className="flex-1"
                 >
                   {loading ? "Creating..." : "Create Channel"}

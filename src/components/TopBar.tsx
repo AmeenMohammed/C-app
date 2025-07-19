@@ -44,7 +44,7 @@ export function TopBar({ title, showBackButton = true, onBackClick }: TopBarProp
   };
 
   return (
-    <div className="sticky top-0 z-50 bg-white border-b">
+    <div className="sticky top-0 z-50 bg-background border-b">
       <div className="container mx-auto px-4 h-14 flex items-center justify-between">
         <div className="flex items-center">
           {showBackButton && (
@@ -68,10 +68,6 @@ export function TopBar({ title, showBackButton = true, onBackClick }: TopBarProp
             <DropdownMenuItem onClick={() => navigate('/notifications')}>
               <Bell className="mr-2 h-4 w-4" />
               Notifications
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate('/cart')}>
-              <ShoppingCart className="mr-2 h-4 w-4" />
-              My Cart
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => navigate('/saved-items')}>
               <Heart className="mr-2 h-4 w-4" />

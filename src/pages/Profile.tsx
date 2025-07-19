@@ -104,7 +104,7 @@ const Profile = () => {
             .select('*')
             .eq('user_id', user.id)
             .maybeSingle();
-          
+
           if (updatedProfile) {
             setUserProfile(updatedProfile);
           }
@@ -180,7 +180,7 @@ const Profile = () => {
 
   if (!userProfile) {
     return (
-      <div className="min-h-screen bg-gray-50 pb-16">
+      <div className="min-h-screen bg-background pb-16">
         <TopBar title="Profile" />
         <div className="container mx-auto px-4 py-6">
           <div className="text-center">
@@ -193,7 +193,7 @@ const Profile = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-16">
+    <div className="min-h-screen bg-background pb-16">
       <TopBar title="Profile" />
       <main className="container mx-auto px-4 py-6">
         <Card className="p-6 mb-4">

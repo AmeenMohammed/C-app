@@ -14,7 +14,7 @@ const SAMPLE_STORIES = [
 export function StoriesBar() {
   return (
     <div className="feed-width">
-      <ScrollArea className="w-full whitespace-nowrap rounded-md border bg-white/50 backdrop-blur-sm">
+      <ScrollArea className="w-full whitespace-nowrap rounded-md border bg-card/50 backdrop-blur-sm">
         <div className="flex w-max space-x-4 p-4">
           {SAMPLE_STORIES.map((story) => (
             <StoryCircle

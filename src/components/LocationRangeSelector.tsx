@@ -60,7 +60,7 @@ export const LocationRangeSelector: React.FC<LocationRangeSelectorProps> = ({
         <Slider
           value={value}
           onValueChange={onChange}
-          max={50}
+          max={30}
           min={1}
           step={1}
           className="flex-1"

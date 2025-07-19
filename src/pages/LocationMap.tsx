@@ -1,169 +1,314 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { MapContainer, TileLayer, Marker, Circle, useMapEvents } from 'react-leaflet';
 import { TopBar } from '@/components/TopBar';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
-import { MapPin, AlertCircle } from 'lucide-react';
+import { MapPin, Search, X, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
+import { toast as sonnerToast } from 'sonner';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
 
-// Google Maps types
-declare global {
-  interface Window {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    google: any;
-    initMap: () => void;
-    gm_authFailure: () => void;
-  }
+// Fix for default markers in React-Leaflet
+interface LeafletIconDefault extends L.Icon.Default {
+  _getIconUrl?: () => string;
+}
+
+delete (L.Icon.Default.prototype as LeafletIconDefault)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
+
+// Custom component to handle map click events
+function LocationMapEvents({ onLocationChange }: { onLocationChange: (lat: number, lng: number) => void }) {
+  useMapEvents({
+    click: (e) => {
+      onLocationChange(e.latlng.lat, e.latlng.lng);
+    },
+  });
+  return null;
+}
+
+// Interface for Nominatim API response
+interface NominatimResult {
+  lat: string;
+  lon: string;
+  display_name: string;
+  name?: string;
+  address?: {
+    city?: string;
+    town?: string;
+    village?: string;
+    suburb?: string;
+    state?: string;
+    country?: string;
+  };
 }
 
 const LocationMap = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
-  const mapRef = useRef<HTMLDivElement>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const mapInstance = useRef<any>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const circleInstance = useRef<any>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const markerInstance = useRef<any>(null);
 
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
   const [radius, setRadius] = useState([parseInt(searchParams.get('range') || '10')]);
-  const [googleMapsLoaded, setGoogleMapsLoaded] = useState(false);
-  const [mapError, setMapError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
 
-  // Check if Google Maps API key is configured
-  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+  // City search states
+  const [cityInput, setCityInput] = useState('');
+  const [isGeocodingCity, setIsGeocodingCity] = useState(false);
+  const [geocodeTimeout, setGeocodeTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [mapKey, setMapKey] = useState(0); // Force map re-render when location changes
+  const [suggestions, setSuggestions] = useState<Array<{lat: number, lng: number, displayName: string, shortName: string}>>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
 
-  // Load Google Maps script
-  useEffect(() => {
-    if (!apiKey) {
-      setMapError('Google Maps API key is not configured. Please add VITE_GOOGLE_MAPS_API_KEY to your environment variables.');
+  // Forward geocoding function to convert city name to coordinates (multiple results)
+  const forwardGeocodeMultiple = async (cityName: string): Promise<Array<{lat: number, lng: number, displayName: string, shortName: string}> | null> => {
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(cityName)}&limit=5&addressdetails=1`
+      );
+      const data = await response.json();
+
+      if (data && data.length > 0) {
+        return data.map((result: NominatimResult) => {
+          const { city, town, village, suburb, state, country } = result.address || {};
+          const shortName = city || town || village || suburb || result.name || 'Unknown Location';
+          const stateName = state ? `, ${state}` : '';
+          const countryName = country ? `, ${country}` : '';
+
+          return {
+            lat: parseFloat(result.lat),
+            lng: parseFloat(result.lon),
+            displayName: result.display_name,
+            shortName: `${shortName}${stateName}${countryName}`
+          };
+        });
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Forward geocoding failed:', error);
+      return null;
+    }
+  };
+
+  // Forward geocoding function to convert city name to coordinates (single result)
+  const forwardGeocode = async (cityName: string): Promise<{lat: number, lng: number, displayName: string} | null> => {
+    const results = await forwardGeocodeMultiple(cityName);
+    if (results && results.length > 0) {
+      return {
+        lat: results[0].lat,
+        lng: results[0].lng,
+        displayName: results[0].displayName
+      };
+    }
+    return null;
+  };
+
+  // Reverse geocoding function to convert coordinates to city name
+  const reverseGeocode = async (lat: number, lng: number): Promise<string> => {
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10&addressdetails=1`
+      );
+      const data = await response.json();
+
+      if (data.address) {
+        const { city, town, village, suburb, state, country } = data.address;
+        const cityName = city || town || village || suburb || 'Unknown Location';
+        const stateName = state ? `, ${state}` : '';
+        const countryName = country ? `, ${country}` : '';
+        return `${cityName}${stateName}${countryName}`;
+      }
+
+      return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    } catch (error) {
+      console.error('Reverse geocoding failed:', error);
+      return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    }
+  };
+
+  // Debounced city search
+  const handleCityInputChange = useCallback(async (value: string) => {
+    setCityInput(value);
+
+    // Clear existing timeout
+    if (geocodeTimeout) {
+      clearTimeout(geocodeTimeout);
+    }
+
+    // Hide suggestions and clear if input is empty
+    if (!value.trim()) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      setSelectedSuggestionIndex(-1);
       return;
     }
 
-    if (!window.google) {
-      const script = document.createElement('script');
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry,marker&loading=async`;
-      script.async = true;
-      script.onload = () => {
-        setGoogleMapsLoaded(true);
-      };
-      script.onerror = () => {
-        console.error('Failed to load Google Maps script');
-        setMapError('Failed to load Google Maps. Please check your internet connection and API key.');
-      };
-
-      // Add error handler for billing issues
-      window.gm_authFailure = () => {
-        setMapError('Google Maps billing is not enabled. Please enable billing in your Google Cloud Console.');
-      };
-
-      document.head.appendChild(script);
-    } else {
-      setGoogleMapsLoaded(true);
+    // Don't geocode short inputs
+    if (value.trim().length < 3) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      setSelectedSuggestionIndex(-1);
+      return;
     }
-  }, [apiKey]);
+
+    // Set new timeout for geocoding
+    const timeout = setTimeout(async () => {
+      setIsGeocodingCity(true);
+
+      try {
+        const locations = await forwardGeocodeMultiple(value);
+        if (locations && locations.length > 0) {
+          setSuggestions(locations);
+          setShowSuggestions(true);
+          setSelectedSuggestionIndex(-1); // Reset selection
+        } else {
+          setSuggestions([]);
+          setShowSuggestions(false);
+          setSelectedSuggestionIndex(-1);
+          sonnerToast.error(`No locations found for "${value}"`);
+        }
+      } catch (error) {
+        console.error('Error geocoding city:', error);
+        setSuggestions([]);
+        setShowSuggestions(false);
+        setSelectedSuggestionIndex(-1);
+        sonnerToast.error('Failed to search locations');
+      } finally {
+        setIsGeocodingCity(false);
+      }
+    }, 1000); // Reduced to 500ms for better responsiveness
+
+    setGeocodeTimeout(timeout);
+  }, [geocodeTimeout]);
+
+  // Handle keyboard navigation
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!showSuggestions || suggestions.length === 0) return;
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setSelectedSuggestionIndex(prev =>
+          prev < suggestions.length - 1 ? prev + 1 : 0
+        );
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setSelectedSuggestionIndex(prev =>
+          prev > 0 ? prev - 1 : suggestions.length - 1
+        );
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (selectedSuggestionIndex >= 0 && selectedSuggestionIndex < suggestions.length) {
+          handleSuggestionSelect(suggestions[selectedSuggestionIndex]);
+        }
+        break;
+      case 'Escape':
+        e.preventDefault();
+        hideSuggestions();
+        break;
+    }
+  };
+
+  // Handle suggestion selection
+  const handleSuggestionSelect = (suggestion: {lat: number, lng: number, displayName: string, shortName: string}) => {
+    setUserLocation({ lat: suggestion.lat, lng: suggestion.lng });
+    setCityInput(suggestion.shortName);
+    setSuggestions([]);
+    setShowSuggestions(false);
+    setSelectedSuggestionIndex(-1);
+    setLocationError(null);
+    setMapKey(prev => prev + 1); // Force map re-render
+    sonnerToast.success(`Selected ${suggestion.shortName}`);
+  };
+
+  // Clear city search
+  const clearCitySearch = () => {
+    setCityInput('');
+    setSuggestions([]);
+    setShowSuggestions(false);
+    setSelectedSuggestionIndex(-1);
+    if (geocodeTimeout) {
+      clearTimeout(geocodeTimeout);
+    }
+  };
+
+  // Hide suggestions when clicking outside
+  const hideSuggestions = () => {
+    setShowSuggestions(false);
+    setSelectedSuggestionIndex(-1);
+  };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (geocodeTimeout) {
+        clearTimeout(geocodeTimeout);
+      }
+    };
+  }, [geocodeTimeout]);
 
   // Get user's location
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation({
+        async (position) => {
+          const location = {
             lat: position.coords.latitude,
             lng: position.coords.longitude,
-          });
+          };
+          setUserLocation(location);
+
+          // Get city name for current location
+          try {
+            const cityName = await reverseGeocode(location.lat, location.lng);
+            setCityInput(cityName);
+          } catch (error) {
+            console.error('Failed to get city name for current location:', error);
+          }
         },
         (error) => {
           console.error("Error getting location:", error);
+          setLocationError("Unable to get your location. You can click on the map to set it manually.");
           // Fallback to a default location (e.g., New York)
-          setUserLocation({ lat: 40.7128, lng: -74.0060 });
+          const fallbackLocation = { lat: 40.7128, lng: -74.0060 };
+          setUserLocation(fallbackLocation);
+          setCityInput('New York, New York, United States');
         }
       );
+    } else {
+      setLocationError("Geolocation is not supported by your browser. You can click on the map to set your location.");
+      const fallbackLocation = { lat: 40.7128, lng: -74.0060 };
+      setUserLocation(fallbackLocation);
+      setCityInput('New York, New York, United States');
     }
   }, []);
 
-  // Initialize Google Maps
-  useEffect(() => {
-    if (!googleMapsLoaded || !mapRef.current || !userLocation || !window.google || mapError) return;
+  const handleLocationChange = async (lat: number, lng: number) => {
+    setUserLocation({ lat, lng });
+    setLocationError(null);
+    setMapKey(prev => prev + 1); // Force map re-render
 
+    // Update city input with reverse geocoding
     try {
-      // Initialize map
-      mapInstance.current = new window.google.maps.Map(mapRef.current, {
-        center: { lat: userLocation.lat, lng: userLocation.lng },
-        zoom: 12,
-        mapTypeId: window.google.maps.MapTypeId.ROADMAP,
-        mapId: 'DEMO_MAP_ID', // Required for AdvancedMarkerElement
-      });
-
-      // Check if AdvancedMarkerElement is available, fallback to regular Marker
-      if (window.google.maps.marker && window.google.maps.marker.AdvancedMarkerElement) {
-        // Use new AdvancedMarkerElement
-        markerInstance.current = new window.google.maps.marker.AdvancedMarkerElement({
-          map: mapInstance.current,
-          position: { lat: userLocation.lat, lng: userLocation.lng },
-          title: 'Your Location',
-        });
-      } else {
-        // Fallback to deprecated Marker (suppress deprecation warning)
-        markerInstance.current = new window.google.maps.Marker({
-          position: { lat: userLocation.lat, lng: userLocation.lng },
-          map: mapInstance.current,
-          title: 'Your Location',
-          icon: {
-            url: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png',
-            scaledSize: new window.google.maps.Size(32, 32),
-          },
-        });
-      }
-
-      // Draw initial circle
-      updateCircle();
-
+      const cityName = await reverseGeocode(lat, lng);
+      setCityInput(cityName);
     } catch (error) {
-      console.error('Error initializing Google Maps:', error);
-      setMapError('Failed to initialize map. Please try again.');
+      console.error('Failed to reverse geocode location:', error);
     }
-  }, [googleMapsLoaded, userLocation, mapError]);
-
-  const updateCircle = () => {
-    if (!mapInstance.current || !userLocation || !window.google) return;
-
-    const radiusInMeters = radius[0] * 1000; // Convert km to meters
-
-    // Remove existing circle
-    if (circleInstance.current) {
-      circleInstance.current.setMap(null);
-    }
-
-    // Create new circle
-    circleInstance.current = new window.google.maps.Circle({
-      strokeColor: '#3b82f6',
-      strokeOpacity: 0.8,
-      strokeWeight: 2,
-      fillColor: '#3b82f6',
-      fillOpacity: 0.2,
-      map: mapInstance.current,
-      center: { lat: userLocation.lat, lng: userLocation.lng },
-      radius: radiusInMeters,
-    });
-
-    // Adjust map bounds to fit the circle
-    const bounds = circleInstance.current.getBounds();
-    mapInstance.current.fitBounds(bounds);
   };
-
-  // Update circle when radius changes
-  useEffect(() => {
-    if (mapInstance.current && userLocation) {
-      updateCircle();
-    }
-  }, [radius]);
 
   const handleSave = async () => {
     if (!user || !userLocation) {
@@ -223,72 +368,21 @@ const LocationMap = () => {
     }
   };
 
-  if (!apiKey || mapError) {
+  if (!userLocation) {
     return (
       <div className="min-h-screen bg-background">
         <TopBar title="Location Range" />
         <div className="container mx-auto px-4 py-8">
           <div className="max-w-md mx-auto bg-card p-6 rounded-lg shadow-lg">
-            <div className="flex items-center gap-2 mb-4">
-              <AlertCircle className="h-5 w-5 text-red-500" />
-              <h2 className="text-lg font-semibold">Maps Unavailable</h2>
-            </div>
+            <h2 className="text-lg font-semibold mb-4">Getting your location...</h2>
             <p className="text-muted-foreground mb-4">
-              {mapError || 'Google Maps is not available right now.'}
+              Please wait while we determine your location.
             </p>
-
-            {!apiKey && (
+            {locationError && (
               <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg mb-4">
-                <h3 className="font-medium text-yellow-800 mb-2">Setup Instructions:</h3>
-                <ol className="text-sm text-yellow-700 space-y-1">
-                  <li>1. Go to <a href="https://console.cloud.google.com/" target="_blank" rel="noopener noreferrer" className="underline">Google Cloud Console</a></li>
-                  <li>2. Enable Maps JavaScript API</li>
-                  <li>3. Create an API key</li>
-                  <li>4. Add it to your .env file as VITE_GOOGLE_MAPS_API_KEY</li>
-                </ol>
+                <p className="text-yellow-700 text-sm">{locationError}</p>
               </div>
             )}
-
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium text-gray-700 mb-2 block">
-                  Search Radius: {radius[0]}km
-                </label>
-                <Slider
-                  value={radius}
-                  onValueChange={setRadius}
-                  max={50}
-                  min={1}
-                  step={1}
-                  className="w-full"
-                />
-              </div>
-
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => navigate('/')} className="flex-1">
-                  Cancel
-                </Button>
-                <Button onClick={handleSave} className="flex-1" disabled={saving}>
-                  {saving ? "Saving..." : "Save Range"}
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!googleMapsLoaded) {
-    return (
-      <div className="min-h-screen bg-background">
-        <TopBar title="Location Range" />
-        <div className="container mx-auto px-4 py-8">
-          <div className="max-w-md mx-auto bg-card p-6 rounded-lg shadow-lg">
-            <h2 className="text-lg font-semibold mb-4">Loading Google Maps...</h2>
-            <p className="text-muted-foreground mb-4">
-              Please wait while we load the map component.
-            </p>
           </div>
         </div>
       </div>
@@ -300,25 +394,128 @@ const LocationMap = () => {
       <TopBar title="Select Search Range" />
 
       <div className="relative h-[calc(100vh-3.5rem)]">
-        <div ref={mapRef} className="absolute inset-0" />
+        <MapContainer
+          key={mapKey}
+          center={[userLocation.lat, userLocation.lng]}
+          zoom={12}
+          className="absolute inset-0 z-0"
+        >
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
+
+          <LocationMapEvents onLocationChange={handleLocationChange} />
+
+          <Marker position={[userLocation.lat, userLocation.lng]} />
+
+          <Circle
+            center={[userLocation.lat, userLocation.lng]}
+            radius={radius[0] * 1000} // Convert km to meters
+            pathOptions={{
+              fillColor: '#3b82f6',
+              fillOpacity: 0.2,
+              color: '#3b82f6',
+              weight: 2,
+            }}
+          />
+        </MapContainer>
 
         {/* Controls overlay */}
-        <div className="absolute bottom-4 left-4 right-4 bg-white rounded-lg shadow-lg p-4">
+        <div className="absolute bottom-4 left-4 right-4 bg-card rounded-lg shadow-lg p-4 z-10">
+          {locationError && (
+            <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-lg mb-4">
+              <p className="text-yellow-700 text-sm">{locationError}</p>
+            </div>
+          )}
+
+          {/* City Search Input */}
+          <div className="mb-4">
+            <label className="text-sm font-medium text-foreground mb-2 block">
+              Search by City Name
+            </label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="e.g., Cairo, Masr El Gedida..."
+                value={cityInput}
+                onChange={(e) => handleCityInputChange(e.target.value)}
+                onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+                onBlur={(e) => {
+                  // Delay hiding suggestions to allow clicking on them
+                  setTimeout(() => {
+                    if (e.currentTarget && document.activeElement && !e.currentTarget.contains(document.activeElement)) {
+                      hideSuggestions();
+                    }
+                  }, 150);
+                }}
+                onKeyDown={handleKeyDown}
+                disabled={isGeocodingCity}
+                className="pl-10 pr-10"
+              />
+              {cityInput && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={clearCitySearch}
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 h-6 w-6"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              )}
+
+              {/* Suggestions Dropdown */}
+              {showSuggestions && suggestions.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-card border rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
+                  {suggestions.map((suggestion, index) => (
+                    <div
+                      key={index}
+                      onClick={() => handleSuggestionSelect(suggestion)}
+                      className={`flex items-start gap-3 p-3 hover:bg-muted/50 cursor-pointer border-b last:border-b-0 transition-colors ${
+                        selectedSuggestionIndex === index ? 'bg-muted' : ''
+                      }`}
+                    >
+                      <MapPin className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-sm text-foreground truncate">
+                          {suggestion.shortName}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                          {suggestion.displayName}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            {isGeocodingCity && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Searching for locations...
+              </div>
+            )}
+          </div>
+
           <div className="flex items-center gap-4 mb-4">
             <MapPin className="h-5 w-5 text-primary" />
             <div className="flex-1">
-              <label className="text-sm font-medium text-gray-700 mb-2 block">
+              <label className="text-sm font-medium text-foreground mb-2 block">
                 Search Radius: {radius[0]}km
               </label>
               <Slider
                 value={radius}
                 onValueChange={setRadius}
-                max={50}
+                max={30}
                 min={1}
                 step={1}
                 className="flex-1"
               />
             </div>
+          </div>
+
+          <div className="text-xs text-muted-foreground mb-4">
+            Type a city name above or click on the map to change your location
           </div>
 
           <div className="flex gap-2">

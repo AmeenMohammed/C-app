@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ImagePlus, X, Trash2 } from "lucide-react";
+import { ImagePlus, X, Trash2, MapPin } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
 import { toast } from "@/hooks/use-toast";
 import { useState, useRef, useEffect } from "react";
@@ -13,17 +13,46 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { LoadingScreen } from "@/components/LoadingScreen";
 import { useCategories } from "@/hooks/useCategories";
+import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+
+// Fix for default markers in React-Leaflet
+interface LeafletIconDefault extends L.Icon.Default {
+  _getIconUrl?: () => string;
+}
+
+delete (L.Icon.Default.prototype as LeafletIconDefault)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
+
+// Custom component to handle map click events
+function LocationSelector({ onLocationChange }: { onLocationChange: (lat: number, lng: number) => void }) {
+  useMapEvents({
+    click: (e) => {
+      onLocationChange(e.latlng.lat, e.latlng.lng);
+    },
+  });
+  return null;
+}
 
 interface Item {
   id: string;
   title: string;
   price: number;
   description?: string;
-  category_id?: string; // New field (optional during transition)
-  category?: string; // Old field (optional during transition)
+  category_id: string;
   images: string[];
   seller_id: string;
-  location_range: number;
+  latitude?: number;
+  longitude?: number;
+  listing_type: string;
+  promoted: boolean;
+  promoted_at?: string;
+  created_at: string;
 }
 
 const EditItem = () => {
@@ -40,12 +69,136 @@ const EditItem = () => {
     title: "",
     price: "",
     description: "",
-    category: "",
-    range: 10,
+    category_id: "",
+    listing_type: "sell",
+    city: "",
   });
+  const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [showLocationSelector, setShowLocationSelector] = useState(false);
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [geocodeTimeout, setGeocodeTimeout] = useState<NodeJS.Timeout | null>(null);
 
   // Fetch categories dynamically
   const { data: categories, isLoading: categoriesLoading, error: categoriesError } = useCategories();
+
+  // Reverse geocoding function
+  const reverseGeocode = async (lat: number, lng: number): Promise<string> => {
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10&addressdetails=1`
+      );
+      const data = await response.json();
+
+      if (data.address) {
+        const { city, town, village, suburb, state, country } = data.address;
+        const cityName = city || town || village || suburb || 'Unknown Location';
+        const stateName = state ? `, ${state}` : '';
+        const countryName = country ? `, ${country}` : '';
+        return `${cityName}${stateName}${countryName}`;
+      }
+
+      return `Location: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    } catch (error) {
+      console.error('Reverse geocoding failed:', error);
+      return `Location: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    }
+  };
+
+  const forwardGeocode = async (cityName: string): Promise<{lat: number, lng: number} | null> => {
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(cityName)}&limit=1`
+      );
+      const data = await response.json();
+
+      if (data && data.length > 0) {
+        const lat = parseFloat(data[0].lat);
+        const lng = parseFloat(data[0].lon);
+        return { lat, lng };
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Forward geocoding failed:', error);
+      return null;
+    }
+  };
+
+  const handleLocationChange = async (lat: number, lng: number) => {
+    setUserLocation({ lat, lng });
+    setLocationLoading(true);
+
+    // Get city name from coordinates
+    const cityName = await reverseGeocode(lat, lng);
+    setFormData(prev => ({ ...prev, city: cityName }));
+    setLocationLoading(false);
+
+    // Don't close the map automatically - let user confirm
+    toast({
+      title: "Location Updated",
+      description: "Click 'Confirm Location' when you're happy with the position.",
+    });
+  };
+
+  const handleCityInputChange = async (value: string) => {
+    setFormData(prev => ({ ...prev, city: value }));
+
+    // Clear any existing timeout
+    if (geocodeTimeout) {
+      clearTimeout(geocodeTimeout);
+      setGeocodeTimeout(null);
+    }
+
+    // First try to parse coordinates if user enters them (e.g., "40.7128, -74.0060")
+    const coordPattern = /^(-?\d+\.?\d*),\s*(-?\d+\.?\d*)$/;
+    const match = value.match(coordPattern);
+
+    if (match) {
+      const lat = parseFloat(match[1]);
+      const lng = parseFloat(match[2]);
+
+      // Validate coordinates
+      if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+        setUserLocation({ lat, lng });
+        toast({
+          title: "Coordinates Set",
+          description: "Map updated with the entered coordinates.",
+        });
+        return;
+      }
+    }
+
+    // If not coordinates, set up debounced geocoding for city names
+    if (value.trim().length >= 3) { // Reduced from 5 to 3 for better UX
+      const timeoutId = setTimeout(async () => {
+        setLocationLoading(true);
+        try {
+          const coordinates = await forwardGeocode(value.trim());
+          if (coordinates) {
+            setUserLocation(coordinates);
+            toast({
+              title: "City Found",
+              description: "Map updated with the city location.",
+            });
+          }
+        } catch (error) {
+          console.error('Geocoding error:', error);
+        } finally {
+          setLocationLoading(false);
+        }
+      }, 1500); // Increased to 1.5 seconds to give user more time to type
+
+      setGeocodeTimeout(timeoutId);
+    }
+  };
+
+  const confirmLocation = () => {
+    setShowLocationSelector(false);
+    toast({
+      title: "Location Confirmed",
+      description: "Your item location has been updated successfully.",
+    });
+  };
 
   useEffect(() => {
     const fetchItem = async () => {
@@ -75,16 +228,35 @@ const EditItem = () => {
         setItem(data);
         setImages(data.images || []);
 
-        // Handle both old and new field names during database transition
-        const categoryValue = 'category_id' in data ? (data as unknown as { category_id: string }).category_id : data.category;
-
-        setFormData({
+        // Set initial form data without city first
+        const initialFormData = {
           title: data.title || "",
           price: data.price?.toString() || "",
           description: data.description || "",
-          category: categoryValue || "", // Handle both old and new field names
-          range: data.location_range || 10,
-        });
+          category_id: data.category_id || "",
+          listing_type: data.listing_type || "sell",
+          city: "",
+        };
+
+        // Handle location data if coordinates exist
+        if (data.latitude && data.longitude) {
+          const location = { lat: data.latitude, lng: data.longitude };
+          setUserLocation(location);
+
+          // Get city name from coordinates and set it in the form data
+          try {
+            const cityName = await reverseGeocode(data.latitude, data.longitude);
+            initialFormData.city = cityName;
+          } catch (error) {
+            console.error('Error getting city name:', error);
+            // If geocoding fails, just use coordinates
+            initialFormData.city = `${data.latitude.toFixed(4)}, ${data.longitude.toFixed(4)}`;
+          }
+        }
+
+        // Set all form data at once, including the city
+        setFormData(initialFormData);
+
       } catch (error) {
         console.error('Error fetching item:', error);
         toast({
@@ -99,7 +271,18 @@ const EditItem = () => {
     };
 
     fetchItem();
+
   }, [itemId, user, navigate]);
+
+  // Cleanup effect for geocoding timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (geocodeTimeout) {
+        clearTimeout(geocodeTimeout);
+        setGeocodeTimeout(null);
+      }
+    };
+  }, [geocodeTimeout]);
 
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -125,6 +308,10 @@ const EditItem = () => {
       if (data.error) throw new Error(data.error);
 
       setImages(prev => [...prev, data.url]);
+      toast({
+        title: "Success",
+        description: "Image uploaded successfully",
+      });
     } catch (error) {
       console.error('Upload error:', error);
       toast({
@@ -143,7 +330,7 @@ const EditItem = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.title || !formData.price || !formData.description || !formData.category) {
+    if (!formData.title || !formData.price || !formData.description || !formData.category_id) {
       toast({
         title: "Error",
         description: "Please fill in all required fields",
@@ -154,38 +341,27 @@ const EditItem = () => {
 
     setSaving(true);
     try {
-      // Try to update with category_id first, fallback to category if needed
-      const updateData = {
+      const updateData: Partial<Item> = {
         title: formData.title,
         price: parseFloat(formData.price),
         description: formData.description,
-        location_range: formData.range,
+        category_id: formData.category_id,
+        listing_type: formData.listing_type,
         images: images,
       };
 
-      // Try updating with category_id first
+      // Add coordinates if provided
+      if (userLocation) {
+        updateData.latitude = userLocation.lat;
+        updateData.longitude = userLocation.lng;
+      }
+
       const { error } = await supabase
         .from('items')
-        .update({
-          ...updateData,
-          category_id: formData.category,
-        })
+        .update(updateData)
         .eq('id', itemId);
 
-      // If that fails, try with the old category field
-      if (error && error.code === '42703') { // Column doesn't exist
-        const { error: fallbackError } = await supabase
-          .from('items')
-          .update({
-            ...updateData,
-            category: formData.category,
-          })
-          .eq('id', itemId);
-
-        if (fallbackError) throw fallbackError;
-      } else if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       toast({
         title: "Success",
@@ -206,6 +382,11 @@ const EditItem = () => {
 
   const handleDelete = async () => {
     if (!itemId) return;
+
+    // Add confirmation dialog
+    if (!window.confirm("Are you sure you want to delete this item? This action cannot be undone.")) {
+      return;
+    }
 
     setDeleting(true);
     try {
@@ -260,7 +441,7 @@ const EditItem = () => {
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Image Upload */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">Images</label>
+              <label className="text-sm font-medium">Images *</label>
               <div className="grid grid-cols-3 gap-2">
                 {images.map((image, index) => (
                   <div key={index} className="relative">
@@ -296,7 +477,7 @@ const EditItem = () => {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Title</label>
+              <label className="text-sm font-medium">Title *</label>
               <Input
                 placeholder="Item title"
                 value={formData.title}
@@ -306,11 +487,13 @@ const EditItem = () => {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Price</label>
+              <label className="text-sm font-medium">
+                {formData.listing_type === "request" ? "Budget *" : "Price *"}
+              </label>
               <Input
                 type="number"
                 step="0.01"
-                placeholder="0.00"
+                placeholder={formData.listing_type === "request" ? "Max budget..." : "0.00"}
                 value={formData.price}
                 onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
                 required
@@ -318,8 +501,8 @@ const EditItem = () => {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Category</label>
-              <Select value={formData.category} onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}>
+              <label className="text-sm font-medium">Category *</label>
+              <Select value={formData.category_id} onValueChange={(value) => setFormData(prev => ({ ...prev, category_id: value }))}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
@@ -337,13 +520,85 @@ const EditItem = () => {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Description</label>
+              <label className="text-sm font-medium">Listing Type</label>
+              <Select value={formData.listing_type} onValueChange={(value) => setFormData(prev => ({ ...prev, listing_type: value }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select listing type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sell">For Sale</SelectItem>
+                  <SelectItem value="rent">For Rent</SelectItem>
+                  <SelectItem value="request">Looking For</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Description *</label>
               <Textarea
                 placeholder="Describe your item..."
                 className="min-h-[100px]"
                 value={formData.description}
                 onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                required
               />
+            </div>
+
+            {/* Location Section - Same as PostItem */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Location</label>
+              <div className="space-y-2">
+                <Input
+                  placeholder="Enter your city or area"
+                  value={formData.city}
+                  onChange={(e) => handleCityInputChange(e.target.value)}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowLocationSelector(!showLocationSelector)}
+                  className="w-full flex items-center gap-2"
+                  disabled={locationLoading}
+                >
+                  <MapPin className="h-4 w-4" />
+                  {locationLoading ? "Finding Location..." : "Update Location on Map"}
+                </Button>
+
+                {userLocation && (
+                  <div className="text-xs text-muted-foreground">
+                    Current location: {userLocation.lat.toFixed(4)}, {userLocation.lng.toFixed(4)}
+                  </div>
+                )}
+              </div>
+
+              {showLocationSelector && userLocation && (
+                <div className="border rounded-lg overflow-hidden" style={{ height: '350px' }}>
+                  <MapContainer
+                    center={[userLocation.lat, userLocation.lng]}
+                    zoom={13}
+                    style={{ height: '300px', width: '100%' }}
+                    key={`${userLocation.lat}-${userLocation.lng}`}
+                  >
+                    <TileLayer
+                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    />
+                    <LocationSelector onLocationChange={handleLocationChange} />
+                    <Marker position={[userLocation.lat, userLocation.lng]} />
+                  </MapContainer>
+                  <div className="p-2 bg-muted text-xs flex justify-between items-center">
+                    <span>Click anywhere on the map to set your item's location</span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={confirmLocation}
+                      className="ml-2"
+                    >
+                      Confirm Location
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="flex gap-2">

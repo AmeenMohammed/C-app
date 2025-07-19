@@ -1,7 +1,7 @@
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
-import { Send, Smile, Paperclip, X, ArrowLeft } from "lucide-react";
+import { Send, Smile, Paperclip, X, ArrowLeft, Plus, MessageCircle, User, Phone, Video, MoreVertical, Image, Mic } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useLocation } from "react-router-dom";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -481,7 +481,7 @@ const Messages = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 pb-16">
+      <div className="min-h-screen bg-background pb-16">
         <TopBar title="Messages" />
         <div className="flex items-center justify-center py-12">
           <p className="text-muted-foreground">Loading conversations...</p>
@@ -492,9 +492,9 @@ const Messages = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="bg-white shadow-sm">
+      <div className="bg-background shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <h1 className="text-2xl font-bold text-gray-900">Messages</h1>
@@ -504,7 +504,7 @@ const Messages = () => {
 
       <div className="flex h-[calc(100vh-8rem)]">
         {/* Conversations Sidebar */}
-        <div className={`w-full md:w-80 bg-white border-r flex flex-col ${
+        <div className={`w-full md:w-80 bg-background border-r flex flex-col ${
           showMobileChat ? 'hidden md:flex' : 'flex'
         }`}>
           <div className="p-4 border-b">
@@ -526,8 +526,8 @@ const Messages = () => {
                 <div
                   key={conversation.id}
                   onClick={() => selectConversation(conversation.id)}
-                  className={`p-4 border-b cursor-pointer hover:bg-gray-50 transition-colors ${
-                    selectedUserId === conversation.id ? 'bg-blue-50 border-blue-200' : ''
+                  className={`p-4 border-b cursor-pointer hover:bg-muted/50 transition-colors ${
+                    selectedUserId === conversation.id ? 'bg-muted border-primary' : ''
                   }`}
                 >
                   <div className="flex items-center gap-3">
@@ -549,7 +549,7 @@ const Messages = () => {
                       </p>
                     </div>
                     {conversation.unreadCount && conversation.unreadCount > 0 && (
-                      <div className="bg-blue-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                      <div className="bg-primary text-primary-foreground text-xs rounded-full h-5 w-5 flex items-center justify-center">
                         {conversation.unreadCount}
                       </div>
                     )}
@@ -567,7 +567,7 @@ const Messages = () => {
           {selectedConversation ? (
             <>
               {/* Chat Header */}
-              <div className="p-4 border-b bg-white">
+              <div className="p-4 border-b bg-background">
                 <div className="flex items-center gap-3">
                   {/* Back button for mobile */}
                   <Button
@@ -612,7 +612,7 @@ const Messages = () => {
                             className={`px-3 py-2 rounded-lg ${
                               message.isMine
                                 ? 'bg-blue-500 text-white'
-                                : 'bg-gray-100 text-gray-900'
+                                : 'bg-muted text-muted-foreground'
                             }`}
                           >
                             {message.attachment && (
@@ -637,11 +637,11 @@ const Messages = () => {
                             {message.itemDetails && (
                               <div className={`mt-2 p-3 rounded-lg border ${
                                 message.isMine
-                                  ? 'bg-blue-50 border-blue-200 text-blue-900'
-                                  : 'bg-gray-50 border-gray-200 text-gray-900'
+                                  ? 'bg-primary/10 border-primary/20 text-primary-foreground'
+                                  : 'bg-muted border-border text-foreground'
                               }`}>
                                 <div className="flex items-center gap-2 mb-2">
-                                  <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100">
+                                  <div className="w-12 h-12 rounded-lg overflow-hidden bg-muted">
                                     <img
                                       src={message.itemDetails.image}
                                       alt={message.itemDetails.title}
@@ -658,7 +658,7 @@ const Messages = () => {
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className={`text-xs underline ${
-                                    message.isMine ? 'text-blue-700' : 'text-blue-600'
+                                    message.isMine ? 'text-primary' : 'text-blue-600'
                                   }`}
                                 >
                                   View Item Details →
@@ -674,9 +674,9 @@ const Messages = () => {
               </ScrollArea>
 
               {/* Message Input */}
-              <div className="p-4 border-t bg-white">
+              <div className="p-4 border-t bg-background">
                 {attachment && (
-                  <div className="mb-3 p-2 bg-gray-100 rounded-lg flex items-center justify-between">
+                  <div className="mb-3 p-2 bg-muted rounded-lg flex items-center justify-between">
                     <div className="flex items-center gap-2 text-sm">
                       <Paperclip className="h-4 w-4" />
                       <span>{attachment.name}</span>

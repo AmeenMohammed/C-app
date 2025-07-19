@@ -6,10 +6,10 @@ import { BottomNav } from "@/components/BottomNav";
 
 const PaymentMethods = () => {
   return (
-    <div className="min-h-screen bg-gray-50 pb-16">
+    <div className="min-h-screen bg-background pb-16">
       <TopBar title="Payment Methods" showBackButton={true} />
       <main className="container mx-auto px-4 py-6">
-        <div className="rounded-lg bg-white p-6 shadow">
+        <div className="rounded-lg bg-card p-6 shadow">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-lg font-medium">Your Payment Methods</h2>
             <Button size="sm">

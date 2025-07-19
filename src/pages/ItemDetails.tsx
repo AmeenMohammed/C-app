@@ -1,7 +1,7 @@
 import { TopBar } from "@/components/TopBar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Eye, Pencil, Star, BookmarkPlus } from "lucide-react";
+import { Eye, Pencil, Star, BookmarkPlus, MapPin, X, ZoomIn, ZoomOut, ChevronLeft, ChevronRight } from "lucide-react";
 import { useLocation, useNavigate, Link, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -18,6 +18,9 @@ interface Item {
   description?: string;
   seller_id: string;
   location_range?: number;
+  latitude?: number;
+  longitude?: number;
+  listing_type?: string;
 }
 
 interface Seller {
@@ -39,8 +42,40 @@ const ItemDetails = () => {
   const [viewCount, setViewCount] = useState(0);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [itemLocation, setItemLocation] = useState<string>("");
+
+  // Image gallery state
+  const [isGalleryOpen, setIsGalleryOpen] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
+  const [showZoomTip, setShowZoomTip] = useState(false);
 
   const isOwner = user && item?.seller_id === user.id;
+
+  // Reverse geocoding function to convert coordinates to city name
+  const reverseGeocode = async (lat: number, lng: number): Promise<string> => {
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10&addressdetails=1`
+      );
+      const data = await response.json();
+
+      if (data.address) {
+        const { city, town, village, suburb, state, country } = data.address;
+        // Build a readable address
+        const cityName = city || town || village || suburb || 'Unknown Location';
+        const stateName = state ? `, ${state}` : '';
+        const countryName = country ? `, ${country}` : '';
+        return `${cityName}${stateName}${countryName}`;
+      }
+
+      return `Location: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    } catch (error) {
+      console.error('Reverse geocoding failed:', error);
+      return `Location: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    }
+  };
 
   // Debug logging to help troubleshoot ownership issues
   useEffect(() => {
@@ -52,6 +87,19 @@ const ItemDetails = () => {
       });
     }
   }, [user, item]);
+
+  // Fetch item location when item is loaded
+  useEffect(() => {
+    const fetchItemLocation = async () => {
+      if (item?.latitude && item?.longitude) {
+        console.log('📍 Fetching location for item:', { lat: item.latitude, lng: item.longitude });
+        const location = await reverseGeocode(item.latitude, item.longitude);
+        setItemLocation(location);
+      }
+    };
+
+    fetchItemLocation();
+  }, [item]);
 
   const [itemFetchError, setItemFetchError] = useState<string | null>(null);
 
@@ -293,9 +341,86 @@ const ItemDetails = () => {
     }
   };
 
+  // Image gallery functions
+  const openGallery = (index: number = 0) => {
+    setCurrentImageIndex(index);
+    setZoomLevel(1);
+    setImagePosition({ x: 0, y: 0 });
+    setIsGalleryOpen(true);
+    setShowZoomTip(true);
+    setTimeout(() => setShowZoomTip(false), 3000); // Hide tip after 3 seconds
+  };
+
+  const closeGallery = () => {
+    setIsGalleryOpen(false);
+    setZoomLevel(1);
+    setImagePosition({ x: 0, y: 0 });
+  };
+
+  const nextImage = () => {
+    if (item?.images && item.images.length > 1) {
+      setCurrentImageIndex((prev) => (prev + 1) % item.images.length);
+      setZoomLevel(1);
+      setImagePosition({ x: 0, y: 0 });
+    }
+  };
+
+  const prevImage = () => {
+    if (item?.images && item.images.length > 1) {
+      setCurrentImageIndex((prev) => (prev - 1 + item.images.length) % item.images.length);
+      setZoomLevel(1);
+      setImagePosition({ x: 0, y: 0 });
+    }
+  };
+
+  const zoomIn = () => {
+    setZoomLevel((prev) => Math.min(prev + 0.5, 3));
+  };
+
+  const zoomOut = () => {
+    setZoomLevel((prev) => Math.max(prev - 0.5, 0.5));
+    if (zoomLevel <= 1) {
+      setImagePosition({ x: 0, y: 0 });
+    }
+  };
+
+  const resetZoom = () => {
+    setZoomLevel(1);
+    setImagePosition({ x: 0, y: 0 });
+  };
+
+  // Handle keyboard navigation
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (!isGalleryOpen) return;
+
+      switch (e.key) {
+        case 'Escape':
+          closeGallery();
+          break;
+        case 'ArrowLeft':
+          prevImage();
+          break;
+        case 'ArrowRight':
+          nextImage();
+          break;
+        case '+':
+        case '=':
+          zoomIn();
+          break;
+        case '-':
+          zoomOut();
+          break;
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyPress);
+    return () => document.removeEventListener('keydown', handleKeyPress);
+  }, [isGalleryOpen, item?.images]);
+
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-background">
         <TopBar title="Item Details" />
         <div className="container mx-auto px-4 py-6 text-center">
           <p>Loading item details...</p>
@@ -306,7 +431,7 @@ const ItemDetails = () => {
 
   if (error || itemFetchError) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-background">
         <TopBar title="Item Details" />
         <div className="container mx-auto px-4 py-6 text-center">
           <Card className="p-6">
@@ -323,7 +448,7 @@ const ItemDetails = () => {
 
   if (!item) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-background">
         <TopBar title="Item Details" />
         <div className="container mx-auto px-4 py-6 text-center">
           <Card className="p-6">
@@ -338,22 +463,52 @@ const ItemDetails = () => {
     );
   }
 
+  const images = item.images || ["https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d"];
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       <TopBar title="Item Details" />
       <main className="container mx-auto px-4 py-6 space-y-4">
         <Card className="overflow-hidden">
-          <img
-            src={item.images?.[0] || "https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d"}
-            alt={item.title}
-            className="w-full aspect-video object-cover"
-          />
+          {/* Image Gallery Section */}
+          <div className="relative">
+            <img
+              src={images[0]}
+              alt={item.title}
+              className="w-full aspect-video object-cover cursor-pointer hover:opacity-90 transition-opacity"
+              onClick={() => openGallery(0)}
+            />
+            {images.length > 1 && (
+              <div className="absolute bottom-4 right-4 bg-black/70 text-white px-2 py-1 rounded text-sm">
+                1 of {images.length}
+              </div>
+            )}
+          </div>
+
+          {/* Image thumbnails for multiple images */}
+          {images.length > 1 && (
+            <div className="flex gap-2 p-4 overflow-x-auto">
+              {images.map((image, index) => (
+                <img
+                  key={index}
+                  src={image}
+                  alt={`${item.title} - Image ${index + 1}`}
+                  className="w-16 h-16 object-cover rounded cursor-pointer border-2 border-transparent hover:border-primary transition-colors"
+                  onClick={() => openGallery(index)}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Rest of the existing content */}
           <div className="p-6 space-y-4">
             <div className="flex justify-between items-start">
               <div>
                 <h1 className="text-2xl font-semibold">{item.title}</h1>
                 <div className="flex items-center gap-4">
-                  <p className="text-xl font-semibold text-primary">${item.price}</p>
+                  <p className="text-xl font-semibold text-primary">
+                    {item.listing_type === "request" ? "Budget: " : ""}${item.price}
+                  </p>
                   <div className="flex items-center gap-1 text-sm text-muted-foreground">
                     <Eye className="h-4 w-4" />
                     <span>{viewCount} views</span>
@@ -378,6 +533,16 @@ const ItemDetails = () => {
                 {item.description || "No description provided"}
               </p>
             </div>
+            {/* Location section */}
+            {(item.latitude && item.longitude) && (
+              <div>
+                <h2 className="font-semibold mb-2">Location</h2>
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <MapPin className="h-4 w-4" />
+                  <span>{itemLocation || "Loading location..."}</span>
+                </div>
+              </div>
+            )}
             <div>
               <h2 className="font-semibold mb-2">Seller</h2>
               <Link
@@ -417,6 +582,170 @@ const ItemDetails = () => {
           </div>
         </Card>
       </main>
+
+      {/* Image Gallery Modal */}
+      {isGalleryOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center">
+          <div className="relative w-full h-full flex items-center justify-center">
+            {/* Close button */}
+            <button
+              onClick={closeGallery}
+              className="absolute top-4 right-4 z-10 bg-white/20 hover:bg-white/30 rounded-full p-2 transition-colors"
+            >
+              <X className="h-6 w-6 text-white" />
+            </button>
+
+            {/* Image counter */}
+            <div className="absolute top-4 left-4 z-10 bg-black/50 text-white px-3 py-1 rounded-full text-sm">
+              {currentImageIndex + 1} of {images.length}
+            </div>
+
+            {/* Zoom tip - appears briefly when gallery opens */}
+            {showZoomTip && (
+              <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-10 bg-black/70 text-white px-4 py-2 rounded-lg text-sm text-center transition-opacity duration-300">
+                <div>Click to zoom in • Double-click to zoom out</div>
+                <div className="text-xs opacity-80 mt-1">Drag to move when zoomed</div>
+              </div>
+            )}
+
+            {/* Zoom controls - moved to top left on mobile to avoid overlap */}
+            <div className="absolute top-16 left-4 md:top-auto md:bottom-4 z-10 flex gap-2">
+              <button
+                onClick={zoomOut}
+                className="bg-white/20 hover:bg-white/30 rounded-full p-2 transition-colors"
+                disabled={zoomLevel <= 0.5}
+              >
+                <ZoomOut className="h-5 w-5 text-white" />
+              </button>
+              <button
+                onClick={resetZoom}
+                className="bg-white/20 hover:bg-white/30 rounded-full px-3 py-2 transition-colors text-white text-sm"
+              >
+                {Math.round(zoomLevel * 100)}%
+              </button>
+              <button
+                onClick={zoomIn}
+                className="bg-white/20 hover:bg-white/30 rounded-full p-2 transition-colors"
+                disabled={zoomLevel >= 3}
+              >
+                <ZoomIn className="h-5 w-5 text-white" />
+              </button>
+            </div>
+
+            {/* Navigation arrows */}
+            {images.length > 1 && (
+              <>
+                <button
+                  onClick={prevImage}
+                  className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white/20 hover:bg-white/30 rounded-full p-3 transition-colors"
+                >
+                  <ChevronLeft className="h-8 w-8 text-white" />
+                </button>
+                <button
+                  onClick={nextImage}
+                  className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white/20 hover:bg-white/30 rounded-full p-3 transition-colors"
+                >
+                  <ChevronRight className="h-8 w-8 text-white" />
+                </button>
+              </>
+            )}
+
+            {/* Main image */}
+            <div className="flex items-center justify-center w-full h-full overflow-hidden">
+              <img
+                src={images[currentImageIndex]}
+                alt={`${item.title} - Image ${currentImageIndex + 1}`}
+                className="max-w-full max-h-full object-contain transition-transform duration-200 select-none"
+                style={{
+                  transform: `scale(${zoomLevel}) translate(${imagePosition.x}px, ${imagePosition.y}px)`,
+                  cursor: zoomLevel > 1 ? 'move' : zoomLevel < 3 ? 'zoom-in' : 'zoom-out'
+                }}
+                onClick={(e) => {
+                  if (zoomLevel < 3) {
+                    zoomIn();
+                  }
+                }}
+                onDoubleClick={(e) => {
+                  e.preventDefault();
+                  if (zoomLevel > 1) {
+                    resetZoom();
+                  }
+                }}
+                onTouchStart={(e) => {
+                  if (e.touches.length === 1 && zoomLevel > 1) {
+                    e.preventDefault();
+                    const touch = e.touches[0];
+                    const startX = touch.clientX - imagePosition.x;
+                    const startY = touch.clientY - imagePosition.y;
+
+                    const handleTouchMove = (e: TouchEvent) => {
+                      if (e.touches.length === 1) {
+                        e.preventDefault();
+                        const touch = e.touches[0];
+                        setImagePosition({
+                          x: touch.clientX - startX,
+                          y: touch.clientY - startY
+                        });
+                      }
+                    };
+
+                    const handleTouchEnd = () => {
+                      document.removeEventListener('touchmove', handleTouchMove);
+                      document.removeEventListener('touchend', handleTouchEnd);
+                    };
+
+                    document.addEventListener('touchmove', handleTouchMove, { passive: false });
+                    document.addEventListener('touchend', handleTouchEnd);
+                  }
+                }}
+                onMouseDown={(e) => {
+                  if (zoomLevel > 1) {
+                    e.preventDefault();
+                    const startX = e.clientX - imagePosition.x;
+                    const startY = e.clientY - imagePosition.y;
+
+                    const handleMouseMove = (e: MouseEvent) => {
+                      setImagePosition({
+                        x: e.clientX - startX,
+                        y: e.clientY - startY
+                      });
+                    };
+
+                    const handleMouseUp = () => {
+                      document.removeEventListener('mousemove', handleMouseMove);
+                      document.removeEventListener('mouseup', handleMouseUp);
+                    };
+
+                    document.addEventListener('mousemove', handleMouseMove);
+                    document.addEventListener('mouseup', handleMouseUp);
+                  }
+                }}
+              />
+            </div>
+
+            {/* Thumbnail strip for navigation - adjusted for mobile */}
+            {images.length > 1 && (
+              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2 bg-black/50 rounded-lg p-2 max-w-[90vw] overflow-x-auto">
+                {images.map((image, index) => (
+                  <button
+                    key={index}
+                    onClick={() => setCurrentImageIndex(index)}
+                    className={`w-12 h-12 rounded border-2 overflow-hidden transition-all flex-shrink-0 ${
+                      index === currentImageIndex ? 'border-white' : 'border-white/30'
+                    }`}
+                  >
+                    <img
+                      src={image}
+                      alt={`Thumbnail ${index + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

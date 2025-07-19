@@ -22,7 +22,7 @@ export function Post({ username, userImage, image, caption, likes }: PostProps) 
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm overflow-hidden post-animation">
+    <div className="bg-card rounded-lg shadow-sm overflow-hidden post-animation">
       <div className="flex items-center p-4">
         <img
           src={userImage}

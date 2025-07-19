@@ -11,7 +11,7 @@ export function StoryCircle({ imageUrl, username, viewed = false }: StoryCircleP
   return (
     <div className="flex flex-col items-center space-y-1">
       <div className={cn(viewed ? "story-ring-viewed" : "story-ring")}>
-        <div className="block rounded-full p-[2px] bg-white">
+        <div className="block rounded-full p-[2px] bg-card">
           <img
             src={imageUrl}
             alt={username}

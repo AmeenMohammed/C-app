@@ -8,6 +8,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { ThemeProvider } from "next-themes";
 import Index from "./pages/Index";
 import Home from "./pages/Home";
 import ItemDetails from "./pages/ItemDetails";
@@ -32,118 +33,125 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <BrowserRouter>
-        <TooltipProvider>
-          <SidebarProvider>
-            <div className="min-h-screen flex w-full">
-              {/* <AppSidebar /> */}
-              <main className="flex-1">
-                {/* <SidebarTrigger className="fixed top-4 left-4 z-50" /> */}
-                <Routes>
-                  {/* Public Routes */}
-                  <Route path="/" element={<Index />} />
-                  <Route path="/signup" element={<SignUp />} />
-                  <Route path="/auth/callback" element={<AuthCallback />} />
-                  <Route path="/home" element={<Home />} />
-                  <Route path="/location-map" element={<LocationMap />} />
-                  <Route path="/items/:id" element={<ItemDetails />} />
-                  <Route path="/seller/:id" element={<SellerProfile />} />
-                  <Route path="/help-support" element={<HelpSupport />} />
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="system"
+      enableSystem
+      disableTransitionOnChange
+    >
+      <AuthProvider>
+        <BrowserRouter>
+          <TooltipProvider>
+            <SidebarProvider>
+              <div className="min-h-screen flex w-full">
+                {/* <AppSidebar /> */}
+                <main className="flex-1">
+                  {/* <SidebarTrigger className="fixed top-4 left-4 z-50" /> */}
+                  <Routes>
+                    {/* Public Routes */}
+                    <Route path="/" element={<Index />} />
+                    <Route path="/signup" element={<SignUp />} />
+                    <Route path="/auth/callback" element={<AuthCallback />} />
+                    <Route path="/home" element={<Home />} />
+                    <Route path="/location-map" element={<LocationMap />} />
+                    <Route path="/items/:id" element={<ItemDetails />} />
+                    <Route path="/seller/:id" element={<SellerProfile />} />
+                    <Route path="/help-support" element={<HelpSupport />} />
 
-                  {/* Protected Routes */}
-                  <Route
-                    path="/channels"
-                    element={
-                      <ProtectedRoute>
-                        <Channels />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/channels/create"
-                    element={
-                      <ProtectedRoute>
-                        <CreateChannel />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/post"
-                    element={
-                      <ProtectedRoute>
-                        <PostItem />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/edit-item/:id"
-                    element={
-                      <ProtectedRoute>
-                        <EditItem />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/profile"
-                    element={
-                      <ProtectedRoute>
-                        <Profile />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/messages"
-                    element={
-                      <ProtectedRoute>
-                        <Messages />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/notifications"
-                    element={
-                      <ProtectedRoute>
-                        <Notifications />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/saved-items"
-                    element={
-                      <ProtectedRoute>
-                        <SavedItems />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/settings"
-                    element={
-                      <ProtectedRoute>
-                        <Settings />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/payment-methods"
-                    element={
-                      <ProtectedRoute>
-                        <PaymentMethods />
-                      </ProtectedRoute>
-                    }
-                  />
+                    {/* Protected Routes */}
+                    <Route
+                      path="/channels"
+                      element={
+                        <ProtectedRoute>
+                          <Channels />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/channels/create"
+                      element={
+                        <ProtectedRoute>
+                          <CreateChannel />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/post"
+                      element={
+                        <ProtectedRoute>
+                          <PostItem />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/edit-item/:id"
+                      element={
+                        <ProtectedRoute>
+                          <EditItem />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/profile"
+                      element={
+                        <ProtectedRoute>
+                          <Profile />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/messages"
+                      element={
+                        <ProtectedRoute>
+                          <Messages />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/notifications"
+                      element={
+                        <ProtectedRoute>
+                          <Notifications />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/saved-items"
+                      element={
+                        <ProtectedRoute>
+                          <SavedItems />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/settings"
+                      element={
+                        <ProtectedRoute>
+                          <Settings />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/payment-methods"
+                      element={
+                        <ProtectedRoute>
+                          <PaymentMethods />
+                        </ProtectedRoute>
+                      }
+                    />
 
-                  {/* Catch all route */}
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </main>
-            </div>
-          </SidebarProvider>
-          <Toaster />
-          <Sonner />
-        </TooltipProvider>
-      </BrowserRouter>
-    </AuthProvider>
+                    {/* Catch all route */}
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </main>
+              </div>
+            </SidebarProvider>
+            <Toaster />
+            <Sonner />
+          </TooltipProvider>
+        </BrowserRouter>
+      </AuthProvider>
+    </ThemeProvider>
   </QueryClientProvider>
 );
 

@@ -15,7 +15,7 @@ import { LoadingScreen } from "@/components/LoadingScreen";
 const Home = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [range, setRange] = useState([parseInt(searchParams.get('range') || '10')]); // Get range from URL or default to 10km
+  const [range, setRange] = useState([parseInt(searchParams.get('range') || '5')]); // Get range from URL or default to 10km
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -40,31 +40,6 @@ const Home = () => {
     }
   }, []);
 
-  const openGoogleMaps = () => {
-    if (userLocation) {
-      const url = `https://www.google.com/maps/search/?api=1&query=${userLocation.lat},${userLocation.lng}`;
-      window.open(url, '_blank');
-    } else {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          const url = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
-          window.open(url, '_blank');
-        },
-        (error) => {
-          console.error("Error getting location:", error);
-          // Try iPhone Maps as fallback
-          const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-          if (isMobile) {
-            window.open('maps://', '_blank');
-          } else {
-            window.open('https://www.google.com/maps', '_blank');
-          }
-        }
-      );
-    }
-  };
-
   const openLocationMap = () => {
     navigate(`/location-map?range=${range[0]}`);
   };
@@ -75,7 +50,7 @@ const Home = () => {
 
   if (categoriesError) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-xl font-semibold mb-2">Error Loading Categories</h2>
           <p className="text-muted-foreground">Please try again later</p>
@@ -85,11 +60,11 @@ const Home = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24">
+    <div className="min-h-screen bg-background pb-24">
       <TopBar title="Home" showBackButton={false} />
 
       {/* Categories Bar */}
-      <div className="bg-white border-b sticky top-14 z-40">
+      <div className="bg-background border-b sticky top-14 z-40">
         <div className="container mx-auto px-4">
           {/* Search Bar */}
           <div className="flex items-center gap-2 py-2 border-b">
@@ -141,8 +116,9 @@ const Home = () => {
       </main>
 
       {/* Location Range Slider */}
-      <div className="fixed bottom-16 left-0 right-0 bg-white shadow-lg border-t p-2">
-        <div className="container mx-auto">
+      <div className="fixed bottom-16 left-0 right-0 bg-background shadow-lg border-t p-2">
+        <div className="container mx-auto space-y-2">
+          {/* Range Controls */}
           <div className="flex items-center gap-2">
             <Button
               variant="ghost"
@@ -157,22 +133,13 @@ const Home = () => {
               <Slider
                 value={range}
                 onValueChange={setRange}
-                max={50}
+                max={30}
                 min={1}
                 step={1}
                 className="flex-1"
               />
             </div>
             <span className="text-sm text-muted-foreground min-w-[3rem]">{range[0]}km</span>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={openGoogleMaps}
-              className="h-8 w-8"
-              title="Open in Google Maps"
-            >
-              <ExternalLink className="h-4 w-4" />
-            </Button>
           </div>
         </div>
       </div>

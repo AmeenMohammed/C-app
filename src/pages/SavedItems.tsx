@@ -112,13 +112,13 @@ const SavedItems = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-16">
+    <div className="min-h-screen bg-background pb-16">
       <TopBar title="Saved Items" showBackButton={true} />
       <main className="container mx-auto px-4 py-6">
         {loading ? (
           <div className="text-center py-8">Loading saved items...</div>
         ) : savedItems.length === 0 ? (
-          <div className="rounded-lg bg-white p-6 shadow">
+          <div className="rounded-lg bg-card p-6 shadow">
             <div className="flex items-center justify-center h-32">
               <Heart className="h-12 w-12 text-gray-400" />
             </div>
@@ -134,9 +134,9 @@ const SavedItems = () => {
                 {savedItems.length} Saved Item{savedItems.length !== 1 ? 's' : ''}
               </h2>
               {savedItems.length > 0 && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={clearAllSaved}
                   className="text-red-600 hover:text-red-700"
                 >
@@ -144,7 +144,7 @@ const SavedItems = () => {
                 </Button>
               )}
             </div>
-            
+
             {savedItems.map((item) => (
               <Card key={item.id} className="p-4">
                 <div className="flex gap-4">
@@ -167,8 +167,8 @@ const SavedItems = () => {
                             View
                           </Button>
                         </Link>
-                        <Button 
-                          variant="ghost" 
+                        <Button
+                          variant="ghost"
                           size="sm"
                           onClick={() => removeFromSaved(item.id)}
                           className="text-red-500 hover:text-red-700"

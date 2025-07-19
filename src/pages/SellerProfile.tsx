@@ -107,7 +107,14 @@ const SellerProfile = () => {
   }, [sellerId, user, navigate]);
 
   if (loading) {
-    return <LoadingScreen message="Loading profile..." />;
+    return (
+      <div className="min-h-screen bg-background pb-16">
+        <TopBar title="Seller Profile" showBackButton={true} />
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      </div>
+    );
   }
 
   if (!seller) {

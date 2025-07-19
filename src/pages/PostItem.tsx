@@ -1,25 +1,43 @@
+import React, { useRef, useState, useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { TopBar } from "@/components/TopBar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ImagePlus, TrendingUp, MapPin, ExternalLink, X } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ImagePlus, X, MapPin, TrendingUp } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
 import { toast } from "@/hooks/use-toast";
-import { useState, useRef, useEffect } from "react";
-import { Slider } from "@/components/ui/slider";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCategories } from "@/hooks/useCategories";
-import { LoadingScreen } from "@/components/LoadingScreen";
+import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+
+// Fix for default markers in React-Leaflet
+interface LeafletIconDefault extends L.Icon.Default {
+  _getIconUrl?: () => string;
+}
+
+delete (L.Icon.Default.prototype as LeafletIconDefault)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
+
+// Custom component to handle map click events
+function LocationSelector({ onLocationChange }: { onLocationChange: (lat: number, lng: number) => void }) {
+  useMapEvents({
+    click: (e) => {
+      onLocationChange(e.latlng.lat, e.latlng.lng);
+    },
+  });
+  return null;
+}
 
 const PostItem = () => {
   const navigate = useNavigate();
@@ -35,10 +53,13 @@ const PostItem = () => {
     price: "",
     description: "",
     category: "",
-    range: [10] as number[], // Default 10km radius
+    city: "", // Replace range with city
     listingType: "sell" as "sell" | "rent" | "request",
   });
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [showLocationSelector, setShowLocationSelector] = useState(false);
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [geocodeTimeout, setGeocodeTimeout] = useState<NodeJS.Timeout | null>(null);
 
   // Fetch categories dynamically
   const { data: categories, isLoading: categoriesLoading, error: categoriesError } = useCategories();
@@ -47,23 +68,162 @@ const PostItem = () => {
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation({
+        async (position) => {
+          const location = {
             lat: position.coords.latitude,
             lng: position.coords.longitude,
-          });
+          };
+          setUserLocation(location);
+
+          // Automatically populate city field with current location
+          if (!formData.city.trim()) { // Only populate if city field is empty
+            setLocationLoading(true);
+            try {
+              const cityName = await reverseGeocode(location.lat, location.lng);
+              setFormData(prev => ({ ...prev, city: cityName }));
+              toast({
+                title: "Location Detected",
+                description: "Current location has been set automatically!",
+              });
+            } catch (error) {
+              console.error("Failed to get city name:", error);
+            } finally {
+              setLocationLoading(false);
+            }
+          }
         },
         (error) => {
           console.error("Error getting location:", error);
           toast({
-            title: "Location Error",
-            description: "Could not get your location. Items will be posted without location data.",
-            variant: "destructive",
+            title: "Location Info",
+            description: "Click 'Set Location on Map' to manually set your item's location.",
           });
+          // Set a default location (New York) so the map can still work
+          setUserLocation({ lat: 40.7128, lng: -74.0060 });
         }
       );
     }
-  }, []);
+
+    // Cleanup timeout on unmount
+    return () => {
+      if (geocodeTimeout) {
+        clearTimeout(geocodeTimeout);
+      }
+    };
+  }, [geocodeTimeout]);
+
+  const reverseGeocode = async (lat: number, lng: number): Promise<string> => {
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10&addressdetails=1`
+      );
+      const data = await response.json();
+
+      if (data.address) {
+        const { city, town, village, suburb, state, country } = data.address;
+        // Build a readable address
+        const cityName = city || town || village || suburb || 'Unknown Location';
+        const stateName = state ? `, ${state}` : '';
+        const countryName = country ? `, ${country}` : '';
+        return `${cityName}${stateName}${countryName}`;
+      }
+
+      return `Location: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    } catch (error) {
+      console.error('Reverse geocoding failed:', error);
+      return `Location: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    }
+  };
+
+  const forwardGeocode = async (cityName: string): Promise<{lat: number, lng: number} | null> => {
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(cityName)}&limit=1`
+      );
+      const data = await response.json();
+
+      if (data && data.length > 0) {
+        const lat = parseFloat(data[0].lat);
+        const lng = parseFloat(data[0].lon);
+        return { lat, lng };
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Forward geocoding failed:', error);
+      return null;
+    }
+  };
+
+  const handleLocationChange = async (lat: number, lng: number) => {
+    setUserLocation({ lat, lng });
+    setLocationLoading(true);
+
+    // Get city name from coordinates
+    const cityName = await reverseGeocode(lat, lng);
+    setFormData(prev => ({ ...prev, city: cityName }));
+    setLocationLoading(false);
+
+    // Don't close the map automatically - let user confirm
+    toast({
+      title: "Location Updated",
+      description: "Click 'Confirm Location' when you're happy with the position.",
+    });
+  };
+
+  const handleCityInputChange = async (value: string) => {
+    setFormData(prev => ({ ...prev, city: value }));
+
+    // Clear any existing timeout
+    if (geocodeTimeout) {
+      clearTimeout(geocodeTimeout);
+    }
+
+    // First try to parse coordinates if user enters them (e.g., "40.7128, -74.0060")
+    const coordPattern = /^(-?\d+\.?\d*),\s*(-?\d+\.?\d*)$/;
+    const match = value.match(coordPattern);
+
+    if (match) {
+      const lat = parseFloat(match[1]);
+      const lng = parseFloat(match[2]);
+
+      // Validate coordinates
+      if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+        setUserLocation({ lat, lng });
+        toast({
+          title: "Coordinates Set",
+          description: "Map updated with the entered coordinates.",
+        });
+        return;
+      }
+    }
+
+    // If not coordinates, set up debounced geocoding for city names
+    if (value.trim().length >= 5) { // Increased from 2 to 5 characters
+      const timeoutId = setTimeout(async () => {
+        setLocationLoading(true);
+        const coordinates = await forwardGeocode(value.trim());
+        if (coordinates) {
+          setUserLocation(coordinates);
+          toast({
+            title: "City Found",
+            description: "Map updated with the city location.",
+          });
+        }
+        setLocationLoading(false);
+      }, 1000); // Wait 1 second after user stops typing
+
+      setGeocodeTimeout(timeoutId);
+    }
+  };
+
+  const confirmLocation = () => {
+    setShowLocationSelector(false);
+    toast({
+      title: "Location Confirmed",
+      description: "Your item location has been set successfully.",
+    });
+  };
 
   const handlePromoteItem = () => {
     setShowPaymentDialog(true);
@@ -75,60 +235,47 @@ const PostItem = () => {
       title: "Processing Payment",
       description: `Processing payment via ${method}...`,
     });
-  };
-
-  const openGoogleMaps = () => {
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-        const url = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
-        window.open(url, '_blank');
-      },
-      (error) => {
-        console.error("Error getting location:", error);
-        window.open('https://www.google.com/maps', '_blank');
-      }
-    );
-  };
-
-  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    setLoading(true);
-    const formData = new FormData();
-    formData.append('file', file);
-
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("Not authenticated");
-
-      const response = await fetch('https://vttanwzodshofhycuqjr.functions.supabase.co/upload-item-image', {
-        method: 'POST',
-        body: formData,
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`
-        }
-      });
-
-      const data = await response.json();
-      if (data.error) throw new Error(data.error);
-
-      setImages(prev => [...prev, data.url]);
-    } catch (error) {
-      console.error('Upload error:', error);
+    // Here you would integrate with actual payment processing
+    setTimeout(() => {
       toast({
-        title: "Error",
-        description: "Failed to upload image. Please try again.",
-        variant: "destructive",
+        title: "Payment Successful",
+        description: "Your item has been promoted!",
       });
-    } finally {
-      setLoading(false);
-    }
+    }, 2000);
   };
 
-  const removeImage = (index: number) => {
-    setImages(prev => prev.filter((_, i) => i !== index));
+  const uploadImages = async (files: FileList): Promise<string[]> => {
+    const uploadedUrls: string[] = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      try {
+        const { data, error } = await supabase.storage
+          .from('item_images')
+          .upload(filePath, file);
+
+        if (error) throw error;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('item_images')
+          .getPublicUrl(filePath);
+
+        uploadedUrls.push(publicUrl);
+      } catch (error) {
+        console.error('Error uploading image:', error);
+        toast({
+          title: "Upload Error",
+          description: `Failed to upload ${file.name}`,
+          variant: "destructive",
+        });
+      }
+    }
+
+    return uploadedUrls;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -142,10 +289,10 @@ const PostItem = () => {
       return;
     }
 
-    if (!formData.range[0] || formData.range[0] < 1) {
+    if (!userLocation) {
       toast({
         title: "Error",
-        description: "Please select a location range for your item",
+        description: "Please set your item's location on the map",
         variant: "destructive",
       });
       return;
@@ -162,35 +309,23 @@ const PostItem = () => {
 
     setLoading(true);
     try {
-      // Try to insert with category_id first, fallback to category if needed
       const itemData = {
         title: formData.title,
         price: parseFloat(formData.price),
         description: formData.description,
-        location_range: formData.range[0],
-        latitude: userLocation?.lat || null,
-        longitude: userLocation?.lng || null,
+        latitude: userLocation.lat,
+        longitude: userLocation.lng,
         seller_id: user.id,
         images: images,
+        listing_type: formData.listingType,
+        category_id: formData.category // Use category_id to match database schema
       };
 
-      // Try inserting with category_id first
-      const { error } = await supabase.from('items').insert({
-        ...itemData,
-        category_id: formData.category,
-      });
+      // Insert item data (types need regeneration - temporarily bypassing type check)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await supabase.from('items').insert(itemData as any);
 
-      // If that fails, try with the old category field
-      if (error && error.code === '42703') { // Column doesn't exist
-        const { error: fallbackError } = await supabase.from('items').insert({
-          ...itemData,
-          category: formData.category,
-        });
-
-        if (fallbackError) throw fallbackError;
-      } else if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       toast({
         title: "Success",
@@ -198,10 +333,10 @@ const PostItem = () => {
       });
       navigate('/profile');
     } catch (error) {
-      console.error('Post error:', error);
+      console.error('Error posting item:', error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to post item",
+        description: "Failed to post item. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -209,63 +344,91 @@ const PostItem = () => {
     }
   };
 
-  if (categoriesLoading) {
-    return <LoadingScreen message="Loading categories..." />;
-  }
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files) return;
 
-  if (categoriesError) {
+    if (images.length + e.target.files.length > 5) {
+      toast({
+        title: "Too many images",
+        description: "Maximum 5 images allowed",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const uploadedUrls = await uploadImages(e.target.files);
+    setImages(prev => [...prev, ...uploadedUrls]);
+  };
+
+  const removeImage = (index: number) => {
+    setImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  if (categoriesLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold mb-2">Error Loading Categories</h2>
-          <p className="text-muted-foreground">Please try again later</p>
+      <div className="min-h-screen bg-background">
+        <TopBar title="Post Item" showBackButton={showBackButton} />
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">Loading...</div>
         </div>
       </div>
     );
   }
 
-  // Filter out the "All" category for posting
-  const postCategories = categories?.filter(cat => cat.id !== 'all') || [];
+  if (categoriesError) {
+    return (
+      <div className="min-h-screen bg-background">
+        <TopBar title="Post Item" showBackButton={showBackButton} />
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center text-red-500">Error loading categories</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24">
+    <div className="min-h-screen bg-background pb-16">
       <TopBar title="Post Item" showBackButton={showBackButton} />
 
-      <div className="container mx-auto px-4 py-6">
-        <Card className="max-w-2xl mx-auto p-6">
+      <div className="container mx-auto px-4 py-6 max-w-2xl">
+        <Card className="p-6">
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Image Upload */}
+            {/* Image Upload Section */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">Images</label>
+              <label className="text-sm font-medium">Images (up to 5)</label>
               <div className="grid grid-cols-3 gap-2">
-                {images.map((image, index) => (
-                  <div key={index} className="relative">
-                    <img src={image} alt={`Upload ${index + 1}`} className="w-full h-24 object-cover rounded" />
+                {images.map((url, index) => (
+                  <div key={index} className="relative aspect-square">
+                    <img
+                      src={url}
+                      alt={`Upload ${index + 1}`}
+                      className="w-full h-full object-cover rounded-lg border"
+                    />
                     <Button
-                      type="button"
                       variant="destructive"
-                      size="icon"
-                      className="absolute top-1 right-1 h-6 w-6"
+                      size="sm"
+                      className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0"
                       onClick={() => removeImage(index)}
                     >
-                      <X className="h-4 w-4" />
+                      <X className="h-3 w-3" />
                     </Button>
                   </div>
                 ))}
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="h-24 border-dashed"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={loading}
-                >
-                  <ImagePlus className="h-6 w-6" />
-                </Button>
+                {images.length < 5 && (
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="aspect-square border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center hover:border-primary transition-colors"
+                  >
+                    <ImagePlus className="h-6 w-6 text-gray-400" />
+                  </button>
+                )}
               </div>
               <input
                 ref={fileInputRef}
                 type="file"
                 accept="image/*"
+                multiple
                 onChange={handleImageUpload}
                 className="hidden"
               />
@@ -277,19 +440,20 @@ const PostItem = () => {
                 placeholder="What are you selling?"
                 value={formData.title}
                 onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                required
               />
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Price</label>
+              <label className="text-sm font-medium">
+                {formData.listingType === "request" ? "Budget ($)" : "Price ($)"}
+              </label>
               <Input
                 type="number"
+                placeholder={formData.listingType === "request" ? "Maximum budget" : "0.00"}
+                min="0"
                 step="0.01"
-                placeholder="0.00"
                 value={formData.price}
                 onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
-                required
               />
             </div>
 
@@ -297,15 +461,12 @@ const PostItem = () => {
               <label className="text-sm font-medium">Category</label>
               <Select value={formData.category} onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select category" />
+                  <SelectValue placeholder="Select a category" />
                 </SelectTrigger>
                 <SelectContent>
-                  {postCategories.map((category) => (
+                  {categories?.map((category) => (
                     <SelectItem key={category.id} value={category.id}>
-                      <div className="flex items-center gap-2">
-                        <category.iconComponent className="h-4 w-4" />
-                        <span>{category.label}</span>
-                      </div>
+                      {category.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -313,29 +474,73 @@ const PostItem = () => {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Location Range</label>
-              <div className="flex items-center gap-2 mt-2">
-                <MapPin className="h-4 w-4 text-primary" />
-                <Slider
-                  value={formData.range}
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, range: value }))}
-                  max={50}
-                  min={1}
-                  step={1}
-                  className="flex-1"
+              <label className="text-sm font-medium">Listing Type</label>
+              <Select value={formData.listingType} onValueChange={(value: "sell" | "rent" | "request") => setFormData(prev => ({ ...prev, listingType: value }))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sell">For Sale</SelectItem>
+                  <SelectItem value="rent">For Rent</SelectItem>
+                  <SelectItem value="request">Looking For</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Location</label>
+              <div className="space-y-2">
+                <Input
+                  placeholder="Enter your city or area"
+                  value={formData.city}
+                  onChange={(e) => handleCityInputChange(e.target.value)}
                 />
                 <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={openGoogleMaps}
-                  className="h-8 w-8"
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowLocationSelector(!showLocationSelector)}
+                  className="w-full flex items-center gap-2"
+                  disabled={locationLoading}
                 >
-                  <ExternalLink className="h-4 w-4" />
+                  <MapPin className="h-4 w-4" />
+                  {locationLoading ? "Finding Location..." : "Update Location on Map"}
                 </Button>
-                <span className="text-sm text-muted-foreground min-w-[3rem] text-right">
-                  {formData.range[0]}km
-                </span>
+
+                {userLocation && (
+                  <div className="text-xs text-muted-foreground">
+                    Current location: {userLocation.lat.toFixed(4)}, {userLocation.lng.toFixed(4)}
+                  </div>
+                )}
               </div>
+
+              {showLocationSelector && userLocation && (
+                <div className="border rounded-lg overflow-hidden" style={{ height: '350px' }}>
+                  <MapContainer
+                    center={[userLocation.lat, userLocation.lng]}
+                    zoom={13}
+                    style={{ height: '300px', width: '100%' }}
+                    key={`${userLocation.lat}-${userLocation.lng}`}
+                  >
+                    <TileLayer
+                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    />
+                    <LocationSelector onLocationChange={handleLocationChange} />
+                    <Marker position={[userLocation.lat, userLocation.lng]} />
+                  </MapContainer>
+                  <div className="p-2 bg-muted text-xs flex justify-between items-center">
+                    <span>Click anywhere on the map to set your item's location</span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={confirmLocation}
+                      className="ml-2"
+                    >
+                      Confirm Location
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -366,28 +571,19 @@ const PostItem = () => {
         </Card>
       </div>
 
-      <BottomNav />
-
       <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Promote Your Item</DialogTitle>
+            <DialogTitle>Payment Required</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Boost your item's visibility by promoting it to the top of search results.
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              <Button onClick={() => handlePayment('PayPal')}>
-                Pay with PayPal
-              </Button>
-              <Button onClick={() => handlePayment('Card')}>
-                Pay with Card
-              </Button>
-            </div>
+          <p>This item requires payment to be promoted. Please complete the payment process.</p>
+          <div className="flex justify-end mt-4">
+            <Button onClick={() => handlePayment('Credit Card')}>Pay with Credit Card</Button>
           </div>
         </DialogContent>
       </Dialog>
+
+      <BottomNav />
     </div>
   );
 };

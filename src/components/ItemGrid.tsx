@@ -15,6 +15,7 @@ interface Item {
   price: number;
   images?: string[];
   seller_id: string;
+  listing_type?: string;
 }
 
 interface ItemGridProps {
@@ -116,46 +117,13 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
 
             return filteredData;
           } else {
-            // Fallback to original filtering when location is not available
-            const baseQuery = {
-              from: 'items',
-              select: '*',
-              lte: ['location_range', locationRange],
-              order: ['created_at', { ascending: false }]
-            };
+            // Fallback when no location is available - show all items
+            console.log('📍 No location available, showing all items without range filtering');
 
-            // Build query parameters
-            const filters: Record<string, string> = {};
-
-            // Filter by category if not 'all' - for now use the old field name
-            if (selectedCategory && selectedCategory !== 'all') {
-              filters.category = selectedCategory;
-            }
-
-            // Add search filter if search query exists
-            let searchFilter = '';
-            if (searchQuery.trim()) {
-              searchFilter = `title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`;
-            }
-
-            // Execute query
-            let query = supabase
+            const { data, error } = await supabase
               .from('items')
               .select('*')
-              .lte('location_range', locationRange)
               .order('created_at', { ascending: false });
-
-            // Apply category filter
-            if (filters.category) {
-              query = query.eq('category', filters.category);
-            }
-
-            // Apply search filter
-            if (searchFilter) {
-              query = query.or(searchFilter);
-            }
-
-            const { data, error } = await query;
 
             if (error) {
               console.error('Error fetching items:', error);
@@ -448,7 +416,7 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
         {[1, 2, 3, 4].map((i) => (
           <Card key={i} className="overflow-hidden relative group animate-pulse h-64">
-            <div className="h-full bg-gray-200"></div>
+            <div className="h-full bg-muted"></div>
           </Card>
         ))}
       </div>

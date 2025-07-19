@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Lock, Globe, MapPin, ExternalLink, Users, Send, Smile, Search, Paperclip, X, Plus, Settings, Info, Edit3, Trash2, MoreVertical } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { Slider } from "@/components/ui/slider";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface MessageAttachment {
   type: "image" | "video" | "file";
@@ -56,22 +57,51 @@ interface Channel {
 const Channels = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [discoverSearchQuery, setDiscoverSearchQuery] = useState("");
   const [joinedSearchQuery, setJoinedSearchQuery] = useState("");
-  const [range, setRange] = useState([10]); // Default 10km radius
-  const [debouncedRange, setDebouncedRange] = useState([10]); // Debounced version for API calls
+  const [range, setRange] = useState([5]); // Default 5km radius
+  const [debouncedRange, setDebouncedRange] = useState([5]); // Debounced version for API calls
   const [activeChannel, setActiveChannel] = useState<Channel | null>(null);
   const [newMessage, setNewMessage] = useState("");
-  const [channels, setChannels] = useState<Channel[]>([]);
   const [attachment, setAttachment] = useState<File | null>(null);
-  const [loading, setLoading] = useState(true);
   const [showChannelInfo, setShowChannelInfo] = useState(false);
   const [editingChannel, setEditingChannel] = useState<Channel | null>(null);
   const [editForm, setEditForm] = useState({ name: "", description: "", isPrivate: false });
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Get user's location on component mount
+  // Fetch user's saved location from profile if authenticated (same as ItemGrid)
+  const { data: userProfile } = useQuery({
+    queryKey: ['userProfile', user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('latitude, longitude')
+        .eq('user_id', user.id)
+        .single();
+
+      if (error) {
+        console.log('No saved location found in profile');
+        return null;
+      }
+
+      return data;
+    },
+    enabled: !!user,
+  });
+
+  // Stabilize effectiveUserLocation using useMemo to prevent re-render loops
+  const effectiveUserLocation = useMemo(() => {
+    if (userProfile?.latitude && userProfile?.longitude) {
+      return { lat: userProfile.latitude, lng: userProfile.longitude };
+    }
+    return userLocation;
+  }, [userProfile?.latitude, userProfile?.longitude, userLocation]);
+
+  // Get user's location on component mount (same as Home.tsx - run once)
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -86,7 +116,7 @@ const Channels = () => {
         }
       );
     }
-  }, []);
+  }, []); // Empty dependency array - run only once on mount
 
   // Debounce the range value to prevent excessive API calls
   useEffect(() => {
@@ -97,21 +127,22 @@ const Channels = () => {
     return () => clearTimeout(timer);
   }, [range]);
 
-  // Fetch channels from database
-  useEffect(() => {
-    const fetchChannels = async () => {
-      if (!user) return;
+  // Fetch channels using useQuery instead of useEffect to prevent loops
+  const { data: channels = [], isLoading: loading, error: channelsError } = useQuery({
+    queryKey: ['channels', user?.id, effectiveUserLocation?.lat, effectiveUserLocation?.lng, debouncedRange[0]],
+    queryFn: async () => {
+      if (!user) return [];
 
-      setLoading(true);
       try {
-        // If user location is available, try location-based filtering
-        if (userLocation) {
+        // Use location-based filtering if user location is available (same pattern as ItemGrid)
+        if (effectiveUserLocation) {
+          console.log('🌍 Using location-based filtering for channels:', effectiveUserLocation);
+
           try {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const { data: locationChannels, error: locationError } = await (supabase as any)
+            const { data: locationChannels, error: locationError } = await supabase
               .rpc('get_channels_within_range', {
-                user_lat: userLocation.lat,
-                user_lon: userLocation.lng,
+                user_lat: effectiveUserLocation.lat,
+                user_lon: effectiveUserLocation.lng,
                 max_distance: debouncedRange[0]
               });
 
@@ -126,8 +157,16 @@ const Channels = () => {
 
               const userChannelIds = new Set(membershipsData.map(m => m.channel_id));
 
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const channelsWithMembers = (locationChannels || []).map((channel: any) => ({
+              const channelsWithMembers = (locationChannels || []).map((channel: {
+                id: string;
+                name: string;
+                description: string | null;
+                creator_id: string;
+                is_private: boolean;
+                created_at: string;
+                updated_at: string;
+                member_count: number;
+              }) => ({
                 id: channel.id,
                 name: channel.name,
                 description: channel.description || '',
@@ -140,18 +179,21 @@ const Channels = () => {
                 messages: []
               }));
 
-              setChannels(channelsWithMembers);
-              return;
+              return channelsWithMembers;
             }
           } catch (error) {
             console.error('Location-based fetch failed, falling back to all channels:', error);
           }
+        } else {
+          // Fallback when no location is available - show all channels (same pattern as ItemGrid)
+          console.log('📍 No location available, showing all channels without range filtering');
         }
 
         // Fallback to original method
         const { data: channelsData, error: channelsError } = await supabase
           .from('channels')
-          .select('*');
+          .select('*')
+          .order('created_at', { ascending: false });
 
         if (channelsError) throw channelsError;
 
@@ -188,17 +230,22 @@ const Channels = () => {
           })
         );
 
-        setChannels(channelsWithMembers);
+        return channelsWithMembers;
       } catch (error) {
         console.error('Error fetching channels:', error);
-        toast.error("Failed to load channels");
-      } finally {
-        setLoading(false);
+        throw error;
       }
-    };
+    },
+    enabled: !!user,
+    staleTime: 30000, // Cache for 30 seconds to prevent excessive refetching
+  });
 
-    fetchChannels();
-  }, [user, userLocation, debouncedRange]);
+  // Show error toast if channels failed to load
+  useEffect(() => {
+    if (channelsError) {
+      toast.error("Failed to load channels");
+    }
+  }, [channelsError]);
 
   // Fetch messages for active channel
   useEffect(() => {
@@ -256,12 +303,6 @@ const Channels = () => {
           };
         });
 
-        setChannels(prev => prev.map(c =>
-          c.id === activeChannel.id
-            ? { ...c, messages: formattedMessages }
-            : c
-        ));
-
         // Update activeChannel to trigger re-render
         setActiveChannel(prev => prev ? { ...prev, messages: formattedMessages } : null);
       } catch (error) {
@@ -304,11 +345,8 @@ const Channels = () => {
 
       if (error) throw error;
 
-      setChannels(prev => prev.map(c =>
-        c.id === channel.id
-          ? { ...c, isJoined: true, members: c.members + 1 }
-          : c
-      ));
+      // Invalidate channels query to refresh data
+      queryClient.invalidateQueries({ queryKey: ['channels'] });
 
       setActiveChannel({ ...channel, isJoined: true });
       toast.success(`Joined ${channel.name}!`);
@@ -330,11 +368,8 @@ const Channels = () => {
 
       if (error) throw error;
 
-      setChannels(prev => prev.map(c =>
-        c.id === channel.id
-          ? { ...c, isJoined: false, members: Math.max(c.members - 1, 0) }
-          : c
-      ));
+      // Invalidate channels query to refresh data
+      queryClient.invalidateQueries({ queryKey: ['channels'] });
 
       if (activeChannel?.id === channel.id) {
         setActiveChannel(null);
@@ -402,16 +437,6 @@ const Channels = () => {
       };
 
       // Update local state immediately for better UX
-      setChannels(prev => prev.map(channel => {
-        if (channel.id === activeChannel.id) {
-          return {
-            ...channel,
-            messages: [...(channel.messages || []), newMsg]
-          };
-        }
-        return channel;
-      }));
-
       // Update active channel
       setActiveChannel(prev => prev ? {
         ...prev,
@@ -479,12 +504,8 @@ const Channels = () => {
 
       if (error) throw error;
 
-      // Update local state
-      setChannels(prev => prev.map(c =>
-        c.id === editingChannel.id
-          ? { ...c, name: editForm.name, description: editForm.description, isPrivate: editForm.isPrivate }
-          : c
-      ));
+      // Invalidate channels query to refresh data
+      queryClient.invalidateQueries({ queryKey: ['channels'] });
 
       if (activeChannel?.id === editingChannel.id) {
         setActiveChannel(prev => prev ? {
@@ -514,8 +535,8 @@ const Channels = () => {
 
       if (error) throw error;
 
-      // Update local state
-      setChannels(prev => prev.filter(c => c.id !== channel.id));
+      // Invalidate channels query to refresh data
+      queryClient.invalidateQueries({ queryKey: ['channels'] });
 
       if (activeChannel?.id === channel.id) {
         setActiveChannel(null);
@@ -534,10 +555,10 @@ const Channels = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 pb-16">
-        <TopBar title="Channels" />
-        <div className="flex items-center justify-center py-12">
-          <p className="text-muted-foreground">Loading channels...</p>
+      <div className="min-h-screen bg-background pb-16">
+        <TopBar title="Channels" showBackButton={false} />
+        <div className="flex justify-center items-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
         <BottomNav />
       </div>
@@ -545,7 +566,7 @@ const Channels = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-16">
+    <div className="min-h-screen bg-background pb-16">
       <TopBar
         title={activeChannel ? activeChannel.name : "Channels"}
         showBackButton={!!activeChannel}
@@ -638,14 +659,14 @@ const Channels = () => {
                   </div>
                 </ScrollArea>
 
-                <div className="fixed bottom-16 left-0 right-0 bg-white shadow-lg border-t p-2">
+                <div className="fixed bottom-16 left-0 right-0 bg-background shadow-lg border-t p-2">
                   <div className="container mx-auto">
                     <div className="flex items-center gap-2">
                       <MapPin className="h-4 w-4 text-primary" />
                       <Slider
                         value={range}
                         onValueChange={setRange}
-                        max={50}
+                        max={30}
                         min={1}
                         step={1}
                         className="w-full"
@@ -753,7 +774,7 @@ const Channels = () => {
         </main>
       ) : (
         <main className="flex-1 container mx-auto px-4 py-6 overflow-hidden flex flex-col h-[calc(100vh-160px)]">
-          <div className="mb-4 p-4 border-b bg-white rounded-lg">
+          <div className="mb-4 p-4 border-b bg-card rounded-lg">
             <div className="flex items-center justify-between">
               <div className="flex-1">
                 <div className="flex items-center gap-2">
@@ -944,10 +965,10 @@ const Channels = () => {
             </div>
           </ScrollArea>
 
-          <div className="fixed bottom-16 left-0 right-0 bg-white shadow-lg border-t">
+          <div className="fixed bottom-16 left-0 right-0 bg-background shadow-lg border-t">
             <div className="container mx-auto p-3">
               {attachment && (
-                <div className="flex items-center gap-2 bg-gray-100 p-2 rounded-lg mb-2">
+                <div className="flex items-center gap-2 bg-muted p-2 rounded-lg mb-2">
                   <div className="flex-1 truncate text-sm">
                     <Paperclip className="h-4 w-4 text-gray-600 inline mr-1" />
                     {attachment.name}

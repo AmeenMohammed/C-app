@@ -15,7 +15,7 @@ import { LoadingScreen } from "@/components/LoadingScreen";
 
 const Home = () => {
   const navigate = useNavigate();
-  const { t } = useLanguage();
+  const { t, isRTL } = useLanguage();
   const [searchParams] = useSearchParams();
   const [range, setRange] = useState([parseInt(searchParams.get('range') || '5')]); // Get range from URL or default to 10km
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -105,12 +105,12 @@ const Home = () => {
           {/* Search Bar */}
           <div className="flex items-center gap-2 py-2 border-b">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Search className={`absolute ${isRTL ? 'right-3' : 'left-3'} ${isRTL ? 'top-2' : 'top-1/2'} top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground`} />
               <Input
                 placeholder={t('searchItems')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 h-8"
+                className={`${isRTL ? 'pr-10' : 'pl-10'} h-8`}
               />
             </div>
           </div>

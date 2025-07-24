@@ -75,7 +75,7 @@ interface Channel {
 
 const Channels = () => {
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, isRTL } = useLanguage();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [discoverSearchQuery, setDiscoverSearchQuery] = useState("");
@@ -928,7 +928,7 @@ const Channels = () => {
               <TabsTrigger value="joined" className="flex-1">
                 {t('joined')} ({filteredJoinedChannels.length})
                 {filteredJoinedChannels.some(c => c.unreadCount) && (
-                  <span className="ml-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+                  <span className={`${isRTL ? 'mr-2' : 'ml-2'} bg-red-500 text-white text-xs px-2 py-0.5 rounded-full`}>
                     {filteredJoinedChannels.filter(c => c.unreadCount).length}
                   </span>
                 )}

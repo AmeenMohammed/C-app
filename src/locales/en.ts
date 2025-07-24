@@ -375,6 +375,9 @@ export const en = {
 
 
   // Channel Form
+  channelName: "Channel Name",
+  enterChannelName: "Enter channel name",
+  enterChannelDescription: "Enter channel description (optional)",
   privateChannelOption: "Private Channel",
 
   // Common

@@ -1287,7 +1287,7 @@ const Channels = () => {
                         <div
                           className={`rounded-lg px-4 py-2 max-w-[80vw] ${
                             message.isMine
-                              ? 'bg-blue-500 text-white'
+                              ? 'bg-red-500 text-white'
                               : 'bg-gray-100 text-black'
                           }`}
                         >

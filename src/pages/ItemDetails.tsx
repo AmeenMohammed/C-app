@@ -34,12 +34,18 @@ interface Seller {
   location: string;
 }
 
+interface SellerRatings {
+  average_rating: number;
+  total_ratings: number;
+}
+
 const ItemDetails = () => {
   const { id: itemId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
   const [item, setItem] = useState<Item | null>(null);
   const [seller, setSeller] = useState<Seller | null>(null);
+  const [sellerRatings, setSellerRatings] = useState<SellerRatings | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewCount, setViewCount] = useState(0);
@@ -156,6 +162,19 @@ const ItemDetails = () => {
             });
           } else {
             setSeller(sellerData as Seller);
+          }
+
+          // Fetch seller ratings
+          try {
+            const { data: ratingsData } = await supabase.rpc('get_seller_ratings', {
+              seller_uuid: data.seller_id
+            });
+
+            if (ratingsData && ratingsData.length > 0) {
+              setSellerRatings(ratingsData[0]);
+            }
+          } catch (ratingsError) {
+            console.warn('Failed to fetch seller ratings:', ratingsError);
           }
 
           // Fetch view count
@@ -592,10 +611,17 @@ const ItemDetails = () => {
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
                     <p className="font-medium">{seller?.full_name || "User"}</p>
-                    <div className="flex items-center text-sm text-muted-foreground">
-                      <Star className="h-4 w-4 fill-primary text-primary mr-1" />
-                      4.5
-                    </div>
+                    {sellerRatings && sellerRatings.total_ratings > 0 ? (
+                      <div className="flex items-center text-sm text-muted-foreground">
+                        <Star className="h-4 w-4 fill-primary text-primary mr-1" />
+                        {sellerRatings.average_rating.toFixed(1)} ({sellerRatings.total_ratings})
+                      </div>
+                    ) : (
+                      <div className="flex items-center text-sm text-muted-foreground">
+                        <Star className="h-4 w-4 text-gray-300 mr-1" />
+                        No ratings yet
+                      </div>
+                    )}
                   </div>
                   <p className="text-sm text-muted-foreground">
                     {seller?.location || "Location not set"}

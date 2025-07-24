@@ -24,23 +24,28 @@ interface SellerActionsProps {
   setIsBlocked: (blocked: boolean) => void;
 }
 
-export const SellerActions = ({ 
-  sellerId, 
-  sellerName, 
-  sellerAvatar, 
-  isBlocked, 
-  setIsBlocked 
+export const SellerActions = ({
+  sellerId,
+  sellerName,
+  sellerAvatar,
+  isBlocked,
+  setIsBlocked
 }: SellerActionsProps) => {
   const navigate = useNavigate();
   const [isBlockDialogOpen, setIsBlockDialogOpen] = useState(false);
 
   const handleContactSeller = () => {
-    navigate(`/messages?userId=${sellerId}`, { 
-      state: { 
+    if (isBlocked) {
+      toast.error("Cannot contact blocked user");
+      return;
+    }
+
+    navigate(`/messages?userId=${sellerId}`, {
+      state: {
         sellerId: sellerId,
         sellerName: sellerName,
-        sellerAvatar: sellerAvatar 
-      } 
+        sellerAvatar: sellerAvatar
+      }
     });
   };
 
@@ -87,22 +92,24 @@ export const SellerActions = ({
       console.error('Error managing block status:', error);
       toast.error("An error occurred");
     }
-    
+
     setIsBlockDialogOpen(false);
   };
 
   return (
     <div className="space-y-2">
-      <Button 
+      <Button
         className="w-full"
         onClick={handleContactSeller}
+        disabled={isBlocked}
+        variant={isBlocked ? "secondary" : "default"}
       >
-        Contact Seller
+        {isBlocked ? "Cannot Contact (Blocked)" : "Contact Seller"}
       </Button>
-      
+
       <AlertDialog open={isBlockDialogOpen} onOpenChange={setIsBlockDialogOpen}>
         <AlertDialogTrigger asChild>
-          <Button 
+          <Button
             variant={isBlocked ? "destructive" : "outline"}
             className="w-full"
           >
@@ -115,7 +122,7 @@ export const SellerActions = ({
               {isBlocked ? "Unblock this user?" : "Block this user?"}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {isBlocked 
+              {isBlocked
                 ? `You will start seeing ${sellerName}'s content again.`
                 : `You won't see ${sellerName}'s content anymore. They won't be notified that you've blocked them.`}
             </AlertDialogDescription>

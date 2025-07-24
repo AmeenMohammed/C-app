@@ -72,6 +72,29 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
         if (isProfile && userId) {
           console.log('🔍 Fetching items for user profile:', userId);
 
+          // Check if viewing another user's profile and if they are blocked
+          if (user && userId !== user.id) {
+            try {
+              const { data: isBlocked } = await supabase.rpc('check_if_user_is_blocked', {
+                blocker_uuid: user.id,
+                blocked_uuid: userId
+              });
+
+              const { data: hasBlockedMe } = await supabase.rpc('check_if_user_is_blocked', {
+                blocker_uuid: userId,
+                blocked_uuid: user.id
+              });
+
+              if (isBlocked || hasBlockedMe) {
+                console.log('🚫 Cannot view items from blocked user');
+                return [];
+              }
+            } catch (blockingError) {
+              console.warn('Blocking check failed for profile, continuing without blocking:', blockingError);
+              // Continue without blocking if the function doesn't exist yet
+            }
+          }
+
           let query = supabase
             .from('items')
             .select('*')
@@ -97,6 +120,38 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
           if (effectiveUserLocation) {
             console.log('🌍 Using location-based filtering:', effectiveUserLocation);
 
+            // Try to use blocking-aware function if user is authenticated, fallback to regular function
+            if (user) {
+              try {
+                const { data, error } = await supabase.rpc('get_items_within_range_with_blocking', {
+                  user_lat: effectiveUserLocation.lat,
+                  user_lon: effectiveUserLocation.lng,
+                  max_distance: locationRange,
+                  user_uuid: user.id,
+                  category_filter: selectedCategory === 'all' ? null : selectedCategory
+                });
+
+                if (error) {
+                  console.warn('Blocking function not available, falling back to regular function:', error.message);
+                  throw error; // This will trigger the fallback
+                }
+
+                // Filter by search query if provided
+                let filteredData = data || [];
+                if (searchQuery.trim()) {
+                  filteredData = filteredData.filter(item =>
+                    item.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    item.description?.toLowerCase().includes(searchQuery.toLowerCase())
+                  );
+                }
+
+                return filteredData;
+              } catch (blockingError) {
+                console.log('Using fallback regular function due to:', blockingError.message);
+              }
+            }
+
+            // Fallback: Use regular function and manually filter blocked users
             const { data, error } = await supabase.rpc('get_items_within_range', {
               user_lat: effectiveUserLocation.lat,
               user_lon: effectiveUserLocation.lng,
@@ -118,19 +173,92 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
               );
             }
 
+            // If user is authenticated, manually filter blocked users
+            if (user && filteredData.length > 0) {
+              try {
+                const manuallyFilteredData = await Promise.all(
+                  filteredData.map(async (item) => {
+                    try {
+                      // Check if user is blocked or has blocked the seller
+                      const { data: isBlocked } = await supabase.rpc('check_if_user_is_blocked', {
+                        blocker_uuid: user.id,
+                        blocked_uuid: item.seller_id
+                      });
+
+                      const { data: hasBlockedMe } = await supabase.rpc('check_if_user_is_blocked', {
+                        blocker_uuid: item.seller_id,
+                        blocked_uuid: user.id
+                      });
+
+                      return (isBlocked || hasBlockedMe) ? null : item;
+                    } catch (blockCheckError) {
+                      // If blocking check fails, include the item (graceful fallback)
+                      console.warn('Block check failed for item:', item.id, blockCheckError.message);
+                      return item;
+                    }
+                  })
+                );
+
+                return manuallyFilteredData.filter(item => item !== null);
+              } catch (manualFilterError) {
+                console.warn('Manual blocking filter failed, returning all items:', manualFilterError.message);
+                return filteredData;
+              }
+            }
+
             return filteredData;
           } else {
             // Fallback when no location is available - show all items
             console.log('📍 No location available, showing all items without range filtering');
 
-            const { data, error } = await supabase
+            let query = supabase
               .from('items')
               .select('*')
               .order('created_at', { ascending: false });
 
+            // Apply search filter if search query exists
+            if (searchQuery.trim()) {
+              query = query.or(`title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`);
+            }
+
+            const { data, error } = await query;
+
             if (error) {
               console.error('Error fetching items:', error);
               return [];
+            }
+
+            // Filter out items from blocked users if user is authenticated
+            if (user && data) {
+              try {
+                const filteredData = await Promise.all(
+                  data.map(async (item) => {
+                    try {
+                      // Check if user is blocked or has blocked the seller
+                      const { data: isBlocked } = await supabase.rpc('check_if_user_is_blocked', {
+                        blocker_uuid: user.id,
+                        blocked_uuid: item.seller_id
+                      });
+
+                      const { data: hasBlockedMe } = await supabase.rpc('check_if_user_is_blocked', {
+                        blocker_uuid: item.seller_id,
+                        blocked_uuid: user.id
+                      });
+
+                      return (isBlocked || hasBlockedMe) ? null : item;
+                    } catch (blockCheckError) {
+                      // If blocking check fails, include the item (graceful fallback)
+                      console.warn('Block check failed for item:', item.id, blockCheckError.message);
+                      return item;
+                    }
+                  })
+                );
+
+                return filteredData.filter(item => item !== null);
+              } catch (filterError) {
+                console.warn('Blocking filter failed, returning all items:', filterError.message);
+                return data;
+              }
             }
 
             return data || [];

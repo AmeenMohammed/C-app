@@ -48,6 +48,30 @@ interface Conversation {
   unreadCount?: number;
 }
 
+// Custom hook for window size
+const useWindowSize = () => {
+  const [windowSize, setWindowSize] = useState({
+    width: typeof window !== 'undefined' ? window.innerWidth : 350,
+    height: typeof window !== 'undefined' ? window.innerHeight : 600,
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleResize = () => {
+      setWindowSize({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  return windowSize;
+};
+
 const Messages = () => {
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -61,6 +85,7 @@ const Messages = () => {
   const [loading, setLoading] = useState(true);
   const [showMobileChat, setShowMobileChat] = useState(false);
   const [locationStateProcessed, setLocationStateProcessed] = useState(false);
+  const { width: windowWidth, height: windowHeight } = useWindowSize();
 
   // Fetch user's conversations from database
   useEffect(() => {
@@ -88,6 +113,27 @@ const Messages = () => {
         const conversationsWithUsers = await Promise.all(
           (conversationsData || []).map(async (conv) => {
             const otherUserId = conv.participant1_id === user.id ? conv.participant2_id : conv.participant1_id;
+
+            // Check if user is blocked or has blocked the other user
+            try {
+              const { data: isBlocked } = await supabase.rpc('check_if_user_is_blocked', {
+                blocker_uuid: user.id,
+                blocked_uuid: otherUserId
+              });
+
+              const { data: hasBlockedMe } = await supabase.rpc('check_if_user_is_blocked', {
+                blocker_uuid: otherUserId,
+                blocked_uuid: user.id
+              });
+
+              // Skip blocked users
+              if (isBlocked || hasBlockedMe) {
+                return null;
+              }
+            } catch (blockingError) {
+              console.warn('Blocking check failed for conversation, continuing:', blockingError.message);
+              // Continue without blocking if functions don't exist
+            }
 
             // Get user profile for the other participant
             const { data: profile, error: profileError } = await supabase
@@ -121,7 +167,10 @@ const Messages = () => {
           })
         );
 
-        setConversations(conversationsWithUsers);
+        // Filter out null values (blocked users)
+        const filteredConversations = conversationsWithUsers.filter(conv => conv !== null);
+
+        setConversations(filteredConversations);
 
         // Handle new conversation from location state (only once)
         if (!locationStateProcessed) {
@@ -141,7 +190,29 @@ const Messages = () => {
           if (sellerInfo?.sellerId && sellerInfo?.sellerName) {
             console.log('👤 Seller info received:', sellerInfo);
 
-            const existingConv = conversationsWithUsers.find(c => c.id === sellerInfo.sellerId);
+            // Check if seller is blocked or has blocked the current user before creating conversation
+            try {
+              const { data: isBlocked } = await supabase.rpc('check_if_user_is_blocked', {
+                blocker_uuid: user.id,
+                blocked_uuid: sellerInfo.sellerId
+              });
+
+              const { data: hasBlockedMe } = await supabase.rpc('check_if_user_is_blocked', {
+                blocker_uuid: sellerInfo.sellerId,
+                blocked_uuid: user.id
+              });
+
+              if (isBlocked || hasBlockedMe) {
+                console.log('❌ Cannot create conversation with blocked user');
+                toast.error("Cannot message this user");
+                return;
+              }
+            } catch (blockingError) {
+              console.warn('Blocking check failed for new conversation, continuing:', blockingError.message);
+              // Continue without blocking if functions don't exist
+            }
+
+            const existingConv = filteredConversations.find(c => c && c.id === sellerInfo.sellerId);
             if (!existingConv) {
               console.log('🆕 Creating new conversation UI entry');
               const newConversation: Conversation = {
@@ -260,6 +331,28 @@ const Messages = () => {
 
     console.log('🚀 Sending default item message:', { sellerId, itemDetails });
 
+    // Check if user is blocked or has blocked the seller before sending message
+    try {
+      const { data: isBlocked } = await supabase.rpc('check_if_user_is_blocked', {
+        blocker_uuid: user.id,
+        blocked_uuid: sellerId
+      });
+
+      const { data: hasBlockedMe } = await supabase.rpc('check_if_user_is_blocked', {
+        blocker_uuid: sellerId,
+        blocked_uuid: user.id
+      });
+
+      if (isBlocked || hasBlockedMe) {
+        console.log('❌ Cannot send message to blocked user');
+        toast.error("Cannot message this seller");
+        return;
+      }
+    } catch (blockingError) {
+      console.warn('Blocking check failed for default message, continuing:', blockingError.message);
+      // Continue without blocking if functions don't exist
+    }
+
     try {
       // Create default message with item details
       const defaultMessage = `Hi! I'm interested in this item:\n\n📦 ${itemDetails.title}\n💰 $${itemDetails.price}\n🔗 ${itemDetails.link}`;
@@ -365,6 +458,27 @@ const Messages = () => {
 
   const handleSendMessage = async () => {
     if ((!newMessage.trim() && !attachment) || !selectedUserId || !user) return;
+
+    // Check if user is blocked or has blocked the recipient before sending message
+    try {
+      const { data: isBlocked } = await supabase.rpc('check_if_user_is_blocked', {
+        blocker_uuid: user.id,
+        blocked_uuid: selectedUserId
+      });
+
+      const { data: hasBlockedMe } = await supabase.rpc('check_if_user_is_blocked', {
+        blocker_uuid: selectedUserId,
+        blocked_uuid: user.id
+      });
+
+      if (isBlocked || hasBlockedMe) {
+        toast.error("Cannot send message to this user");
+        return;
+      }
+    } catch (blockingError) {
+      console.warn('Blocking check failed for send message, continuing:', blockingError.message);
+      // Continue without blocking if functions don't exist
+    }
 
     let messageContent = newMessage.trim();
 
@@ -678,7 +792,7 @@ const Messages = () => {
                           <div
                             className={`px-3 py-2 rounded-lg ${
                               message.isMine
-                                ? 'bg-blue-500 text-white'
+                                ? 'bg-red-500 text-white'
                                 : 'bg-muted text-muted-foreground'
                             }`}
                           >
@@ -767,12 +881,46 @@ const Messages = () => {
                     ref={fileInputRef}
                     onChange={handleFileChange}
                     className="hidden"
-                    accept="image/*,video/*,.pdf,.doc,.docx"
+                    accept="image/*,video/*,application/*,text/*"
                   />
 
-                  <Button type="button" variant="ghost" size="icon" onClick={handleAttachmentClick}>
-                    <Paperclip className="h-4 w-4" />
-                  </Button>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button type="button" variant="ghost" size="icon" onClick={handleAttachmentClick}>
+                        <Paperclip className="h-4 w-4" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      side="top"
+                      align="start"
+                      className="w-[280px] mb-2 text-sm"
+                    >
+                      <div className="space-y-2">
+                        <h4 className="font-semibold">File Upload Limits</h4>
+                        <div className="space-y-1 text-xs">
+                          <div className="flex justify-between">
+                            <span>📷 Images (JPEG, PNG, GIF, WebP):</span>
+                            <span className="font-medium">5MB</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>🎥 Videos (MP4, MOV, WMV):</span>
+                            <span className="font-medium">5MB</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>📄 Documents (PDF, DOC, TXT):</span>
+                            <span className="font-medium">10MB</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>📁 Other files:</span>
+                            <span className="font-medium">5MB</span>
+                          </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground border-t pt-2">
+                          Click the attachment button to select a file
+                        </p>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
 
                   <Popover>
                     <PopoverTrigger asChild>
@@ -780,8 +928,27 @@ const Messages = () => {
                         <Smile className="h-4 w-4" />
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="p-0">
-                      <EmojiPicker onEmojiClick={onEmojiClick} />
+                    <PopoverContent
+                      className="p-0 w-auto max-w-[95vw] max-h-[80vh] border-0 shadow-lg"
+                      align="end"
+                      side="top"
+                      sideOffset={8}
+                    >
+                      <div className="overflow-hidden rounded-lg bg-background">
+                        <EmojiPicker
+                          onEmojiClick={onEmojiClick}
+                          width={windowWidth < 640 ? windowWidth - 40 : Math.min(350, windowWidth - 40)}
+                          height={windowWidth < 640 ? Math.min(300, windowHeight * 0.5) : Math.min(400, windowHeight * 0.6)}
+                          searchDisabled={windowWidth < 400}
+                          skinTonesDisabled={windowWidth < 400}
+                          previewConfig={windowWidth < 400 ? {
+                            showPreview: false
+                          } : {
+                            defaultEmoji: "1f60a",
+                            defaultCaption: "What's your mood?"
+                          }}
+                        />
+                      </div>
                     </PopoverContent>
                   </Popover>
 

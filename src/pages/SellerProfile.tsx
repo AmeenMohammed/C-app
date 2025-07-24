@@ -74,6 +74,7 @@ const SellerProfile = () => {
             created_at: new Date().toISOString()
           });
         } else {
+          console.log('✅ Seller profile found:', profileData);
           setSeller(profileData);
         }
 
@@ -136,7 +137,7 @@ const SellerProfile = () => {
 
   const sellerData = {
     name: seller.full_name || 'Unknown User',
-    photoUrl: seller.avatar_url || '/placeholder.svg',
+    photoUrl: seller.avatar_url || 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7',
     location: seller.location || 'Location not set',
     joinDate: new Date(seller.created_at).toLocaleDateString('en-US', {
       year: 'numeric',

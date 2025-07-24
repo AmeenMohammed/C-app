@@ -8,7 +8,8 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-
+import avatar from "../assets/avatar.jpg";
+import defaultImage from "../assets/default_item_image.png";
 interface Item {
   id: string;
   title: string;
@@ -21,6 +22,8 @@ interface Item {
   latitude?: number;
   longitude?: number;
   listing_type?: string;
+  status?: string[];
+  created_at?: string;
 }
 
 interface Seller {
@@ -324,13 +327,13 @@ const ItemDetails = () => {
         state: {
           sellerId: sellerId,
           sellerName: seller.full_name || "User",
-          sellerAvatar: seller.avatar_url || "https://images.unsplash.com/photo-1649972904349-6e44c42644a7",
+          sellerAvatar: seller.avatar_url || avatar,
           conversationId,
           itemId: item.id,
           itemDetails: {
             title: item.title,
             price: item.price,
-            image: item.images?.[0] || "https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d",
+            image: item.images?.[0] || defaultImage,
             link: `${window.location.origin}/items/${item.id}`
           }
         }
@@ -463,7 +466,7 @@ const ItemDetails = () => {
     );
   }
 
-  const images = item.images || ["https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d"];
+  const images = item.images || [defaultImage];
 
   return (
     <div className="min-h-screen bg-background">
@@ -478,6 +481,19 @@ const ItemDetails = () => {
               className="w-full aspect-video object-cover cursor-pointer hover:opacity-90 transition-opacity"
               onClick={() => openGallery(0)}
             />
+            {/* Tags displayed on image */}
+            {item.status && item.status.length > 0 && (
+              <div className="absolute top-4 left-4 flex flex-wrap gap-2 max-w-[calc(100%-8rem)]">
+                {item.status.map((tag, index) => (
+                  <div
+                    key={index}
+                    className="bg-black/70 text-white px-3 py-1 rounded-full text-sm font-medium shadow-lg"
+                  >
+                    {tag}
+                  </div>
+                ))}
+              </div>
+            )}
             {images.length > 1 && (
               <div className="absolute bottom-4 right-4 bg-black/70 text-white px-2 py-1 rounded text-sm">
                 1 of {images.length}
@@ -514,6 +530,15 @@ const ItemDetails = () => {
                     <span>{viewCount} views</span>
                   </div>
                 </div>
+                {item.created_at && (
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Posted on {new Date(item.created_at).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })}
+                  </p>
+                )}
               </div>
               {/* Only show save button if it's not the user's own item */}
               {!isOwner && (
@@ -544,15 +569,25 @@ const ItemDetails = () => {
               </div>
             )}
             <div>
-              <h2 className="font-semibold mb-2">Seller</h2>
+              <h2 className="font-semibold mb-2">
+                {item.listing_type === "request"
+                  ? "Requester"
+                  : item.listing_type === "rent"
+                  ? "Landlord"
+                  : "Seller"}
+              </h2>
               <Link
                 to={item?.seller_id ? `/seller/${item.seller_id}` : '/home'}
                 className="flex items-center space-x-3 p-2 rounded-lg border border-transparent transition-all duration-200 hover:border-primary/50"
               >
                 <img
-                  src={seller?.avatar_url || "https://images.unsplash.com/photo-1649972904349-6e44c42644a7"}
+                  src={seller?.avatar_url || avatar}
                   alt="Seller"
                   className="w-12 h-12 rounded-full object-cover"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.src = avatar;
+                  }}
                 />
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
@@ -576,7 +611,11 @@ const ItemDetails = () => {
               </Button>
             ) : (
               <Button size="sm" onClick={handleContactSeller} className="w-full">
-                Contact Seller
+                {item.listing_type === "request"
+                  ? "Contact Requester"
+                  : item.listing_type === "rent"
+                  ? "Contact Landlord"
+                  : "Contact Seller"}
               </Button>
             )}
           </div>

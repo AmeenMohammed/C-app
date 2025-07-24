@@ -3,7 +3,7 @@ import { BottomNav } from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
 import { Send, Smile, Paperclip, X, ArrowLeft, Plus, MessageCircle, User, Phone, Video, MoreVertical, Image, Mic } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
-import { useSearchParams, useLocation } from "react-router-dom";
+import { useSearchParams, useLocation, Link } from "react-router-dom";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import EmojiPicker from "emoji-picker-react";
@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { moderateText, validateAndModerateFile } from "@/utils/contentModeration";
 
 interface Message {
   text: string;
@@ -365,8 +366,35 @@ const Messages = () => {
   const handleSendMessage = async () => {
     if ((!newMessage.trim() && !attachment) || !selectedUserId || !user) return;
 
+    let messageContent = newMessage.trim();
+
+    // Check for profanity in text messages
+    if (messageContent) {
+      const moderationResult = moderateText(messageContent);
+
+      if (!moderationResult.isClean) {
+        // Handle different severity levels
+        if (moderationResult.severity === 'high') {
+          toast.error("Message contains inappropriate content and cannot be sent.");
+          return;
+        } else if (moderationResult.severity === 'medium') {
+          // Option to send cleaned version or reject
+          const sendCleaned = confirm(`Your message contains inappropriate language. Would you like to send a cleaned version instead?\n\nOriginal: "${messageContent}"\nCleaned: "${moderationResult.cleanedText}"`);
+          if (!sendCleaned) {
+            return;
+          }
+          messageContent = moderationResult.cleanedText || messageContent;
+          toast.info("Message has been cleaned before sending.");
+        } else {
+          // Low severity - send cleaned version automatically
+          messageContent = moderationResult.cleanedText || messageContent;
+          toast.info("Some language has been filtered from your message.");
+        }
+      }
+    }
+
     const messageData: Message = {
-      text: newMessage,
+      text: messageContent,
       isMine: true,
       user: {
         name: user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || "You",
@@ -425,7 +453,7 @@ const Messages = () => {
         .insert({
           conversation_id: conversationId,
           sender_id: user.id,
-          content: newMessage
+          content: messageContent
         });
 
       if (messageError) throw messageError;
@@ -439,7 +467,7 @@ const Messages = () => {
       // Update last message in conversations
       setConversations(prev => prev.map(conv =>
         conv.id === selectedUserId
-          ? { ...conv, lastMessage: newMessage || "📎 Attachment", timestamp: "Just now" }
+          ? { ...conv, lastMessage: messageContent || "📎 Attachment", timestamp: "Just now" }
           : conv
       ));
 
@@ -462,14 +490,48 @@ const Messages = () => {
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 10 * 1024 * 1024) { // 10MB limit
-        toast.error("File size must be less than 10MB");
+      // Show loading state
+      toast.info("Validating file...");
+
+      try {
+        const validation = await validateAndModerateFile(file);
+
+        if (!validation.isValid) {
+          toast.error(validation.error || "File validation failed");
+          return;
+        }
+
+        // Show success message with file info and moderation result
+        const fileSizeKB = (file.size / 1024).toFixed(1);
+        const sizeDisplay = file.size > 1024 * 1024
+          ? `${(file.size / (1024 * 1024)).toFixed(1)}MB`
+          : `${fileSizeKB}KB`;
+
+        let successMessage = `File attached: ${file.name} (${sizeDisplay})`;
+
+        // Add moderation info if available
+        if (validation.moderationResult) {
+          if (validation.moderationResult.isClean) {
+            successMessage += " ✅ Content verified";
+          }
+        }
+
+        toast.success(successMessage);
+        setAttachment(file);
+
+        // Show warning if moderation service was unavailable
+        if (validation.error) {
+          toast.warning(validation.error);
+        }
+
+      } catch (error) {
+        console.error('File validation error:', error);
+        toast.error("Failed to validate file");
         return;
       }
-      setAttachment(file);
     }
   };
 
@@ -582,7 +644,12 @@ const Messages = () => {
                     <AvatarImage src={selectedConversation.user.avatar} />
                     <AvatarFallback>{selectedConversation.user.name.charAt(0)}</AvatarFallback>
                   </Avatar>
-                  <h3 className="font-medium">{selectedConversation.user.name}</h3>
+                  <Link
+                    to={`/seller/${selectedUserId}`}
+                    className="font-medium hover:text-primary transition-colors cursor-pointer"
+                  >
+                    {selectedConversation.user.name}
+                  </Link>
                 </div>
               </div>
 

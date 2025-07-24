@@ -21,6 +21,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { moderateText, validateAndModerateFile } from "@/utils/contentModeration";
 
 interface MessageAttachment {
   type: "image" | "video" | "file";
@@ -40,6 +41,18 @@ interface Message {
   timestamp?: string;
 }
 
+interface JoinRequest {
+  id: string;
+  user_id: string;
+  status: 'pending' | 'approved' | 'rejected';
+  message?: string;
+  requested_at: string;
+  user: {
+    name: string;
+    avatar?: string;
+  };
+}
+
 interface Channel {
   id: string;
   name: string;
@@ -52,6 +65,9 @@ interface Channel {
   creator_id: string;
   created_at: string;
   updated_at: string;
+  userRole?: 'owner' | 'admin' | 'member';
+  joinRequests?: JoinRequest[];
+  hasRequestPending?: boolean;
 }
 
 const Channels = () => {
@@ -134,9 +150,104 @@ const Channels = () => {
       if (!user) return [];
 
       try {
-        // Use location-based filtering if user location is available (same pattern as ItemGrid)
+        // Get user's channel memberships first
+        const { data: membershipsData, error: membershipsError } = await supabase
+          .from('channel_members')
+          .select('channel_id, role')
+          .eq('user_id', user.id);
+
+        if (membershipsError) throw membershipsError;
+
+        const userChannelIds = new Set(membershipsData.map(m => m.channel_id));
+        const userChannelRoles = new Map(membershipsData.map(m => [m.channel_id, m.role]));
+
+        // Fetch joined channels without location filtering (user should see all joined channels)
+        let joinedChannels: Channel[] = [];
+        if (userChannelIds.size > 0) {
+          const { data: joinedChannelsData, error: joinedError } = await supabase
+            .from('channels')
+            .select('*')
+            .in('id', Array.from(userChannelIds))
+            .order('created_at', { ascending: false });
+
+          if (joinedError) throw joinedError;
+
+          // Get member counts for joined channels
+          joinedChannels = await Promise.all(
+            (joinedChannelsData || []).map(async (channel) => {
+              const { count } = await supabase
+                .from('channel_members')
+                .select('*', { count: 'exact', head: true })
+                .eq('channel_id', channel.id);
+
+              const userRole = userChannelRoles.get(channel.id);
+
+              // If user is admin/owner, fetch pending join requests
+              let joinRequests: JoinRequest[] = [];
+              if (userRole === 'owner' || userRole === 'admin') {
+                const { data: requestsData } = await supabase
+                  .from('channel_join_requests')
+                  .select(`
+                    id,
+                    user_id,
+                    status,
+                    message,
+                    requested_at
+                  `)
+                  .eq('channel_id', channel.id)
+                  .eq('status', 'pending')
+                  .order('requested_at', { ascending: true });
+
+                if (requestsData) {
+                  // Get user profiles for the requests
+                  const requesterIds = requestsData.map(r => r.user_id);
+                  const { data: requesterProfiles } = await supabase
+                    .from('user_profiles')
+                    .select('user_id, full_name, avatar_url')
+                    .in('user_id', requesterIds);
+
+                  const profilesMap = new Map(requesterProfiles?.map(p => [p.user_id, p]) || []);
+
+                  joinRequests = requestsData.map(request => {
+                    const profile = profilesMap.get(request.user_id);
+                    return {
+                      id: request.id,
+                      user_id: request.user_id,
+                      status: request.status as 'pending' | 'approved' | 'rejected',
+                      message: request.message,
+                      requested_at: request.requested_at,
+                      user: {
+                        name: profile?.full_name || "Unknown User",
+                        avatar: profile?.avatar_url
+                      }
+                    };
+                  });
+                }
+              }
+
+              return {
+                id: channel.id,
+                name: channel.name,
+                description: channel.description || '',
+                members: count || 0,
+                isPrivate: channel.is_private,
+                isJoined: true, // All channels in this array are joined
+                creator_id: channel.creator_id,
+                created_at: channel.created_at,
+                updated_at: channel.updated_at,
+                userRole,
+                joinRequests,
+                messages: []
+              };
+            })
+          );
+        }
+
+        // Fetch discoverable channels with location filtering
+        let discoverableChannels: Channel[] = [];
+
         if (effectiveUserLocation) {
-          console.log('🌍 Using location-based filtering for channels:', effectiveUserLocation);
+          console.log('🌍 Using location-based filtering for discoverable channels:', effectiveUserLocation, 'Range:', debouncedRange[0], 'km');
 
           try {
             const { data: locationChannels, error: locationError } = await supabase
@@ -146,91 +257,138 @@ const Channels = () => {
                 max_distance: debouncedRange[0]
               });
 
-            if (!locationError && locationChannels) {
-              // Get user's channel memberships
-              const { data: membershipsData, error: membershipsError } = await supabase
-                .from('channel_members')
-                .select('channel_id, role')
-                .eq('user_id', user.id);
+            if (locationError) {
+              console.error('❌ get_channels_within_range error:', locationError);
+              throw locationError;
+            }
 
-              if (membershipsError) throw membershipsError;
+            if (locationChannels && locationChannels.length > 0) {
+              console.log('✅ Found', locationChannels.length, 'channels within', debouncedRange[0], 'km range');
+              discoverableChannels = await Promise.all(
+                (locationChannels || [])
+                  .filter((channel: { id: string }) => !userChannelIds.has(channel.id)) // Exclude already joined channels
+                  .map(async (channel: {
+                    id: string;
+                    name: string;
+                    description: string | null;
+                    creator_id: string;
+                    is_private: boolean;
+                    created_at: string;
+                    updated_at: string;
+                    member_count: number;
+                  }) => {
+                    // Check if user has pending request for private channels
+                    let hasRequestPending = false;
+                    if (channel.is_private) {
+                      const { data: requestData } = await supabase
+                        .from('channel_join_requests')
+                        .select('id')
+                        .eq('channel_id', channel.id)
+                        .eq('user_id', user.id)
+                        .eq('status', 'pending')
+                        .single();
 
-              const userChannelIds = new Set(membershipsData.map(m => m.channel_id));
+                      hasRequestPending = !!requestData;
+                    }
 
-              const channelsWithMembers = (locationChannels || []).map((channel: {
-                id: string;
-                name: string;
-                description: string | null;
-                creator_id: string;
-                is_private: boolean;
-                created_at: string;
-                updated_at: string;
-                member_count: number;
-              }) => ({
-                id: channel.id,
-                name: channel.name,
-                description: channel.description || '',
-                members: Number(channel.member_count) || 0,
-                isPrivate: channel.is_private,
-                isJoined: userChannelIds.has(channel.id),
-                creator_id: channel.creator_id,
-                created_at: channel.created_at,
-                updated_at: channel.updated_at,
-                messages: []
-              }));
-
-              return channelsWithMembers;
+                    return {
+                      id: channel.id,
+                      name: channel.name,
+                      description: channel.description || '',
+                      members: Number(channel.member_count) || 0,
+                      isPrivate: channel.is_private,
+                      isJoined: false, // All channels in this array are not joined
+                      creator_id: channel.creator_id,
+                      created_at: channel.created_at,
+                      updated_at: channel.updated_at,
+                      hasRequestPending,
+                      messages: []
+                    };
+                  })
+              );
+              console.log('📍 Filtered discoverable channels:', discoverableChannels.length, 'after excluding joined channels');
+            } else {
+              console.log('⚠️ No channels found within', debouncedRange[0], 'km range, will fallback to all channels');
             }
           } catch (error) {
-            console.error('Location-based fetch failed, falling back to all channels:', error);
+            console.error('❌ Location-based fetch failed, falling back to all channels:', error);
           }
         } else {
-          // Fallback when no location is available - show all channels (same pattern as ItemGrid)
-          console.log('📍 No location available, showing all channels without range filtering');
+          console.log('📍 No user location available, will show all discoverable channels');
         }
 
-        // Fallback to original method
-        const { data: channelsData, error: channelsError } = await supabase
-          .from('channels')
-          .select('*')
-          .order('created_at', { ascending: false });
+        // If no user location is available, show all non-joined channels
+        if (!effectiveUserLocation && discoverableChannels.length === 0) {
+          console.log('📍 No user location available, showing all discoverable channels');
 
-        if (channelsError) throw channelsError;
+          let channelsQuery = supabase
+            .from('channels')
+            .select('*')
+            .order('created_at', { ascending: false });
 
-        // Get user's channel memberships
-        const { data: membershipsData, error: membershipsError } = await supabase
-          .from('channel_members')
-          .select('channel_id, role')
-          .eq('user_id', user.id);
+          // Only exclude joined channels if the user has actually joined any
+          if (userChannelIds.size > 0) {
+            channelsQuery = channelsQuery.not('id', 'in', `(${Array.from(userChannelIds).join(',')})`);
+          }
 
-        if (membershipsError) throw membershipsError;
+          const { data: allChannelsData, error: allChannelsError } = await channelsQuery;
 
-        const userChannelIds = new Set(membershipsData.map(m => m.channel_id));
+          if (allChannelsError) throw allChannelsError;
 
-        // Get member counts for each channel
-        const channelsWithMembers = await Promise.all(
-          channelsData.map(async (channel) => {
-            const { count } = await supabase
-              .from('channel_members')
-              .select('*', { count: 'exact', head: true })
-              .eq('channel_id', channel.id);
+          console.log('✅ Found', allChannelsData?.length || 0, 'total channels when no location available');
 
-            return {
-              id: channel.id,
-              name: channel.name,
-              description: channel.description || '',
-              members: count || 0,
-              isPrivate: channel.is_private,
-              isJoined: userChannelIds.has(channel.id),
-              creator_id: channel.creator_id,
-              created_at: channel.created_at,
-              updated_at: channel.updated_at,
-              messages: []
-            };
-          })
-        );
+          // Get member counts for discoverable channels
+          discoverableChannels = await Promise.all(
+            (allChannelsData || [])
+              .filter(channel => !userChannelIds.has(channel.id)) // Extra safety check
+              .map(async (channel) => {
+                const { count } = await supabase
+                  .from('channel_members')
+                  .select('*', { count: 'exact', head: true })
+                  .eq('channel_id', channel.id);
 
-        return channelsWithMembers;
+                // Check if user has pending request for private channels
+                let hasRequestPending = false;
+                if (channel.is_private) {
+                  const { data: requestData } = await supabase
+                    .from('channel_join_requests')
+                    .select('id')
+                    .eq('channel_id', channel.id)
+                    .eq('user_id', user.id)
+                    .eq('status', 'pending')
+                    .single();
+
+                  hasRequestPending = !!requestData;
+                }
+
+                return {
+                  id: channel.id,
+                  name: channel.name,
+                  description: channel.description || '',
+                  members: count || 0,
+                  isPrivate: channel.is_private,
+                  isJoined: false,
+                  creator_id: channel.creator_id,
+                  created_at: channel.created_at,
+                  updated_at: channel.updated_at,
+                  hasRequestPending,
+                  messages: []
+                };
+              })
+          );
+          console.log('📍 Final discoverable channels:', discoverableChannels.length);
+        }
+
+        // Combine joined and discoverable channels
+        const finalResult = [...joinedChannels, ...discoverableChannels];
+        console.log('🎯 Final result:', {
+          joinedChannels: joinedChannels.length,
+          discoverableChannels: discoverableChannels.length,
+          totalChannels: finalResult.length,
+          userLocation: effectiveUserLocation ? 'Available' : 'Not Available',
+          range: debouncedRange[0] + 'km'
+        });
+        return finalResult;
       } catch (error) {
         console.error('Error fetching channels:', error);
         throw error;
@@ -387,6 +545,33 @@ const Channels = () => {
     if ((!newMessage.trim() && !attachment) || !activeChannel || !user) return;
 
     try {
+      let messageContent = newMessage.trim();
+
+      // Check for profanity in text messages
+      if (messageContent) {
+        const moderationResult = moderateText(messageContent);
+
+        if (!moderationResult.isClean) {
+          // Handle different severity levels
+          if (moderationResult.severity === 'high') {
+            toast.error("Message contains inappropriate content and cannot be sent.");
+            return;
+          } else if (moderationResult.severity === 'medium') {
+            // Option to send cleaned version or reject
+            const sendCleaned = confirm(`Your message contains inappropriate language. Would you like to send a cleaned version instead?\n\nOriginal: "${messageContent}"\nCleaned: "${moderationResult.cleanedText}"`);
+            if (!sendCleaned) {
+              return;
+            }
+            messageContent = moderationResult.cleanedText || messageContent;
+            toast.info("Message has been cleaned before sending.");
+          } else {
+            // Low severity - send cleaned version automatically
+            messageContent = moderationResult.cleanedText || messageContent;
+            toast.info("Some language has been filtered from your message.");
+          }
+        }
+      }
+
       let attachmentData = null;
 
       // Handle file upload if there's an attachment
@@ -413,7 +598,7 @@ const Channels = () => {
         .insert({
           channel_id: activeChannel.id,
           sender_id: user.id,
-          content: newMessage.trim() || '',
+          content: messageContent || '',
           attachment_type: attachmentData?.type || null,
           attachment_url: attachmentData?.url || null,
           attachment_name: attachmentData?.name || null
@@ -426,7 +611,7 @@ const Channels = () => {
       // Create the message object for immediate UI update
       const newMsg: Message = {
         id: messageData.id,
-        text: newMessage.trim() || '',
+        text: messageContent || '',
         isMine: true,
         user: {
           name: user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || "You",
@@ -460,14 +645,53 @@ const Channels = () => {
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 10 * 1024 * 1024) { // 10MB limit
-        toast.error("File size must be less than 10MB");
+      // Show loading state
+      toast.info("Validating file...");
+
+      try {
+        const validation = await validateAndModerateFile(file);
+
+        if (!validation.isValid) {
+          toast.error(validation.error || "File validation failed");
+          return;
+        }
+
+        // Show success message with file info and moderation result
+        const fileSizeKB = (file.size / 1024).toFixed(1);
+        const sizeDisplay = file.size > 1024 * 1024
+          ? `${(file.size / (1024 * 1024)).toFixed(1)}MB`
+          : `${fileSizeKB}KB`;
+
+        let successMessage = `File attached: ${file.name} (${sizeDisplay})`;
+
+        // Add moderation info if available
+        if (validation.moderationResult) {
+          if (validation.moderationResult.isClean) {
+            successMessage += " ✅ Content verified";
+          }
+        }
+
+        toast.success(successMessage);
+        setAttachment(file);
+
+        // Show warning if moderation service was unavailable
+        if (validation.error) {
+          toast.warning(validation.error);
+        }
+
+      } catch (error) {
+        console.error('File validation error:', error);
+        toast.error("Failed to validate file");
         return;
       }
-      setAttachment(file);
+    }
+
+    // Reset the input value so the same file can be selected again if needed
+    if (e.target) {
+      e.target.value = '';
     }
   };
 
@@ -551,6 +775,79 @@ const Channels = () => {
 
   const isChannelOwner = (channel: Channel) => {
     return user && channel.creator_id === user.id;
+  };
+
+  const isChannelAdmin = (channel: Channel) => {
+    return user && (channel.userRole === 'owner' || channel.userRole === 'admin' || channel.creator_id === user.id);
+  };
+
+  const handleRequestToJoin = async (channel: Channel, message?: string) => {
+    if (!user) {
+      toast.error("Please sign in to request to join channels");
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('channel_join_requests')
+        .insert({
+          channel_id: channel.id,
+          user_id: user.id,
+          message: message || null
+        });
+
+      if (error) throw error;
+
+      // Invalidate channels query to refresh data
+      queryClient.invalidateQueries({ queryKey: ['channels'] });
+
+      toast.success(`Join request sent for ${channel.name}`);
+    } catch (error) {
+      console.error('Error sending join request:', error);
+      toast.error("Failed to send join request");
+    }
+  };
+
+  const handleApproveRequest = async (requestId: string, channelName: string) => {
+    try {
+      const { data, error } = await supabase.rpc('approve_join_request', {
+        request_id: requestId
+      });
+
+      if (error) throw error;
+
+      if (data) {
+        // Invalidate channels query to refresh data
+        queryClient.invalidateQueries({ queryKey: ['channels'] });
+        toast.success("Join request approved!");
+      } else {
+        toast.error("Failed to approve request");
+      }
+    } catch (error) {
+      console.error('Error approving request:', error);
+      toast.error("Failed to approve request");
+    }
+  };
+
+  const handleRejectRequest = async (requestId: string, channelName: string) => {
+    try {
+      const { data, error } = await supabase.rpc('reject_join_request', {
+        request_id: requestId
+      });
+
+      if (error) throw error;
+
+      if (data) {
+        // Invalidate channels query to refresh data
+        queryClient.invalidateQueries({ queryKey: ['channels'] });
+        toast.success("Join request rejected");
+      } else {
+        toast.error("Failed to reject request");
+      }
+    } catch (error) {
+      console.error('Error rejecting request:', error);
+      toast.error("Failed to reject request");
+    }
   };
 
   if (loading) {
@@ -647,10 +944,19 @@ const Channels = () => {
                             </div>
                             <Button
                               variant={channel.isPrivate ? "outline" : "default"}
-                              onClick={() => handleJoinChannel(channel)}
-                              disabled={!user}
+                              onClick={() => {
+                                if (channel.isPrivate) {
+                                  handleRequestToJoin(channel);
+                                } else {
+                                  handleJoinChannel(channel);
+                                }
+                              }}
+                              disabled={!user || channel.hasRequestPending}
                             >
-                              {channel.isPrivate ? "Request Join" : "Join"}
+                              {channel.isPrivate
+                                ? (channel.hasRequestPending ? "Request Pending" : "Request Join")
+                                : "Join"
+                              }
                             </Button>
                           </div>
                         </Card>
@@ -730,6 +1036,12 @@ const Channels = () => {
                                 {channel.unreadCount && (
                                   <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
                                     {channel.unreadCount}
+                                  </span>
+                                )}
+                                {/* Show join requests indicator for admins */}
+                                {isChannelAdmin(channel) && channel.joinRequests && channel.joinRequests.length > 0 && (
+                                  <span className="bg-blue-500 text-white text-xs px-2 py-0.5 rounded-full">
+                                    {channel.joinRequests.length} requests
                                   </span>
                                 )}
                               </div>
@@ -824,13 +1136,62 @@ const Channels = () => {
                           <p>• {activeChannel.members} members</p>
                           <p>• {activeChannel.isPrivate ? 'Private' : 'Public'} channel</p>
                           <p>• Created {new Date(activeChannel.created_at).toLocaleDateString()}</p>
+                          {activeChannel.userRole && (
+                            <p>• You are: {activeChannel.userRole}</p>
+                          )}
                         </div>
                       </div>
+
+                      {/* Join Requests Section - Only for admins */}
+                      {isChannelAdmin(activeChannel) && activeChannel.joinRequests && activeChannel.joinRequests.length > 0 && (
+                        <div>
+                          <h4 className="font-medium text-sm">Join Requests ({activeChannel.joinRequests.length})</h4>
+                          <div className="space-y-2 mt-2 max-h-40 overflow-y-auto">
+                            {activeChannel.joinRequests.map(request => (
+                              <div key={request.id} className="flex items-center justify-between p-2 bg-muted rounded-lg">
+                                <div className="flex items-center gap-2">
+                                  <Avatar className="h-6 w-6">
+                                    <AvatarImage src={request.user.avatar} />
+                                    <AvatarFallback>{request.user.name.charAt(0)}</AvatarFallback>
+                                  </Avatar>
+                                  <div>
+                                    <p className="text-sm font-medium">{request.user.name}</p>
+                                    {request.message && (
+                                      <p className="text-xs text-muted-foreground">{request.message}</p>
+                                    )}
+                                    <p className="text-xs text-muted-foreground">
+                                      {new Date(request.requested_at).toLocaleDateString()}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex gap-1">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 px-2 text-xs"
+                                    onClick={() => handleApproveRequest(request.id, activeChannel.name)}
+                                  >
+                                    ✓
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 px-2 text-xs"
+                                    onClick={() => handleRejectRequest(request.id, activeChannel.name)}
+                                  >
+                                    ✗
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </DialogContent>
                 </Dialog>
 
-                {isChannelOwner(activeChannel) && (
+                {isChannelAdmin(activeChannel) && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="icon">
@@ -893,7 +1254,17 @@ const Channels = () => {
 
           <ScrollArea className="flex-1 mb-16">
             <div className="space-y-4 pb-4">
-              {activeChannel.messages?.length === 0 ? (
+              {!activeChannel.isJoined && activeChannel.isPrivate ? (
+                <div className="text-center py-8">
+                  <div className="bg-muted p-6 rounded-lg">
+                    <Lock className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="font-medium mb-2">Private Channel</h3>
+                    <p className="text-muted-foreground text-sm">
+                      You need to be approved by an admin to view messages in this private channel.
+                    </p>
+                  </div>
+                </div>
+              ) : activeChannel.messages?.length === 0 ? (
                 <div className="text-center py-8">
                   <p className="text-muted-foreground">
                     No messages yet. Start the conversation!
@@ -965,25 +1336,27 @@ const Channels = () => {
             </div>
           </ScrollArea>
 
-          <div className="fixed bottom-16 left-0 right-0 bg-background shadow-lg border-t">
-            <div className="container mx-auto p-3">
-              {attachment && (
-                <div className="flex items-center gap-2 bg-muted p-2 rounded-lg mb-2">
-                  <div className="flex-1 truncate text-sm">
-                    <Paperclip className="h-4 w-4 text-gray-600 inline mr-1" />
-                    {attachment.name}
+          {/* Only show message input if user is a member or it's a public channel */}
+          {(activeChannel.isJoined || !activeChannel.isPrivate) && (
+            <div className="fixed bottom-16 left-0 right-0 bg-background shadow-lg border-t">
+              <div className="container mx-auto p-3">
+                {attachment && (
+                  <div className="flex items-center gap-2 bg-muted p-2 rounded-lg mb-2">
+                    <div className="flex-1 truncate text-sm">
+                      <Paperclip className="h-4 w-4 text-gray-600 inline mr-1" />
+                      {attachment.name}
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 rounded-full"
+                      onClick={removeAttachment}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6 rounded-full"
-                    onClick={removeAttachment}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              )}
-              <form onSubmit={sendMessage} className="flex items-center gap-2">
+                )}
+                <form onSubmit={sendMessage} className="flex items-center gap-2">
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
@@ -1008,21 +1381,55 @@ const Channels = () => {
                   </PopoverContent>
                 </Popover>
 
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-9 w-9 rounded-full"
-                  onClick={handleAttachmentClick}
-                >
-                  <Paperclip className="h-5 w-5 text-muted-foreground" />
-                </Button>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-9 w-9 rounded-full"
+                      onClick={handleAttachmentClick}
+                    >
+                      <Paperclip className="h-5 w-5 text-muted-foreground" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    side="top"
+                    align="start"
+                    className="w-[280px] mb-2 text-sm"
+                  >
+                    <div className="space-y-2">
+                      <h4 className="font-semibold">File Upload Limits</h4>
+                      <div className="space-y-1 text-xs">
+                        <div className="flex justify-between">
+                          <span>📷 Images (JPEG, PNG, GIF, WebP):</span>
+                          <span className="font-medium">5MB</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>🎥 Videos (MP4, MOV, WMV):</span>
+                          <span className="font-medium">5MB</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>📄 Documents (PDF, DOC, TXT):</span>
+                          <span className="font-medium">10MB</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>📁 Other files:</span>
+                          <span className="font-medium">5MB</span>
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground border-t pt-2">
+                        Click the attachment button to select a file
+                      </p>
+                    </div>
+                  </PopoverContent>
+                </Popover>
                 <input
                   type="file"
                   ref={fileInputRef}
                   className="hidden"
                   onChange={handleFileChange}
-                  accept="image/*,video/*,application/*"
+                  accept="image/*,video/*,application/*,text/*"
                 />
 
                 <Input
@@ -1040,9 +1447,10 @@ const Channels = () => {
                 >
                   <Send className="h-5 w-5" />
                 </Button>
-              </form>
+                </form>
+              </div>
             </div>
-          </div>
+          )}
         </main>
       )}
 

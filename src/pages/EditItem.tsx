@@ -53,6 +53,7 @@ interface Item {
   promoted: boolean;
   promoted_at?: string;
   created_at: string;
+  status?: string[];
 }
 
 const EditItem = () => {
@@ -72,6 +73,7 @@ const EditItem = () => {
     category_id: "",
     listing_type: "sell",
     city: "",
+    tags: "",
   });
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
   const [showLocationSelector, setShowLocationSelector] = useState(false);
@@ -236,6 +238,7 @@ const EditItem = () => {
           category_id: data.category_id || "",
           listing_type: data.listing_type || "sell",
           city: "",
+          tags: data.status ? data.status.join(", ") : "",
         };
 
         // Handle location data if coordinates exist
@@ -348,6 +351,9 @@ const EditItem = () => {
         category_id: formData.category_id,
         listing_type: formData.listing_type,
         images: images,
+        status: formData.tags
+          ? formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0)
+          : null,
       };
 
       // Add coordinates if provided
@@ -531,6 +537,18 @@ const EditItem = () => {
                   <SelectItem value="request">Looking For</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Tags (Optional)</label>
+              <Input
+                placeholder="Enter tags separated by commas (e.g., sold, best seller, urgent)"
+                value={formData.tags}
+                onChange={(e) => setFormData(prev => ({ ...prev, tags: e.target.value }))}
+              />
+              <p className="text-xs text-muted-foreground">
+                Add custom tags like "sold", "rented", "best seller", etc. Separate multiple tags with commas.
+              </p>
             </div>
 
             <div className="space-y-2">

@@ -2,6 +2,7 @@
 import { MapPin, Star, StarHalf } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Avatar } from "@/components/ui/avatar";
+import avatar from "../../assets/avatar.jpg";
 
 interface SellerRatings {
   average_rating: number;
@@ -44,9 +45,13 @@ export const SellerHeader = ({ seller, ratings }: SellerHeaderProps) => {
     <Card className="p-6">
       <div className="flex items-start gap-6 mb-6">
         <img
-          src={seller.photoUrl}
+          src={seller.photoUrl || avatar}
           alt={seller.name}
           className="w-24 h-24 rounded-full object-cover"
+          onError={(e) => {
+            const target = e.target as HTMLImageElement;
+            target.src = avatar;
+          }}
         />
         <div className="flex-1">
           <h2 className="text-2xl font-semibold">{seller.name}</h2>

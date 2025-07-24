@@ -25,19 +25,53 @@ const Home = () => {
 
   // Get user's location on component mount
   useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          });
-        },
-        (error) => {
-          console.error("Error getting location:", error);
+    const getLocationWithPermissionCheck = async () => {
+      // Check if we've already asked for location permission
+      const locationPermission = localStorage.getItem('locationPermission');
+      const savedLocation = localStorage.getItem('userLocation');
+
+      // If user previously allowed and we have a saved location, use it
+      if (locationPermission === 'granted' && savedLocation) {
+        try {
+          const location = JSON.parse(savedLocation);
+          setUserLocation(location);
+          return;
+        } catch (error) {
+          console.error("Error parsing saved location:", error);
+          // Continue to request fresh location
         }
-      );
-    }
+      }
+
+      // If user previously denied, don't ask again
+      if (locationPermission === 'denied') {
+        return;
+      }
+
+      // If we haven't asked before or need fresh location, request it
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const location = {
+              lat: position.coords.latitude,
+              lng: position.coords.longitude,
+            };
+            setUserLocation(location);
+
+            // Save permission granted and location
+            localStorage.setItem('locationPermission', 'granted');
+            localStorage.setItem('userLocation', JSON.stringify(location));
+          },
+          (error) => {
+            console.error("Error getting location:", error);
+
+            // Save that user denied permission
+            localStorage.setItem('locationPermission', 'denied');
+          }
+        );
+      }
+    };
+
+    getLocationWithPermissionCheck();
   }, []);
 
   const openLocationMap = () => {

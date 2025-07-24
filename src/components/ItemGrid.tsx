@@ -8,7 +8,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-
+import avatar from "../assets/avatar.jpg";
+import defaultImage from "../assets/default_item_image.png";
 interface Item {
   id: string;
   title: string;
@@ -16,6 +17,8 @@ interface Item {
   images?: string[];
   seller_id: string;
   listing_type?: string;
+  status?: string[];
+  created_at?: string;
 }
 
 interface ItemGridProps {
@@ -260,12 +263,12 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
           state: {
             sellerId: item.seller_id,
             sellerName: "User",
-            sellerAvatar: "https://images.unsplash.com/photo-1649972904349-6e44c42644a7",
+            sellerAvatar: sellerData?.avatar_url || avatar,
             itemId: item.id,
             itemDetails: {
               title: item.title,
               price: item.price,
-              image: item.images?.[0] || "https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d",
+              image: item.images?.[0] || defaultImage,
               link: `${window.location.origin}/items/${item.id}`
             }
           }
@@ -279,12 +282,12 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
           state: {
             sellerId: item.seller_id,
             sellerName: sellerData.full_name || "User",
-            sellerAvatar: sellerData.avatar_url || "https://images.unsplash.com/photo-1649972904349-6e44c42644a7",
+            sellerAvatar: sellerData.avatar_url || avatar,
             itemId: item.id,
             itemDetails: {
               title: item.title,
               price: item.price,
-              image: item.images?.[0] || "https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d",
+              image: item.images?.[0] || defaultImage,
               link: `${window.location.origin}/items/${item.id}`
             }
           }
@@ -295,12 +298,12 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
           state: {
             sellerId: item.seller_id,
             sellerName: "User",
-            sellerAvatar: "https://images.unsplash.com/photo-1649972904349-6e44c42644a7",
+            sellerAvatar: avatar,
             itemId: item.id,
             itemDetails: {
               title: item.title,
               price: item.price,
-              image: item.images?.[0] || "https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d",
+              image: item.images?.[0] || defaultImage,
               link: `${window.location.origin}/items/${item.id}`
             }
           }
@@ -468,13 +471,33 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
             </div>
             <div className="relative pb-[100%]">
               <img
-                src={item.images?.[0] || "https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d"}
+                src={item.images?.[0] || defaultImage}
                 alt={item.title}
                 className="absolute inset-0 w-full h-full object-cover"
               />
+              {/* Tags displayed on image */}
+              {item.status && item.status.length > 0 && (
+                <div className="absolute top-2 left-2 flex flex-wrap gap-1 max-w-[calc(100%-4rem)]">
+                  {item.status.map((tag, index) => (
+                    <div
+                      key={index}
+                      className="bg-black/70 text-white px-2 py-0.5 rounded-full text-xs font-medium shadow-md"
+                    >
+                      {tag}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             <div className="p-3">
               <h3 className="font-medium text-sm leading-tight truncate">{item.title}</h3>
+              <p className="text-xs text-muted-foreground/70 mt-0.5">
+                {item.listing_type === "request"
+                  ? "Looking For"
+                  : item.listing_type === "rent"
+                  ? "For Rent"
+                  : "For Sale"}
+              </p>
               <div className="flex justify-between items-center mt-1">
                 <p className="text-sm leading-tight text-muted-foreground">
                   ${typeof item.price === 'number' ? item.price : 0}

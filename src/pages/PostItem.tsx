@@ -437,7 +437,13 @@ const PostItem = () => {
             <div className="space-y-2">
               <label className="text-sm font-medium">Title</label>
               <Input
-                placeholder="What are you selling?"
+                placeholder={
+                  formData.listingType === "request"
+                    ? "What are you looking for?"
+                    : formData.listingType === "rent"
+                    ? "What are you renting?"
+                    : "What are you selling?"
+                }
                 value={formData.title}
                 onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
               />

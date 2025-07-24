@@ -496,6 +496,18 @@ export const en = {
   optional: "Optional",
   enterTagsPlaceholder: "Enter tags separated by commas (e.g., sold, best seller, urgent)",
   addCustomTagsDescription: "Add custom tags like \"sold\", \"rented\", \"best seller\", etc. Separate multiple tags with commas.",
+
+  // ItemDetails - missing translations
+  views: "views",
+  noRatingsYet: "No ratings yet",
+  postedOn: "Posted on",
+  requester: "Requester",
+  landlord: "Landlord",
+  seller: "Seller",
+  clickToZoomIn: "Click to zoom in",
+  doubleClickToZoomOut: "Double-click to zoom out",
+  dragToMoveWhenZoomed: "Drag to move when zoomed",
+  thumbnail: "Thumbnail",
 };
 
 export type LanguageKey = keyof typeof en;

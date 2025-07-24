@@ -550,12 +550,12 @@ const ItemDetails = () => {
                   </p>
                   <div className={`flex items-center gap-1 text-sm text-muted-foreground ${isRTL ? 'flex-row-reverse' : ''}`}>
                     <Eye className="h-4 w-4" />
-                    <span>{viewCount} views</span>
+                    <span>{viewCount} {t('views')}</span>
                   </div>
                 </div>
                 {item.created_at && (
                   <p className="text-sm text-muted-foreground mt-1">
-                    Posted on {new Date(item.created_at).toLocaleDateString('en-US', {
+                    {t('postedOn')} {new Date(item.created_at).toLocaleDateString('en-US', {
                       year: 'numeric',
                       month: 'long',
                       day: 'numeric'
@@ -594,10 +594,10 @@ const ItemDetails = () => {
             <div>
               <h2 className="font-semibold mb-2">
                 {item.listing_type === "request"
-                  ? "Requester"
+                  ? t('requester')
                   : item.listing_type === "rent"
-                  ? "Landlord"
-                  : "Seller"}
+                  ? t('landlord')
+                  : t('seller')}
               </h2>
               <Link
                 to={item?.seller_id ? `/seller/${item.seller_id}` : '/home'}
@@ -623,7 +623,7 @@ const ItemDetails = () => {
                     ) : (
                       <div className="flex items-center text-sm text-muted-foreground">
                         <Star className="h-4 w-4 text-gray-300 mr-1" />
-                        No ratings yet
+                        {t('noRatingsYet')}
                       </div>
                     )}
                   </div>
@@ -672,8 +672,8 @@ const ItemDetails = () => {
             {/* Zoom tip - appears briefly when gallery opens */}
             {showZoomTip && (
               <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-10 bg-black/70 text-white px-4 py-2 rounded-lg text-sm text-center transition-opacity duration-300">
-                <div>Click to zoom in • Double-click to zoom out</div>
-                <div className="text-xs opacity-80 mt-1">Drag to move when zoomed</div>
+                <div>{t('clickToZoomIn')} • {t('doubleClickToZoomOut')}</div>
+                <div className="text-xs opacity-80 mt-1">{t('dragToMoveWhenZoomed')}</div>
               </div>
             )}
 
@@ -805,7 +805,7 @@ const ItemDetails = () => {
                   >
                     <img
                       src={image}
-                      alt={`Thumbnail ${index + 1}`}
+                      alt={`${t('thumbnail')} ${index + 1}`}
                       className="w-full h-full object-cover"
                     />
                   </button>

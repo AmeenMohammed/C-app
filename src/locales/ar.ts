@@ -498,4 +498,16 @@ export const ar = {
   optional: "اختياري",
   enterTagsPlaceholder: "أدخل العلامات مفصولة بفواصل (مثل: مباع، الأفضل مبيعاً، عاجل)",
   addCustomTagsDescription: "أضف علامات مخصصة مثل \"مباع\"، \"مؤجر\"، \"الأفضل مبيعاً\"، إلخ. افصل العلامات المتعددة بفواصل.",
+
+  // ItemDetails - missing translations
+  views: "مشاهدات",
+  noRatingsYet: "لا توجد تقييمات بعد",
+  postedOn: "نُشر في",
+  requester: "الطالب",
+  landlord: "المالك",
+  seller: "البائع",
+  clickToZoomIn: "انقر للتكبير",
+  doubleClickToZoomOut: "انقر مرتين للتصغير",
+  dragToMoveWhenZoomed: "اسحب للتحريك عند التكبير",
+  thumbnail: "صورة مصغرة",
 };

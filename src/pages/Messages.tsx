@@ -1,7 +1,9 @@
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
-import { Send, Smile, Paperclip, X, ArrowLeft, Plus, MessageCircle, User, Phone, Video, MoreVertical, Image, Mic } from "lucide-react";
+import { Send, Smile, Paperclip, X, ArrowLeft, Plus, MessageCircle, User, Phone, Video, MoreVertical, Image, Mic, Trash2 } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useLocation, Link } from "react-router-dom";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -10,12 +12,17 @@ import EmojiPicker from "emoji-picker-react";
 import type { EmojiClickData } from "emoji-picker-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { supabase } from "@/integrations/supabase/client";
 import { moderateText, validateAndModerateFile } from "@/utils/contentModeration";
+import { MessageReactions } from "@/components/MessageReactions";
+import { formatPrice } from "@/utils/currency";
 
 interface Message {
+  id?: string;
   text: string;
   isMine: boolean;
   user?: {
@@ -30,6 +37,7 @@ interface Message {
   itemDetails?: {
     title: string;
     price: number;
+    currency?: string;
     image: string;
     link: string;
   };
@@ -38,6 +46,7 @@ interface Message {
 
 interface Conversation {
   id: string;
+  conversationId: string;
   user: {
     name: string;
     avatar?: string;
@@ -74,6 +83,7 @@ const useWindowSize = () => {
 
 const Messages = () => {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
   const selectedUserId = searchParams.get("userId");
@@ -151,6 +161,25 @@ const Messages = () => {
               .limit(1)
               .maybeSingle();
 
+            // Calculate unread message count
+            let unreadCount = 0;
+            try {
+              const lastVisitKey = `conversation_${otherUserId}_last_visit_${user.id}`;
+              const lastVisit = localStorage.getItem(lastVisitKey);
+              const lastVisitTime = lastVisit ? new Date(lastVisit) : new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+              const { count } = await supabase
+                .from('messages')
+                .select('*', { count: 'exact', head: true })
+                .eq('conversation_id', conv.id)
+                .neq('sender_id', user.id)
+                .gt('created_at', lastVisitTime.toISOString());
+
+              unreadCount = count || 0;
+            } catch (error) {
+              console.error('Error calculating unread count for conversation:', error);
+            }
+
             return {
               id: otherUserId,
               conversationId: conv.id,
@@ -162,7 +191,8 @@ const Messages = () => {
               timestamp: lastMessage?.created_at
                 ? new Date(lastMessage.created_at).toLocaleDateString()
                 : new Date(conv.created_at).toLocaleDateString(),
-              unread: false
+              unread: unreadCount > 0,
+              unreadCount: unreadCount > 0 ? unreadCount : undefined
             };
           })
         );
@@ -188,7 +218,14 @@ const Messages = () => {
           } | null;
 
           if (sellerInfo?.sellerId && sellerInfo?.sellerName) {
-            console.log('👤 Seller info received:', sellerInfo);
+            // Check if this conversation was previously deleted
+            const deletedConversationsKey = `deleted_conversations_${user.id}`;
+            const deletedConversations = JSON.parse(localStorage.getItem(deletedConversationsKey) || '[]');
+
+            if (deletedConversations.includes(sellerInfo.sellerId)) {
+              setLocationStateProcessed(true);
+              return;
+            }
 
             // Check if seller is blocked or has blocked the current user before creating conversation
             try {
@@ -203,8 +240,8 @@ const Messages = () => {
               });
 
               if (isBlocked || hasBlockedMe) {
-                console.log('❌ Cannot create conversation with blocked user');
-                toast.error("Cannot message this user");
+                toast.error(t('cannotMessageUser'));
+                setLocationStateProcessed(true);
                 return;
               }
             } catch (blockingError) {
@@ -213,10 +250,11 @@ const Messages = () => {
             }
 
             const existingConv = filteredConversations.find(c => c && c.id === sellerInfo.sellerId);
+
             if (!existingConv) {
-              console.log('🆕 Creating new conversation UI entry');
               const newConversation: Conversation = {
                 id: sellerInfo.sellerId,
+                conversationId: '', // Will be set when first message is sent
                 user: {
                   name: sellerInfo.sellerName,
                   avatar: sellerInfo.sellerAvatar || `https://api.dicebear.com/7.x/avatars/svg?seed=${sellerInfo.sellerName}`
@@ -226,29 +264,22 @@ const Messages = () => {
                 unread: false
               };
               setConversations(prev => [newConversation, ...prev]);
-            } else {
-              console.log('📱 Found existing conversation UI entry');
             }
 
             // Auto-send default message with item details if provided
             // Always send for new item inquiries, regardless of conversation status
             if (sellerInfo.itemDetails) {
-              console.log('📦 Item details found, scheduling default message');
               setTimeout(() => {
                 sendDefaultItemMessage(sellerInfo.sellerId!, sellerInfo.itemDetails!);
               }, 1000); // Increase delay to ensure everything is ready
-            } else {
-              console.log('❌ No item details found in seller info');
             }
-          } else {
-            console.log('❌ No seller info found in location state');
           }
 
           setLocationStateProcessed(true);
         }
       } catch (error) {
         console.error('Error fetching conversations:', error);
-        toast.error("Failed to load conversations");
+        toast.error(t('failedToLoadConversations'));
       } finally {
         setLoading(false);
       }
@@ -301,6 +332,7 @@ const Messages = () => {
         if (error) throw error;
 
         const formattedMessages: Message[] = (data || []).map(msg => ({
+          id: msg.id,
           text: msg.content,
           isMine: msg.sender_id === user.id,
           timestamp: msg.created_at
@@ -309,7 +341,7 @@ const Messages = () => {
         setMessages(formattedMessages);
       } catch (error) {
         console.error('Error fetching messages:', error);
-        toast.error("Failed to load messages");
+        toast.error(t('failedToLoadMessages'));
       }
     };
 
@@ -319,6 +351,19 @@ const Messages = () => {
   const selectConversation = (conversationId: string) => {
     setSearchParams({ userId: conversationId });
     setShowMobileChat(true); // Show chat on mobile when conversation is selected
+
+    // Mark conversation as visited to reset unread count
+    if (user) {
+      const lastVisitKey = `conversation_${conversationId}_last_visit_${user.id}`;
+      localStorage.setItem(lastVisitKey, new Date().toISOString());
+
+      // Update the conversation in state to remove unread count
+      setConversations(prev => prev.map(conv =>
+        conv.id === conversationId
+          ? { ...conv, unread: false, unreadCount: undefined }
+          : conv
+      ));
+    }
   };
 
   const handleBackToConversations = () => {
@@ -328,8 +373,6 @@ const Messages = () => {
 
   const sendDefaultItemMessage = async (sellerId: string, itemDetails: { title: string; price: number; image: string; link: string; }) => {
     if (!user) return;
-
-    console.log('🚀 Sending default item message:', { sellerId, itemDetails });
 
     // Check if user is blocked or has blocked the seller before sending message
     try {
@@ -343,11 +386,10 @@ const Messages = () => {
         blocked_uuid: user.id
       });
 
-      if (isBlocked || hasBlockedMe) {
-        console.log('❌ Cannot send message to blocked user');
-        toast.error("Cannot message this seller");
-        return;
-      }
+                    if (isBlocked || hasBlockedMe) {
+                toast.error(t('cannotMessageSeller'));
+                return;
+              }
     } catch (blockingError) {
       console.warn('Blocking check failed for default message, continuing:', blockingError.message);
       // Continue without blocking if functions don't exist
@@ -364,8 +406,6 @@ const Messages = () => {
         .or(`participant1_id.eq.${user.id},participant2_id.eq.${user.id}`)
         .or(`participant1_id.eq.${sellerId},participant2_id.eq.${sellerId}`);
 
-      console.log('📋 Found conversations:', conversations);
-
       // Find conversation where both users are participants
       const conversation = conversations?.find(conv =>
         (conv.participant1_id === user.id && conv.participant2_id === sellerId) ||
@@ -375,7 +415,6 @@ const Messages = () => {
       let conversationId = conversation?.id;
 
       if (!conversationId) {
-        console.log('🆕 Creating new conversation');
         const { data: newConv, error: convError } = await supabase
           .from('conversations')
           .insert({
@@ -386,13 +425,9 @@ const Messages = () => {
           .single();
 
         if (convError) {
-          console.error('❌ Error creating conversation:', convError);
           throw convError;
         }
         conversationId = newConv.id;
-        console.log('✅ Created conversation:', conversationId);
-      } else {
-        console.log('📱 Using existing conversation:', conversationId);
       }
 
       // Check if this exact message already exists to avoid duplicates
@@ -405,7 +440,6 @@ const Messages = () => {
         .limit(1);
 
       if (existingMessages && existingMessages.length > 0) {
-        console.log('📬 Message already exists, skipping');
         return;
       }
 
@@ -419,17 +453,20 @@ const Messages = () => {
         });
 
       if (messageError) {
-        console.error('❌ Error saving message:', messageError);
         throw messageError;
       }
-
-      console.log('✅ Default message sent successfully');
 
       // Update conversation timestamp
       await supabase
         .from('conversations')
         .update({ updated_at: new Date().toISOString() })
         .eq('id', conversationId);
+
+      // Remove this seller from deleted conversations list since we're now actively messaging them
+      const deletedConversationsKey = `deleted_conversations_${user.id}`;
+      const deletedConversations = JSON.parse(localStorage.getItem(deletedConversationsKey) || '[]');
+      const updatedDeletedConversations = deletedConversations.filter((id: string) => id !== sellerId);
+      localStorage.setItem(deletedConversationsKey, JSON.stringify(updatedDeletedConversations));
 
       // Update local state if this is the current conversation
       if (selectedUserId === sellerId) {
@@ -450,7 +487,7 @@ const Messages = () => {
       ));
 
     } catch (error) {
-      console.error('❌ Error sending default message:', error);
+      console.error('Error sending default message:', error);
       // Show user-friendly error
       toast.error("Failed to send item details. Please try again.");
     }
@@ -472,7 +509,7 @@ const Messages = () => {
       });
 
       if (isBlocked || hasBlockedMe) {
-        toast.error("Cannot send message to this user");
+        toast.error(t('cannotSendMessage'));
         return;
       }
     } catch (blockingError) {
@@ -578,12 +615,26 @@ const Messages = () => {
         .update({ updated_at: new Date().toISOString() })
         .eq('id', conversationId);
 
-      // Update last message in conversations
+      // Remove this user from deleted conversations list since we're now actively messaging them
+      if (selectedUserId) {
+        const deletedConversationsKey = `deleted_conversations_${user.id}`;
+        const deletedConversations = JSON.parse(localStorage.getItem(deletedConversationsKey) || '[]');
+        const updatedDeletedConversations = deletedConversations.filter((id: string) => id !== selectedUserId);
+        localStorage.setItem(deletedConversationsKey, JSON.stringify(updatedDeletedConversations));
+      }
+
+      // Update last message in conversations and mark as read
       setConversations(prev => prev.map(conv =>
         conv.id === selectedUserId
-          ? { ...conv, lastMessage: messageContent || "📎 Attachment", timestamp: "Just now" }
+          ? { ...conv, lastMessage: messageContent || "📎 Attachment", timestamp: "Just now", unread: false, unreadCount: undefined }
           : conv
       ));
+
+      // Update last visit time since user is actively participating
+      if (user && selectedUserId) {
+        const lastVisitKey = `conversation_${selectedUserId}_last_visit_${user.id}`;
+        localStorage.setItem(lastVisitKey, new Date().toISOString());
+      }
 
     } catch (error) {
       console.error('Error saving message:', error);
@@ -653,14 +704,67 @@ const Messages = () => {
     setAttachment(null);
   };
 
+  const handleDeleteConversation = async (conversationId: string, otherUserId: string) => {
+    if (!user || !conversationId) return;
+
+    try {
+      // Delete all messages in the conversation first
+      const { error: messagesError } = await supabase
+        .from('messages')
+        .delete()
+        .eq('conversation_id', conversationId);
+
+      if (messagesError) {
+        throw messagesError;
+      }
+
+      // Delete the conversation
+      const { error: conversationError } = await supabase
+        .from('conversations')
+        .delete()
+        .eq('id', conversationId);
+
+      if (conversationError) {
+        throw conversationError;
+      }
+
+      // Remove from local state
+      setConversations(prev => prev.filter(conv => conv.id !== otherUserId));
+
+      // Clear selected conversation if it was the deleted one
+      if (selectedUserId === otherUserId) {
+        setSearchParams({});
+        setShowMobileChat(false);
+      }
+
+      // Clear localStorage entry for this conversation
+      const lastVisitKey = `conversation_${otherUserId}_last_visit_${user.id}`;
+      localStorage.removeItem(lastVisitKey);
+
+      // Mark this conversation as deleted to prevent recreation from location state
+      const deletedConversationsKey = `deleted_conversations_${user.id}`;
+      const existingDeleted = JSON.parse(localStorage.getItem(deletedConversationsKey) || '[]');
+
+      if (!existingDeleted.includes(otherUserId)) {
+        existingDeleted.push(otherUserId);
+        localStorage.setItem(deletedConversationsKey, JSON.stringify(existingDeleted));
+      }
+
+      toast.success(t('conversationDeletedSuccess'));
+    } catch (error) {
+      console.error('Error deleting conversation:', error);
+      toast.error(t('failedToDeleteConversation'));
+    }
+  };
+
   const selectedConversation = conversations.find(conv => conv.id === selectedUserId);
 
   if (loading) {
     return (
       <div className="min-h-screen bg-background pb-16">
-        <TopBar title="Messages" />
+        <TopBar title={t('messages')} />
         <div className="flex items-center justify-center py-12">
-          <p className="text-muted-foreground">Loading conversations...</p>
+          <p className="text-muted-foreground">{t('loadingConversations')}</p>
         </div>
         <BottomNav />
       </div>
@@ -673,7 +777,7 @@ const Messages = () => {
       <div className="bg-background shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            <h1 className="text-2xl font-bold text-gray-900">Messages</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{t('messages')}</h1>
           </div>
         </div>
       </div>
@@ -684,9 +788,9 @@ const Messages = () => {
           showMobileChat ? 'hidden md:flex' : 'flex'
         }`}>
           <div className="p-4 border-b">
-            <h2 className="font-semibold text-lg">Conversations</h2>
+            <h2 className="font-semibold text-lg">{t('conversations')}</h2>
             <p className="text-sm text-muted-foreground">
-              {conversations.length === 0 ? "No conversations yet" : `${conversations.length} conversation${conversations.length !== 1 ? 's' : ''}`}
+              {conversations.length === 0 ? t('noConversationsYet') : `${conversations.length} ${conversations.length !== 1 ? t('conversationPlural') : t('conversationSingular')}`}
             </p>
           </div>
 
@@ -694,7 +798,7 @@ const Messages = () => {
             {conversations.length === 0 ? (
               <div className="p-4 text-center">
                 <p className="text-muted-foreground text-sm">
-                  No conversations yet. Contact a seller to start chatting!
+                  {t('noConversationsYet')}. {t('contactSellerToStart')}
                 </p>
               </div>
             ) : (
@@ -743,27 +847,65 @@ const Messages = () => {
           {selectedConversation ? (
             <>
               {/* Chat Header */}
-              <div className="p-4 border-b bg-background">
-                <div className="flex items-center gap-3">
-                  {/* Back button for mobile */}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleBackToConversations}
-                    className="md:hidden"
-                  >
-                    <ArrowLeft className="h-4 w-4" />
-                  </Button>
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src={selectedConversation.user.avatar} />
-                    <AvatarFallback>{selectedConversation.user.name.charAt(0)}</AvatarFallback>
-                  </Avatar>
-                  <Link
-                    to={`/seller/${selectedUserId}`}
-                    className="font-medium hover:text-primary transition-colors cursor-pointer"
-                  >
-                    {selectedConversation.user.name}
-                  </Link>
+              <div className="p-4 border-b bg-background flex-shrink-0">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    {/* Back button for mobile */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleBackToConversations}
+                      className="md:hidden"
+                    >
+                      <ArrowLeft className="h-4 w-4" />
+                    </Button>
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={selectedConversation.user.avatar} />
+                      <AvatarFallback>{selectedConversation.user.name.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                    <Link
+                      to={`/seller/${selectedUserId}`}
+                      className="font-medium hover:text-primary transition-colors cursor-pointer"
+                    >
+                      {selectedConversation.user.name}
+                    </Link>
+                  </div>
+
+                  {/* Chat Actions */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            {t('deleteConversation')}
+                          </DropdownMenuItem>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>{t('deleteConversation')}</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              {t('deleteConversationConfirm').replace('{name}', selectedConversation.user.name)}
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => handleDeleteConversation(selectedConversation.conversationId, selectedUserId!)}
+                              className="bg-red-600 hover:bg-red-700"
+                            >
+                              {t('delete')}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </div>
 
@@ -773,7 +915,7 @@ const Messages = () => {
                   {messages.length === 0 ? (
                     <div className="text-center py-8">
                       <p className="text-muted-foreground">
-                        Start a conversation with {selectedConversation.user.name}
+                        {t('startConversation')} {selectedConversation.user.name}
                       </p>
                     </div>
                   ) : (
@@ -831,7 +973,7 @@ const Messages = () => {
                                   </div>
                                   <div className="flex-1 min-w-0">
                                     <h4 className="font-semibold text-sm truncate">{message.itemDetails.title}</h4>
-                                    <p className="text-sm font-medium">${message.itemDetails.price}</p>
+                                    <p className="text-sm font-medium">{formatPrice(message.itemDetails.price, message.itemDetails.currency)}</p>
                                   </div>
                                 </div>
                                 <a
@@ -847,6 +989,15 @@ const Messages = () => {
                               </div>
                             )}
                           </div>
+
+                          {/* Message Reactions */}
+                          {message.id && (
+                            <MessageReactions
+                              messageId={message.id}
+                              isChannelMessage={false}
+                              className="mt-1"
+                            />
+                          )}
                         </div>
                       </div>
                     ))
@@ -854,8 +1005,8 @@ const Messages = () => {
                 </div>
               </ScrollArea>
 
-              {/* Message Input */}
-              <div className="p-4 border-t bg-background">
+              {/* Message Input - Sticky at bottom using flex */}
+              <div className="p-4 border-t bg-background flex-shrink-0">
                 {attachment && (
                   <div className="mb-3 p-2 bg-muted rounded-lg flex items-center justify-between">
                     <div className="flex items-center gap-2 text-sm">
@@ -868,12 +1019,18 @@ const Messages = () => {
                   </div>
                 )}
 
-                <form onSubmit={(e) => { e.preventDefault(); handleSendMessage(); }} className="flex gap-2">
-                  <Input
+                <form onSubmit={(e) => { e.preventDefault(); handleSendMessage(); }} className="flex gap-2 items-end">
+                  <Textarea
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
                     placeholder="Type a message..."
-                    className="flex-1"
+                    className="flex-1 min-h-[40px] max-h-32 resize-none"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSendMessage();
+                      }
+                    }}
                   />
 
                   <input
@@ -961,11 +1118,11 @@ const Messages = () => {
           ) : (
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Welcome to Messages</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">{t('welcomeToMessages')}</h3>
                 <p className="text-muted-foreground">
                   {conversations.length === 0
-                    ? "Contact sellers to start conversations"
-                    : "Select a conversation to start messaging"
+                    ? t('contactSellersToStart')
+                    : t('selectConversation')
                   }
                 </p>
               </div>

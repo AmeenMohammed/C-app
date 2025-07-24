@@ -18,10 +18,12 @@ import EmojiPicker from "emoji-picker-react";
 import type { EmojiClickData } from "emoji-picker-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { moderateText, validateAndModerateFile } from "@/utils/contentModeration";
+import { MessageReactions } from "@/components/MessageReactions";
 
 interface MessageAttachment {
   type: "image" | "video" | "file";
@@ -33,6 +35,7 @@ interface Message {
   id: string;
   text: string;
   isMine: boolean;
+  sender_id: string;
   user?: {
     name: string;
     avatar?: string;
@@ -72,6 +75,7 @@ interface Channel {
 
 const Channels = () => {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [discoverSearchQuery, setDiscoverSearchQuery] = useState("");
@@ -182,6 +186,27 @@ const Channels = () => {
 
               const userRole = userChannelRoles.get(channel.id);
 
+              // Calculate unread message count
+              let unreadCount = 0;
+              try {
+                // Get the user's last visit to this channel from localStorage or assume 24 hours ago if first time
+                const lastVisitKey = `channel_${channel.id}_last_visit_${user.id}`;
+                const lastVisit = localStorage.getItem(lastVisitKey);
+                const lastVisitTime = lastVisit ? new Date(lastVisit) : new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+                // Count unread messages (messages created after last visit, excluding user's own messages)
+                const { count: unreadCountData } = await supabase
+                  .from('channel_messages')
+                  .select('*', { count: 'exact', head: true })
+                  .eq('channel_id', channel.id)
+                  .neq('sender_id', user.id)
+                  .gt('created_at', lastVisitTime.toISOString());
+
+                unreadCount = unreadCountData || 0;
+              } catch (error) {
+                console.error('Error calculating unread count for channel', channel.name, ':', error);
+              }
+
               // If user is admin/owner, fetch pending join requests
               let joinRequests: JoinRequest[] = [];
               if (userRole === 'owner' || userRole === 'admin') {
@@ -217,7 +242,7 @@ const Channels = () => {
                       message: request.message,
                       requested_at: request.requested_at,
                       user: {
-                        name: profile?.full_name || "Unknown User",
+                        name: profile?.full_name || t('unknownUser'),
                         avatar: profile?.avatar_url
                       }
                     };
@@ -232,6 +257,7 @@ const Channels = () => {
                 members: count || 0,
                 isPrivate: channel.is_private,
                 isJoined: true, // All channels in this array are joined
+                unreadCount: unreadCount > 0 ? unreadCount : undefined,
                 creator_id: channel.creator_id,
                 created_at: channel.created_at,
                 updated_at: channel.updated_at,
@@ -401,9 +427,24 @@ const Channels = () => {
   // Show error toast if channels failed to load
   useEffect(() => {
     if (channelsError) {
-      toast.error("Failed to load channels");
+      toast.error(t('failedToLoadChannels'));
     }
-  }, [channelsError]);
+  }, [channelsError, t]);
+
+  // Update last visit time when actively viewing a channel
+  useEffect(() => {
+    if (activeChannel && user) {
+      const lastVisitKey = `channel_${activeChannel.id}_last_visit_${user.id}`;
+      localStorage.setItem(lastVisitKey, new Date().toISOString());
+
+      // Also invalidate channels query to refresh unread counts
+      const timer = setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['channels'] });
+      }, 1000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [activeChannel?.id, user, queryClient]);
 
   // Fetch messages for active channel
   useEffect(() => {
@@ -444,10 +485,11 @@ const Channels = () => {
             id: msg.id,
             text: msg.content,
             isMine: isCurrentUser,
+            sender_id: msg.sender_id,
             user: {
               name: isCurrentUser
                 ? (user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || "You")
-                : (profile?.full_name || "Unknown User"),
+                : (profile?.full_name || t('unknownUser')),
               avatar: isCurrentUser
                 ? (user.user_metadata?.avatar_url || user.user_metadata?.picture)
                 : profile?.avatar_url
@@ -465,7 +507,7 @@ const Channels = () => {
         setActiveChannel(prev => prev ? { ...prev, messages: formattedMessages } : null);
       } catch (error) {
         console.error('Error fetching messages:', error);
-        toast.error("Failed to load messages");
+        toast.error(t('failedToLoadMessages'));
       }
     };
 
@@ -488,7 +530,7 @@ const Channels = () => {
 
   const handleJoinChannel = async (channel: Channel) => {
     if (!user) {
-      toast.error("Please sign in to join channels");
+      toast.error(t('pleaseSignInToJoinChannels'));
       return;
     }
 
@@ -507,10 +549,10 @@ const Channels = () => {
       queryClient.invalidateQueries({ queryKey: ['channels'] });
 
       setActiveChannel({ ...channel, isJoined: true });
-      toast.success(`Joined ${channel.name}!`);
+      toast.success(t('joinedChannel').replace('{name}', channel.name));
     } catch (error) {
       console.error('Error joining channel:', error);
-      toast.error("Failed to join channel");
+      toast.error(t('failedToJoinChannel'));
     }
   };
 
@@ -533,10 +575,10 @@ const Channels = () => {
         setActiveChannel(null);
       }
 
-      toast.success(`Left ${channel.name}`);
+      toast.success(t('leftChannel').replace('{name}', channel.name));
     } catch (error) {
       console.error('Error leaving channel:', error);
-      toast.error("Failed to leave channel");
+      toast.error(t('failedToLeaveChannel'));
     }
   };
 
@@ -554,20 +596,20 @@ const Channels = () => {
         if (!moderationResult.isClean) {
           // Handle different severity levels
           if (moderationResult.severity === 'high') {
-            toast.error("Message contains inappropriate content and cannot be sent.");
+            toast.error(t('messageContainsInappropriate'));
             return;
           } else if (moderationResult.severity === 'medium') {
             // Option to send cleaned version or reject
-            const sendCleaned = confirm(`Your message contains inappropriate language. Would you like to send a cleaned version instead?\n\nOriginal: "${messageContent}"\nCleaned: "${moderationResult.cleanedText}"`);
+            const sendCleaned = confirm(t('sendCleanedVersion') + `\n\nOriginal: "${messageContent}"\nCleaned: "${moderationResult.cleanedText}"`);
             if (!sendCleaned) {
               return;
             }
             messageContent = moderationResult.cleanedText || messageContent;
-            toast.info("Message has been cleaned before sending.");
+            toast.info(t('messageCleanedBeforeSending'));
           } else {
             // Low severity - send cleaned version automatically
             messageContent = moderationResult.cleanedText || messageContent;
-            toast.info("Some language has been filtered from your message.");
+            toast.info(t('languageFiltered'));
           }
         }
       }
@@ -613,6 +655,7 @@ const Channels = () => {
         id: messageData.id,
         text: messageContent || '',
         isMine: true,
+        sender_id: user.id,
         user: {
           name: user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || "You",
           avatar: user.user_metadata?.avatar_url || user.user_metadata?.picture
@@ -630,10 +673,17 @@ const Channels = () => {
 
       setNewMessage("");
       setAttachment(null);
-      toast.success("Message sent!");
+
+      // Update last visit time since user is actively participating
+      if (user && activeChannel) {
+        const lastVisitKey = `channel_${activeChannel.id}_last_visit_${user.id}`;
+        localStorage.setItem(lastVisitKey, new Date().toISOString());
+      }
+
+      toast.success(t('messageSent'));
     } catch (error) {
       console.error('Error sending message:', error);
-      toast.error("Failed to send message");
+      toast.error(t('failedToSendMessage'));
     }
   };
 
@@ -649,13 +699,13 @@ const Channels = () => {
     const file = e.target.files?.[0];
     if (file) {
       // Show loading state
-      toast.info("Validating file...");
+      toast.info(t('validatingFile'));
 
       try {
         const validation = await validateAndModerateFile(file);
 
         if (!validation.isValid) {
-          toast.error(validation.error || "File validation failed");
+          toast.error(validation.error || t('fileValidationFailed'));
           return;
         }
 
@@ -665,12 +715,12 @@ const Channels = () => {
           ? `${(file.size / (1024 * 1024)).toFixed(1)}MB`
           : `${fileSizeKB}KB`;
 
-        let successMessage = `File attached: ${file.name} (${sizeDisplay})`;
+        let successMessage = t('fileAttached').replace('{name}', file.name).replace('{size}', sizeDisplay);
 
         // Add moderation info if available
         if (validation.moderationResult) {
           if (validation.moderationResult.isClean) {
-            successMessage += " ✅ Content verified";
+            successMessage += " " + t('contentVerified');
           }
         }
 
@@ -684,7 +734,7 @@ const Channels = () => {
 
       } catch (error) {
         console.error('File validation error:', error);
-        toast.error("Failed to validate file");
+        toast.error(t('failedToValidateFile'));
         return;
       }
     }
@@ -741,10 +791,10 @@ const Channels = () => {
       }
 
       setEditingChannel(null);
-      toast.success("Channel updated successfully!");
+      toast.success(t('channelUpdatedSuccessfully'));
     } catch (error) {
       console.error('Error updating channel:', error);
-      toast.error("Failed to update channel");
+      toast.error(t('failedToUpdateChannel'));
     }
   };
 
@@ -766,10 +816,10 @@ const Channels = () => {
         setActiveChannel(null);
       }
 
-      toast.success("Channel deleted successfully!");
+      toast.success(t('channelDeletedSuccessfully'));
     } catch (error) {
       console.error('Error deleting channel:', error);
-      toast.error("Failed to delete channel");
+      toast.error(t('failedToDeleteChannel'));
     }
   };
 
@@ -783,7 +833,7 @@ const Channels = () => {
 
   const handleRequestToJoin = async (channel: Channel, message?: string) => {
     if (!user) {
-      toast.error("Please sign in to request to join channels");
+      toast.error(t('pleaseSignInToRequestJoin'));
       return;
     }
 
@@ -801,10 +851,10 @@ const Channels = () => {
       // Invalidate channels query to refresh data
       queryClient.invalidateQueries({ queryKey: ['channels'] });
 
-      toast.success(`Join request sent for ${channel.name}`);
+      toast.success(t('joinRequestSent').replace('{name}', channel.name));
     } catch (error) {
       console.error('Error sending join request:', error);
-      toast.error("Failed to send join request");
+      toast.error(t('failedToSendJoinRequest'));
     }
   };
 
@@ -819,13 +869,13 @@ const Channels = () => {
       if (data) {
         // Invalidate channels query to refresh data
         queryClient.invalidateQueries({ queryKey: ['channels'] });
-        toast.success("Join request approved!");
+        toast.success(t('joinRequestApproved'));
       } else {
-        toast.error("Failed to approve request");
+        toast.error(t('failedToApproveRequest'));
       }
     } catch (error) {
       console.error('Error approving request:', error);
-      toast.error("Failed to approve request");
+      toast.error(t('failedToApproveRequest'));
     }
   };
 
@@ -840,20 +890,20 @@ const Channels = () => {
       if (data) {
         // Invalidate channels query to refresh data
         queryClient.invalidateQueries({ queryKey: ['channels'] });
-        toast.success("Join request rejected");
+        toast.success(t('joinRequestRejected'));
       } else {
-        toast.error("Failed to reject request");
+        toast.error(t('failedToRejectRequest'));
       }
     } catch (error) {
       console.error('Error rejecting request:', error);
-      toast.error("Failed to reject request");
+      toast.error(t('failedToRejectRequest'));
     }
   };
 
   if (loading) {
     return (
       <div className="min-h-screen bg-background pb-16">
-        <TopBar title="Channels" showBackButton={false} />
+        <TopBar title={t('channels')} showBackButton={false} />
         <div className="flex justify-center items-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
@@ -865,7 +915,7 @@ const Channels = () => {
   return (
     <div className="min-h-screen bg-background pb-16">
       <TopBar
-        title={activeChannel ? activeChannel.name : "Channels"}
+        title={activeChannel ? activeChannel.name : t('channels')}
         showBackButton={!!activeChannel}
         onBackClick={() => setActiveChannel(null)}
       />
@@ -874,9 +924,9 @@ const Channels = () => {
         <main className="container mx-auto px-4 py-6 space-y-4">
           <Tabs defaultValue="discover" className="w-full">
             <TabsList className="w-full">
-              <TabsTrigger value="discover" className="flex-1">Discover</TabsTrigger>
+              <TabsTrigger value="discover" className="flex-1">{t('discover')}</TabsTrigger>
               <TabsTrigger value="joined" className="flex-1">
-                Joined ({filteredJoinedChannels.length})
+                {t('joined')} ({filteredJoinedChannels.length})
                 {filteredJoinedChannels.some(c => c.unreadCount) && (
                   <span className="ml-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
                     {filteredJoinedChannels.filter(c => c.unreadCount).length}
@@ -893,14 +943,14 @@ const Channels = () => {
                     className="flex items-center gap-2"
                   >
                     <Plus className="h-4 w-4" />
-                    Create Channel
+                    {t('createChannel')}
                   </Button>
                 </div>
 
                 <div className="relative">
                   <Input
                     type="search"
-                    placeholder="Search channels..."
+                    placeholder={t('searchChannels')}
                     value={discoverSearchQuery}
                     onChange={(e) => setDiscoverSearchQuery(e.target.value)}
                     className="w-full pl-10"
@@ -913,7 +963,7 @@ const Channels = () => {
                     {filteredChannels.length === 0 ? (
                       <div className="text-center py-8">
                         <p className="text-muted-foreground">
-                          {discoverSearchQuery ? "No channels found matching your search" : "No new channels to discover"}
+                          {discoverSearchQuery ? t('noChannelsFound') : t('noNewChannelsToDiscover')}
                         </p>
                       </div>
                     ) : (
@@ -939,7 +989,7 @@ const Channels = () => {
                               </p>
                               <div className="flex items-center gap-2 mt-1">
                                 <Users className="h-4 w-4 text-muted-foreground" />
-                                <span className="text-xs text-muted-foreground">{channel.members} members</span>
+                                <span className="text-xs text-muted-foreground">{channel.members} {t('members')}</span>
                               </div>
                             </div>
                             <Button
@@ -954,8 +1004,8 @@ const Channels = () => {
                               disabled={!user || channel.hasRequestPending}
                             >
                               {channel.isPrivate
-                                ? (channel.hasRequestPending ? "Request Pending" : "Request Join")
-                                : "Join"
+                                ? (channel.hasRequestPending ? t('requestPending') : t('requestJoin'))
+                                : t('join')
                               }
                             </Button>
                           </div>
@@ -997,7 +1047,7 @@ const Channels = () => {
                 <div className="relative">
                   <Input
                     type="search"
-                    placeholder="Search joined channels..."
+                    placeholder={t('searchJoinedChannels')}
                     value={joinedSearchQuery}
                     onChange={(e) => setJoinedSearchQuery(e.target.value)}
                     className="w-full pl-10"
@@ -1010,7 +1060,7 @@ const Channels = () => {
                     {filteredJoinedChannels.length === 0 ? (
                       <div className="text-center py-8">
                         <p className="text-muted-foreground">
-                          {joinedSearchQuery ? "No joined channels match your search" : "You haven't joined any channels yet"}
+                          {joinedSearchQuery ? t('noJoinedChannelsMatch') : t('haventJoinedAnyChannels')}
                         </p>
                       </div>
                     ) : (
@@ -1020,30 +1070,42 @@ const Channels = () => {
                           className={`p-4 cursor-pointer hover:border-2 hover:border-red-500 transition-all ${
                             channel.unreadCount ? 'border-2 border-red-500' : ''
                           }`}
-                          onClick={() => setActiveChannel(channel)}
+                          onClick={() => {
+                            setActiveChannel(channel);
+                            // Mark channel as visited to reset unread count
+                            if (user) {
+                              const lastVisitKey = `channel_${channel.id}_last_visit_${user.id}`;
+                              localStorage.setItem(lastVisitKey, new Date().toISOString());
+                            }
+                          }}
                         >
                           <div className="flex items-center justify-between">
                             <div className="flex-1">
-                              <div className="flex items-center gap-2">
-                                <h3 className={`text-sm ${channel.unreadCount ? 'font-bold' : 'font-medium'}`}>
-                                  {channel.name}
-                                </h3>
-                                {channel.isPrivate ? (
-                                  <Lock className="h-4 w-4 text-muted-foreground" />
-                                ) : (
-                                  <Globe className="h-4 w-4 text-muted-foreground" />
-                                )}
-                                {channel.unreadCount && (
-                                  <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
-                                    {channel.unreadCount}
-                                  </span>
-                                )}
-                                {/* Show join requests indicator for admins */}
-                                {isChannelAdmin(channel) && channel.joinRequests && channel.joinRequests.length > 0 && (
-                                  <span className="bg-blue-500 text-white text-xs px-2 py-0.5 rounded-full">
-                                    {channel.joinRequests.length} requests
-                                  </span>
-                                )}
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <h3 className={`text-sm ${channel.unreadCount ? 'font-bold' : 'font-medium'} truncate`}>
+                                    {channel.name}
+                                  </h3>
+                                  {channel.isPrivate ? (
+                                    <Lock className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                  ) : (
+                                    <Globe className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2 flex-shrink-0">
+                                  {channel.unreadCount && (
+                                    <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full whitespace-nowrap">
+                                      {channel.unreadCount}
+                                    </span>
+                                  )}
+                                  {/* Show join requests indicator for admins */}
+                                  {isChannelAdmin(channel) && channel.joinRequests && channel.joinRequests.length > 0 && (
+                                    <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full whitespace-nowrap">
+                                      <span className="hidden sm:inline">{channel.joinRequests.length} {t('requests')}</span>
+                                      <span className="sm:hidden">{channel.joinRequests.length}</span>
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                               <p className={`text-sm text-muted-foreground ${
                                 channel.unreadCount ? 'font-semibold' : ''
@@ -1052,7 +1114,7 @@ const Channels = () => {
                               </p>
                               <div className="flex items-center gap-2 mt-1">
                                 <Users className="h-4 w-4 text-muted-foreground" />
-                                <span className="text-xs text-muted-foreground">{channel.members} members</span>
+                                <span className="text-xs text-muted-foreground">{channel.members} {t('members')}</span>
                               </div>
                             </div>
                             <div className="flex gap-2">
@@ -1064,14 +1126,21 @@ const Channels = () => {
                                   handleLeaveChannel(channel);
                                 }}
                               >
-                                Leave
+                                {t('leave')}
                               </Button>
                               <Button
                                 variant="default"
                                 size="sm"
-                                onClick={() => setActiveChannel(channel)}
+                                onClick={() => {
+                                  setActiveChannel(channel);
+                                  // Mark channel as visited to reset unread count
+                                  if (user) {
+                                    const lastVisitKey = `channel_${channel.id}_last_visit_${user.id}`;
+                                    localStorage.setItem(lastVisitKey, new Date().toISOString());
+                                  }
+                                }}
                               >
-                                Open
+                                {t('open')}
                               </Button>
                             </div>
                           </div>
@@ -1098,7 +1167,7 @@ const Channels = () => {
                   )}
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  {activeChannel.members} members • {activeChannel.isPrivate ? 'Private' : 'Public'}
+                  {activeChannel.members} {t('members')} • {activeChannel.isPrivate ? t('privateChannel') : t('publicChannel')}
                 </p>
                 {activeChannel.description && (
                   <p className="text-sm text-muted-foreground mt-1">{activeChannel.description}</p>
@@ -1125,19 +1194,19 @@ const Channels = () => {
                     </DialogHeader>
                     <div className="space-y-4">
                       <div>
-                        <h4 className="font-medium text-sm">About</h4>
+                        <h4 className="font-medium text-sm">{t('about')}</h4>
                         <p className="text-sm text-muted-foreground">
-                          {activeChannel.description || "No description provided."}
+                          {activeChannel.description || t('noDescriptionProvided')}
                         </p>
                       </div>
                       <div>
-                        <h4 className="font-medium text-sm">Details</h4>
+                        <h4 className="font-medium text-sm">{t('details')}</h4>
                         <div className="text-sm text-muted-foreground space-y-1">
-                          <p>• {activeChannel.members} members</p>
-                          <p>• {activeChannel.isPrivate ? 'Private' : 'Public'} channel</p>
-                          <p>• Created {new Date(activeChannel.created_at).toLocaleDateString()}</p>
+                          <p>• {activeChannel.members} {t('members')}</p>
+                          <p>• {activeChannel.isPrivate ? t('privateChannel') : t('publicChannel')}</p>
+                          <p>• {t('created').replace('{date}', new Date(activeChannel.created_at).toLocaleDateString())}</p>
                           {activeChannel.userRole && (
-                            <p>• You are: {activeChannel.userRole}</p>
+                            <p>• {t('youAre').replace('{role}', activeChannel.userRole)}</p>
                           )}
                         </div>
                       </div>
@@ -1145,17 +1214,31 @@ const Channels = () => {
                       {/* Join Requests Section - Only for admins */}
                       {isChannelAdmin(activeChannel) && activeChannel.joinRequests && activeChannel.joinRequests.length > 0 && (
                         <div>
-                          <h4 className="font-medium text-sm">Join Requests ({activeChannel.joinRequests.length})</h4>
+                          <h4 className="font-medium text-sm">{t('joinRequests').replace('{count}', activeChannel.joinRequests.length.toString())}</h4>
                           <div className="space-y-2 mt-2 max-h-40 overflow-y-auto">
                             {activeChannel.joinRequests.map(request => (
                               <div key={request.id} className="flex items-center justify-between p-2 bg-muted rounded-lg">
                                 <div className="flex items-center gap-2">
-                                  <Avatar className="h-6 w-6">
+                                  <Avatar
+                                    className="h-6 w-6 cursor-pointer hover:ring-2 hover:ring-primary transition-all"
+                                    onClick={() => {
+                                      setShowChannelInfo(false);
+                                      navigate(`/seller/${request.user_id}`);
+                                    }}
+                                  >
                                     <AvatarImage src={request.user.avatar} />
                                     <AvatarFallback>{request.user.name.charAt(0)}</AvatarFallback>
                                   </Avatar>
-                                  <div>
-                                    <p className="text-sm font-medium">{request.user.name}</p>
+                                  <div className="flex-1">
+                                    <p
+                                      className="text-sm font-medium cursor-pointer hover:text-primary transition-colors"
+                                      onClick={() => {
+                                        setShowChannelInfo(false);
+                                        navigate(`/seller/${request.user_id}`);
+                                      }}
+                                    >
+                                      {request.user.name}
+                                    </p>
                                     {request.message && (
                                       <p className="text-xs text-muted-foreground">{request.message}</p>
                                     )}
@@ -1210,29 +1293,29 @@ const Channels = () => {
                         }}
                       >
                         <Edit3 className="h-4 w-4 mr-2" />
-                        Edit Channel
+                        {t('editChannel')}
                       </DropdownMenuItem>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                             <Trash2 className="h-4 w-4 mr-2" />
-                            Delete Channel
+                            {t('deleteChannel')}
                           </DropdownMenuItem>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                           <AlertDialogHeader>
-                            <AlertDialogTitle>Delete Channel</AlertDialogTitle>
+                            <AlertDialogTitle>{t('deleteChannel')}</AlertDialogTitle>
                             <AlertDialogDescription>
-                              Are you sure you want to delete "{activeChannel.name}"? This action cannot be undone and all messages will be permanently lost.
+                              {t('deleteChannelConfirm').replace('{name}', activeChannel.name)}
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
                             <AlertDialogAction
                               onClick={() => handleDeleteChannel(activeChannel)}
                               className="bg-red-600 hover:bg-red-700"
                             >
-                              Delete
+                              {t('delete')}
                             </AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
@@ -1246,7 +1329,7 @@ const Channels = () => {
                   size="sm"
                   onClick={() => handleLeaveChannel(activeChannel)}
                 >
-                  Leave
+                  {t('leave')}
                 </Button>
               </div>
             </div>
@@ -1258,16 +1341,16 @@ const Channels = () => {
                 <div className="text-center py-8">
                   <div className="bg-muted p-6 rounded-lg">
                     <Lock className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="font-medium mb-2">Private Channel</h3>
+                    <h3 className="font-medium mb-2">{t('privateChannel')}</h3>
                     <p className="text-muted-foreground text-sm">
-                      You need to be approved by an admin to view messages in this private channel.
+                      {t('privateChannelMessage')}
                     </p>
                   </div>
                 </div>
               ) : activeChannel.messages?.length === 0 ? (
                 <div className="text-center py-8">
                   <p className="text-muted-foreground">
-                    No messages yet. Start the conversation!
+                    {t('noMessagesYet')}
                   </p>
                 </div>
               ) : (
@@ -1278,7 +1361,14 @@ const Channels = () => {
                   >
                     <div className="flex items-end gap-2">
                       {!message.isMine && (
-                        <Avatar className="h-6 w-6">
+                        <Avatar
+                          className="h-6 w-6 cursor-pointer hover:ring-2 hover:ring-primary transition-all"
+                          onClick={() => {
+                            if (message.sender_id && !message.isMine) {
+                              navigate(`/seller/${message.sender_id}`);
+                            }
+                          }}
+                        >
                           <AvatarImage src={message.user?.avatar} />
                           <AvatarFallback>{message.user?.name?.charAt(0) || "?"}</AvatarFallback>
                         </Avatar>
@@ -1317,14 +1407,39 @@ const Channels = () => {
                           )}
                           {message.text}
                         </div>
+
+                        {/* Message Reactions */}
+                        <MessageReactions
+                          messageId={message.id}
+                          isChannelMessage={true}
+                          className="mt-1"
+                        />
+
                         {message.user && (
                           <div className={`flex items-center gap-1 mt-1 ${message.isMine ? 'justify-end' : 'justify-start'}`}>
-                            <span className="text-xs text-muted-foreground">
+                            <span
+                              className={`text-xs text-muted-foreground ${
+                                !message.isMine ? 'cursor-pointer hover:text-primary transition-colors' : ''
+                              }`}
+                              onClick={() => {
+                                if (message.sender_id && !message.isMine) {
+                                  navigate(`/seller/${message.sender_id}`);
+                                }
+                              }}
+                            >
                               {message.user.name}
                             </span>
-                            <Avatar className="h-4 w-4">
+                            <Avatar
+                              className={`h-4 w-4 ${
+                                !message.isMine ? 'cursor-pointer hover:ring-2 hover:ring-primary transition-all' : ''
+                              }`}
+                              onClick={() => {
+                                if (message.sender_id && !message.isMine) {
+                                  navigate(`/seller/${message.sender_id}`);
+                                }
+                              }}
+                            >
                               <AvatarImage src={message.user.avatar} />
-                              <AvatarFallback>{message.user.name?.charAt(0)}</AvatarFallback>
                             </Avatar>
                           </div>
                         )}
@@ -1399,27 +1514,27 @@ const Channels = () => {
                     className="w-[280px] mb-2 text-sm"
                   >
                     <div className="space-y-2">
-                      <h4 className="font-semibold">File Upload Limits</h4>
+                      <h4 className="font-semibold">{t('fileUploadLimits')}</h4>
                       <div className="space-y-1 text-xs">
                         <div className="flex justify-between">
-                          <span>📷 Images (JPEG, PNG, GIF, WebP):</span>
+                          <span>{t('imagesLimit')}</span>
                           <span className="font-medium">5MB</span>
                         </div>
                         <div className="flex justify-between">
-                          <span>🎥 Videos (MP4, MOV, WMV):</span>
+                          <span>{t('videosLimit')}</span>
                           <span className="font-medium">5MB</span>
                         </div>
                         <div className="flex justify-between">
-                          <span>📄 Documents (PDF, DOC, TXT):</span>
+                          <span>{t('documentsLimit')}</span>
                           <span className="font-medium">10MB</span>
                         </div>
                         <div className="flex justify-between">
-                          <span>📁 Other files:</span>
+                          <span>{t('otherFilesLimit')}</span>
                           <span className="font-medium">5MB</span>
                         </div>
                       </div>
                       <p className="text-xs text-muted-foreground border-t pt-2">
-                        Click the attachment button to select a file
+                        {t('clickAttachmentButton')}
                       </p>
                     </div>
                   </PopoverContent>
@@ -1435,7 +1550,7 @@ const Channels = () => {
                 <Input
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder="Type a message..."
+                  placeholder={t('typeAMessage')}
                   className="flex-1"
                 />
 
@@ -1458,23 +1573,23 @@ const Channels = () => {
       <Dialog open={!!editingChannel} onOpenChange={(open) => !open && setEditingChannel(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit Channel</DialogTitle>
+            <DialogTitle>{t('editChannel')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <label className="text-sm font-medium">Channel Name</label>
+              <label className="text-sm font-medium">{t('channelName')}</label>
               <Input
                 value={editForm.name}
                 onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
-                placeholder="Enter channel name"
+                placeholder={t('enterChannelName')}
               />
             </div>
             <div>
-              <label className="text-sm font-medium">Description</label>
+              <label className="text-sm font-medium">{t('description')}</label>
               <Textarea
                 value={editForm.description}
                 onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
-                placeholder="Enter channel description"
+                placeholder={t('enterChannelDescription')}
                 rows={3}
               />
             </div>
@@ -1487,16 +1602,16 @@ const Channels = () => {
                 className="h-4 w-4"
               />
               <label htmlFor="private" className="text-sm font-medium">
-                Private Channel
+                {t('privateChannelOption')}
               </label>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditingChannel(null)}>
-              Cancel
+              {t('cancel')}
             </Button>
             <Button onClick={handleEditChannel}>
-              Save Changes
+              {t('saveChanges')}
             </Button>
           </DialogFooter>
         </DialogContent>

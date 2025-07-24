@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { LoadingScreen } from "@/components/LoadingScreen";
@@ -28,6 +29,7 @@ interface UserProfile {
 
 const Profile = () => {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -135,17 +137,17 @@ const Profile = () => {
         .single();
 
       if (error) {
-        toast.error('Failed to update profile');
+                  toast.error(t('failedToUpdateProfile'));
+          console.error('Error updating profile:', error);
+        } else {
+          // Update local state with the saved data
+          setUserProfile(updatedProfile);
+          toast.success(t('profileUpdatedSuccessfully'));
+          setIsEditing(false);
+        }
+      } catch (error) {
+        toast.error(t('failedToUpdateProfile'));
         console.error('Error updating profile:', error);
-      } else {
-        // Update local state with the saved data
-        setUserProfile(updatedProfile);
-        toast.success('Profile updated successfully');
-        setIsEditing(false);
-      }
-    } catch (error) {
-      toast.error('Failed to update profile');
-      console.error('Error updating profile:', error);
     }
   };
 
@@ -175,16 +177,16 @@ const Profile = () => {
   };
 
   if (loading) {
-    return <LoadingScreen message="Loading profile..." />;
+    return <LoadingScreen message={t('loadingProfile')} />;
   }
 
   if (!userProfile) {
     return (
       <div className="min-h-screen bg-background pb-16">
-        <TopBar title="Profile" />
+        <TopBar title={t('profile')} />
         <div className="container mx-auto px-4 py-6">
           <div className="text-center">
-            <p className="text-muted-foreground">Failed to load profile</p>
+            <p className="text-muted-foreground">{t('failedToLoadProfile')}</p>
           </div>
         </div>
         <BottomNav />
@@ -194,7 +196,7 @@ const Profile = () => {
 
   return (
     <div className="min-h-screen bg-background pb-16">
-      <TopBar title="Profile" />
+      <TopBar title={t('profile')} />
       <main className="container mx-auto px-4 py-6">
         <Card className="p-6 mb-4">
           <div className="flex items-start gap-6 mb-3">
@@ -232,20 +234,20 @@ const Profile = () => {
                   <Input
                     value={userProfile.full_name || ''}
                     onChange={(e) => setUserProfile(prev => prev ? {...prev, full_name: e.target.value} : null)}
-                    placeholder="Your name"
+                    placeholder={t('yourName')}
                   />
                 ) : (
                   <>
                     <h2 className="text-2xl font-semibold">{userProfile.full_name || 'User'}</h2>
                     <p className="text-sm text-muted-foreground">
-                      Member since {new Date(userProfile.created_at).toLocaleDateString('en-US', {
+                      {t('memberSince')} {new Date(userProfile.created_at).toLocaleDateString('en-US', {
                         year: 'numeric',
                         month: 'long'
                       })}
                     </p>
                     {user?.user_metadata?.provider && (
                       <p className="text-xs text-blue-600">
-                        Signed in with {user.user_metadata.provider.charAt(0).toUpperCase() + user.user_metadata.provider.slice(1)}
+                        {t('signedInWith')} {user.user_metadata.provider.charAt(0).toUpperCase() + user.user_metadata.provider.slice(1)}
                       </p>
                     )}
                   </>
@@ -256,7 +258,7 @@ const Profile = () => {
                   variant={isEditing ? "default" : "outline"}
                   onClick={() => isEditing ? handleSave() : setIsEditing(true)}
                 >
-                  {isEditing ? "Save" : "Edit"}
+                  {isEditing ? t('save') : t('edit')}
                 </Button>
                 {!isEditing && (
                   <Link to="/settings">
@@ -271,12 +273,12 @@ const Profile = () => {
 
           <div className="space-y-1">
             <div className="mb-2">
-              <label className="text-sm font-medium mb-0.5 block">Bio</label>
+              <label className="text-sm font-medium mb-0.5 block">{t('bio')}</label>
               {isEditing ? (
                 <Textarea
                   value={userProfile.bio || ''}
                   onChange={(e) => setUserProfile(prev => prev ? {...prev, bio: e.target.value} : null)}
-                  placeholder="Tell us about yourself"
+                  placeholder={t('tellUsAboutYourself')}
                   className="resize-none"
                 />
               ) : (
@@ -306,10 +308,10 @@ const Profile = () => {
                   <Input
                     value={userProfile.phone || ''}
                     onChange={(e) => setUserProfile(prev => prev ? {...prev, phone: e.target.value} : null)}
-                    placeholder="Your phone number"
+                    placeholder={t('yourPhoneNumber')}
                   />
                 ) : (
-                  <span className="text-sm">{userProfile.phone || 'No phone number'}</span>
+                  <span className="text-sm">{userProfile.phone || t('noPhoneNumber')}</span>
                 )}
               </div>
               <Button
@@ -329,13 +331,13 @@ const Profile = () => {
                   <Input
                     value={userProfile.location || ''}
                     onChange={(e) => setUserProfile(prev => prev ? {...prev, location: e.target.value} : null)}
-                    placeholder="Your location"
+                    placeholder={t('yourLocation')}
                   />
                 ) : (
                   <span className="text-sm">{userProfile.location}</span>
                 )}
               </div>
-              {!isEditing && userProfile.location && userProfile.location !== 'Location not set' && (
+              {!isEditing && userProfile.location && userProfile.location !== t('locationNotSet') && (
                 <Button
                   variant="ghost"
                   size="icon"
@@ -350,11 +352,11 @@ const Profile = () => {
         </Card>
 
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold">My Items</h3>
+          <h3 className="text-lg font-semibold">{t('myItems')}</h3>
           <Link to="/post">
             <Button>
               <ImagePlus className="mr-2 h-4 w-4" />
-              Post Item
+              {t('postItem')}
             </Button>
           </Link>
         </div>
@@ -368,7 +370,7 @@ const Profile = () => {
           />
         ) : (
           <div className="text-center py-8">
-            <p className="text-muted-foreground">Loading user information...</p>
+            <p className="text-muted-foreground">{t('loadingUserInformation')}</p>
           </div>
         )}
       </main>

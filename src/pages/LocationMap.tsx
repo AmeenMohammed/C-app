@@ -8,6 +8,7 @@ import { Slider } from '@/components/ui/slider';
 import { MapPin, Search, X, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { toast } from '@/hooks/use-toast';
 import { toast as sonnerToast } from 'sonner';
 import 'leaflet/dist/leaflet.css';
@@ -55,6 +56,7 @@ const LocationMap = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
+  const { t, isRTL } = useLanguage();
 
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
   const [radius, setRadius] = useState([parseInt(searchParams.get('range') || '10')]);
@@ -80,10 +82,10 @@ const LocationMap = () => {
 
       if (data && data.length > 0) {
         return data.map((result: NominatimResult) => {
-          const { city, town, village, suburb, state, country } = result.address || {};
-          const shortName = city || town || village || suburb || result.name || 'Unknown Location';
-          const stateName = state ? `, ${state}` : '';
-          const countryName = country ? `, ${country}` : '';
+                  const { city, town, village, suburb, state, country } = result.address || {};
+        const shortName = city || town || village || suburb || result.name || t('unknownLocation');
+        const stateName = state ? `, ${state}` : '';
+        const countryName = country ? `, ${country}` : '';
 
           return {
             lat: parseFloat(result.lat),
@@ -124,7 +126,7 @@ const LocationMap = () => {
 
       if (data.address) {
         const { city, town, village, suburb, state, country } = data.address;
-        const cityName = city || town || village || suburb || 'Unknown Location';
+        const cityName = city || town || village || suburb || t('unknownLocation');
         const stateName = state ? `, ${state}` : '';
         const countryName = country ? `, ${country}` : '';
         return `${cityName}${stateName}${countryName}`;
@@ -349,7 +351,7 @@ const LocationMap = () => {
       }
 
       toast({
-        title: "Location Saved",
+        title: t('locationSaved'),
         description: "Your location and search range have been saved successfully.",
       });
 
@@ -357,7 +359,7 @@ const LocationMap = () => {
     } catch (error) {
       console.error('Error saving location:', error);
       toast({
-        title: "Error",
+        title: t('error'),
         description: "Failed to save location. Please try again.",
         variant: "destructive",
       });
@@ -370,17 +372,17 @@ const LocationMap = () => {
 
   if (!userLocation) {
     return (
-      <div className="min-h-screen bg-background">
-        <TopBar title="Location Range" />
+      <div className={`min-h-screen bg-background ${isRTL ? 'rtl' : 'ltr'}`}>
+        <TopBar title={t('locationRange')} />
         <div className="container mx-auto px-4 py-8">
           <div className="max-w-md mx-auto bg-card p-6 rounded-lg shadow-lg">
-            <h2 className="text-lg font-semibold mb-4">Getting your location...</h2>
-            <p className="text-muted-foreground mb-4">
+            <h2 className={`text-lg font-semibold mb-4 ${isRTL ? 'text-right' : 'text-left'}`}>{t('loading')}...</h2>
+            <p className={`text-muted-foreground mb-4 ${isRTL ? 'text-right' : 'text-left'}`}>
               Please wait while we determine your location.
             </p>
             {locationError && (
               <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg mb-4">
-                <p className="text-yellow-700 text-sm">{locationError}</p>
+                <p className={`text-yellow-700 text-sm ${isRTL ? 'text-right' : 'text-left'}`}>{locationError}</p>
               </div>
             )}
           </div>
@@ -390,8 +392,8 @@ const LocationMap = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <TopBar title="Select Search Range" />
+    <div className={`min-h-screen bg-background ${isRTL ? 'rtl' : 'ltr'}`}>
+      <TopBar title={t('selectSearchRange')} />
 
       <div className="relative h-[calc(100vh-3.5rem)]">
         <MapContainer
@@ -431,13 +433,13 @@ const LocationMap = () => {
 
           {/* City Search Input */}
           <div className="mb-4">
-            <label className="text-sm font-medium text-foreground mb-2 block">
+            <label className={`text-sm font-medium text-foreground mb-2 block ${isRTL ? 'text-right' : 'text-left'}`}>
               Search by City Name
             </label>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Search className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground`} />
               <Input
-                placeholder="e.g., Cairo, Masr El Gedida..."
+                placeholder={t('enterLocationPlaceholder')}
                 value={cityInput}
                 onChange={(e) => handleCityInputChange(e.target.value)}
                 onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
@@ -451,7 +453,7 @@ const LocationMap = () => {
                 }}
                 onKeyDown={handleKeyDown}
                 disabled={isGeocodingCity}
-                className="pl-10 pr-10"
+                className={`${isRTL ? 'pr-10 pl-10' : 'pl-10 pr-10'}`}
               />
               {cityInput && (
                 <Button
@@ -489,43 +491,43 @@ const LocationMap = () => {
                 </div>
               )}
             </div>
-            {isGeocodingCity && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Searching for locations...
-              </div>
-            )}
-          </div>
-
-          <div className="flex items-center gap-4 mb-4">
-            <MapPin className="h-5 w-5 text-primary" />
-            <div className="flex-1">
-              <label className="text-sm font-medium text-foreground mb-2 block">
-                Search Radius: {radius[0]}km
-              </label>
-              <Slider
-                value={radius}
-                onValueChange={setRadius}
-                max={30}
-                min={1}
-                step={1}
-                className="flex-1"
-              />
+                          {isGeocodingCity && (
+                <div className={`flex items-center gap-2 text-sm text-muted-foreground mt-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  {t('findingLocation')}...
+                </div>
+              )}
             </div>
-          </div>
 
-          <div className="text-xs text-muted-foreground mb-4">
-            Type a city name above or click on the map to change your location
-          </div>
+            <div className={`flex items-center gap-4 mb-4 ${isRTL ? 'flex-row-reverse' : ''}`}>
+              <MapPin className="h-5 w-5 text-primary" />
+              <div className="flex-1">
+                <label className={`text-sm font-medium text-foreground mb-2 block ${isRTL ? 'text-right' : 'text-left'}`}>
+                  {t('locationRange')}: {radius[0]}km
+                </label>
+                <Slider
+                  value={radius}
+                  onValueChange={setRadius}
+                  max={30}
+                  min={1}
+                  step={1}
+                  className="flex-1"
+                />
+              </div>
+            </div>
 
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => navigate('/')} className="flex-1">
-              Cancel
-            </Button>
-            <Button onClick={handleSave} className="flex-1" disabled={saving}>
-              {saving ? "Saving..." : "Save Range"}
-            </Button>
-          </div>
+                      <div className={`text-xs text-muted-foreground mb-4 ${isRTL ? 'text-right' : 'text-left'}`}>
+              Type a city name above or click on the map to change your location
+            </div>
+
+            <div className={`flex gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+              <Button variant="outline" onClick={() => navigate('/')} className="flex-1">
+                {t('cancel')}
+              </Button>
+              <Button onClick={handleSave} className="flex-1" disabled={saving}>
+                {saving ? t('saving') : t('saveRange')}
+              </Button>
+            </div>
         </div>
       </div>
     </div>

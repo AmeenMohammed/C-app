@@ -19,29 +19,31 @@ import {
   HelpCircle,
 } from "lucide-react";
 import { useLocation } from "react-router-dom";
-
-const menuItems = [
-  {
-    label: "Main",
-    items: [
-      { title: "Browse", icon: LayoutGrid, url: "/home" },
-      { title: "Messages", icon: MessageSquare, url: "/messages" },
-      { title: "Notifications", icon: Bell, url: "/notifications" },
-      { title: "Saved Items", icon: Heart, url: "/saved-items" },
-    ],
-  },
-  {
-    label: "Account",
-    items: [
-      { title: "Settings", icon: Settings, url: "/settings" },
-      { title: "Payment Methods", icon: CreditCard, url: "/payment-methods" },
-      { title: "Help & Support", icon: HelpCircle, url: "/help-support" },
-    ],
-  },
-];
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export function AppSidebar() {
   const location = useLocation();
+  const { t } = useLanguage();
+
+  const menuItems = [
+    {
+      label: t('main'),
+      items: [
+        { title: t('browse'), icon: LayoutGrid, url: "/home" },
+        { title: t('messages'), icon: MessageSquare, url: "/messages" },
+        { title: t('notifications'), icon: Bell, url: "/notifications" },
+        { title: t('savedItems'), icon: Heart, url: "/saved-items" },
+      ],
+    },
+    {
+      label: t('account'),
+      items: [
+        { title: t('settings'), icon: Settings, url: "/settings" },
+        { title: t('paymentMethods'), icon: CreditCard, url: "/payment-methods" },
+        { title: t('helpSupport'), icon: HelpCircle, url: "/help-support" },
+      ],
+    },
+  ];
 
   // Don't show sidebar on login or signup pages
   const isAuthPage = location.pathname === "/" || location.pathname === "/signup";

@@ -1,5 +1,6 @@
 
 import { useEffect, useState } from "react";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { Post } from "./Post";
 
 const SAMPLE_POSTS = [
@@ -22,13 +23,14 @@ const SAMPLE_POSTS = [
 ];
 
 export function Feed() {
+  const { t } = useLanguage();
   const [posts, setPosts] = useState(SAMPLE_POSTS);
   const [loading, setLoading] = useState(false);
 
   const loadMorePosts = () => {
     if (loading) return;
     setLoading(true);
-    
+
     // Simulate loading more posts
     setTimeout(() => {
       setPosts([...posts, ...SAMPLE_POSTS.map(post => ({...post, id: post.id + posts.length}))]);
@@ -54,7 +56,7 @@ export function Feed() {
       ))}
       {loading && (
         <div className="text-center py-4 text-muted-foreground">
-          Loading more posts...
+          {t('loadingMorePosts')}
         </div>
       )}
     </div>

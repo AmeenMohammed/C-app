@@ -6,6 +6,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import defaultImage from "../assets/default_item_image.png";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -111,8 +112,8 @@ const Index = () => {
         <Card className="p-6">
           <div className="mb-6">
             <img
-              src="/lovable-uploads/38d2a5ed-2eb4-46ab-a433-bd605baacb7d.png"
-              alt="Logo"
+                src={defaultImage}
+                alt="Logo"
               className="w-24 h-auto mx-auto"
             />
             {location.state?.from && (

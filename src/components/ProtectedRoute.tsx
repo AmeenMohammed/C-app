@@ -1,5 +1,6 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { LoadingScreen } from '@/components/LoadingScreen';
 
 interface ProtectedRouteProps {
@@ -8,11 +9,12 @@ interface ProtectedRouteProps {
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const { user, loading } = useAuth();
+  const { t } = useLanguage();
   const location = useLocation();
 
   // Show loading spinner while checking authentication
   if (loading) {
-    return <LoadingScreen message="Checking authentication..." />;
+    return <LoadingScreen message={t('checkingAuthentication')} />;
   }
 
   // Redirect to login if not authenticated

@@ -12,10 +12,12 @@ import { BottomNav } from "@/components/BottomNav";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { useCategories } from "@/hooks/useCategories";
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
+import { getCurrencyOptions } from "@/utils/currency";
 
 // Fix for default markers in React-Leaflet
 interface LeafletIconDefault extends L.Icon.Default {
@@ -43,6 +45,7 @@ const PostItem = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
+  const { t } = useLanguage();
   const showBackButton = location.state?.from === 'profile';
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -55,6 +58,7 @@ const PostItem = () => {
     category: "",
     city: "", // Replace range with city
     listingType: "sell" as "sell" | "rent" | "request",
+    currency: "EGP", // Default currency
   });
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
   const [showLocationSelector, setShowLocationSelector] = useState(false);
@@ -82,8 +86,8 @@ const PostItem = () => {
               const cityName = await reverseGeocode(location.lat, location.lng);
               setFormData(prev => ({ ...prev, city: cityName }));
               toast({
-                title: "Location Detected",
-                description: "Current location has been set automatically!",
+                title: t('locationDetected'),
+                description: t('currentLocationSetAutomatically'),
               });
             } catch (error) {
               console.error("Failed to get city name:", error);
@@ -95,8 +99,8 @@ const PostItem = () => {
         (error) => {
           console.error("Error getting location:", error);
           toast({
-            title: "Location Info",
-            description: "Click 'Set Location on Map' to manually set your item's location.",
+            title: t('locationInfo'),
+            description: t('clickSetLocationOnMap'),
           });
           // Set a default location (New York) so the map can still work
           setUserLocation({ lat: 40.7128, lng: -74.0060 });
@@ -122,16 +126,16 @@ const PostItem = () => {
       if (data.address) {
         const { city, town, village, suburb, state, country } = data.address;
         // Build a readable address
-        const cityName = city || town || village || suburb || 'Unknown Location';
+        const cityName = city || town || village || suburb || t('unknownLocation');
         const stateName = state ? `, ${state}` : '';
         const countryName = country ? `, ${country}` : '';
         return `${cityName}${stateName}${countryName}`;
       }
 
-      return `Location: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+      return `${t('location')}: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
     } catch (error) {
       console.error('Reverse geocoding failed:', error);
-      return `Location: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+      return `${t('location')}: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
     }
   };
 
@@ -166,8 +170,8 @@ const PostItem = () => {
 
     // Don't close the map automatically - let user confirm
     toast({
-      title: "Location Updated",
-      description: "Click 'Confirm Location' when you're happy with the position.",
+      title: t('locationUpdated'),
+      description: t('clickConfirmLocation'),
     });
   };
 
@@ -191,8 +195,8 @@ const PostItem = () => {
       if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
         setUserLocation({ lat, lng });
         toast({
-          title: "Coordinates Set",
-          description: "Map updated with the entered coordinates.",
+          title: t('coordinatesSet'),
+          description: t('mapUpdatedWithCoordinates'),
         });
         return;
       }
@@ -206,8 +210,8 @@ const PostItem = () => {
         if (coordinates) {
           setUserLocation(coordinates);
           toast({
-            title: "City Found",
-            description: "Map updated with the city location.",
+            title: t('cityFound'),
+            description: t('mapUpdatedWithCity'),
           });
         }
         setLocationLoading(false);
@@ -220,8 +224,8 @@ const PostItem = () => {
   const confirmLocation = () => {
     setShowLocationSelector(false);
     toast({
-      title: "Location Confirmed",
-      description: "Your item location has been set successfully.",
+      title: t('locationConfirmed'),
+      description: t('itemLocationSetSuccessfully'),
     });
   };
 
@@ -232,14 +236,14 @@ const PostItem = () => {
   const handlePayment = (method: string) => {
     setShowPaymentDialog(false);
     toast({
-      title: "Processing Payment",
-      description: `Processing payment via ${method}...`,
+      title: t('processingPayment'),
+      description: `${t('processingPaymentVia')} ${method}...`,
     });
     // Here you would integrate with actual payment processing
     setTimeout(() => {
       toast({
-        title: "Payment Successful",
-        description: "Your item has been promoted!",
+        title: t('paymentSuccessful'),
+        description: t('itemPromoted'),
       });
     }, 2000);
   };
@@ -268,8 +272,8 @@ const PostItem = () => {
       } catch (error) {
         console.error('Error uploading image:', error);
         toast({
-          title: "Upload Error",
-          description: `Failed to upload ${file.name}`,
+          title: t('uploadError'),
+          description: `${t('failedToUpload')} ${file.name}`,
           variant: "destructive",
         });
       }
@@ -282,8 +286,8 @@ const PostItem = () => {
     e.preventDefault();
     if (!formData.title || !formData.price || !formData.description || !formData.category) {
       toast({
-        title: "Error",
-        description: "Please fill in all required fields including category",
+        title: t('error'),
+        description: t('fillAllRequiredFields'),
         variant: "destructive",
       });
       return;
@@ -291,8 +295,8 @@ const PostItem = () => {
 
     if (!userLocation) {
       toast({
-        title: "Error",
-        description: "Please set your item's location on the map",
+        title: t('error'),
+        description: t('setItemLocationOnMap'),
         variant: "destructive",
       });
       return;
@@ -300,8 +304,8 @@ const PostItem = () => {
 
     if (!user) {
       toast({
-        title: "Error",
-        description: "You must be logged in to post items",
+        title: t('error'),
+        description: t('mustBeLoggedInToPost'),
         variant: "destructive",
       });
       return;
@@ -312,6 +316,7 @@ const PostItem = () => {
       const itemData = {
         title: formData.title,
         price: parseFloat(formData.price),
+        currency: formData.currency,
         description: formData.description,
         latitude: userLocation.lat,
         longitude: userLocation.lng,
@@ -328,15 +333,15 @@ const PostItem = () => {
       if (error) throw error;
 
       toast({
-        title: "Success",
-        description: "Item posted successfully",
+        title: t('success'),
+        description: t('itemPostedSuccessfully'),
       });
       navigate('/profile');
     } catch (error) {
       console.error('Error posting item:', error);
       toast({
-        title: "Error",
-        description: "Failed to post item. Please try again.",
+        title: t('error'),
+        description: t('failedToPostItem'),
         variant: "destructive",
       });
     } finally {
@@ -349,8 +354,8 @@ const PostItem = () => {
 
     if (images.length + e.target.files.length > 5) {
       toast({
-        title: "Too many images",
-        description: "Maximum 5 images allowed",
+        title: t('tooManyImages'),
+        description: t('maximum5ImagesAllowed'),
         variant: "destructive",
       });
       return;
@@ -367,9 +372,9 @@ const PostItem = () => {
   if (categoriesLoading) {
     return (
       <div className="min-h-screen bg-background">
-        <TopBar title="Post Item" showBackButton={showBackButton} />
+        <TopBar title={t('postItem')} showBackButton={showBackButton} />
         <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center">Loading...</div>
+          <div className="text-center">{t('loading')}</div>
         </div>
       </div>
     );
@@ -378,9 +383,9 @@ const PostItem = () => {
   if (categoriesError) {
     return (
       <div className="min-h-screen bg-background">
-        <TopBar title="Post Item" showBackButton={showBackButton} />
+        <TopBar title={t('postItem')} showBackButton={showBackButton} />
         <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center text-red-500">Error loading categories</div>
+          <div className="text-center text-red-500">{t('errorLoadingCategories')}</div>
         </div>
       </div>
     );
@@ -388,20 +393,20 @@ const PostItem = () => {
 
   return (
     <div className="min-h-screen bg-background pb-16">
-      <TopBar title="Post Item" showBackButton={showBackButton} />
+      <TopBar title={t('postItem')} showBackButton={showBackButton} />
 
       <div className="container mx-auto px-4 py-6 max-w-2xl">
         <Card className="p-6">
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Image Upload Section */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">Images (up to 5)</label>
+              <label className="text-sm font-medium">{t('images')} ({t('upTo5')})</label>
               <div className="grid grid-cols-3 gap-2">
                 {images.map((url, index) => (
                   <div key={index} className="relative aspect-square">
                     <img
                       src={url}
-                      alt={`Upload ${index + 1}`}
+                      alt={`${t('upload')} ${index + 1}`}
                       className="w-full h-full object-cover rounded-lg border"
                     />
                     <Button
@@ -435,14 +440,14 @@ const PostItem = () => {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Title</label>
+              <label className="text-sm font-medium">{t('title')}</label>
               <Input
                 placeholder={
                   formData.listingType === "request"
-                    ? "What are you looking for?"
+                    ? t('whatAreYouLookingFor')
                     : formData.listingType === "rent"
-                    ? "What are you renting?"
-                    : "What are you selling?"
+                    ? t('whatAreYouRenting')
+                    : t('whatAreYouSelling')
                 }
                 value={formData.title}
                 onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
@@ -451,23 +456,38 @@ const PostItem = () => {
 
             <div className="space-y-2">
               <label className="text-sm font-medium">
-                {formData.listingType === "request" ? "Budget ($)" : "Price ($)"}
+                {formData.listingType === "request" ? t('budget') : t('price')}
               </label>
-              <Input
-                type="number"
-                placeholder={formData.listingType === "request" ? "Maximum budget" : "0.00"}
-                min="0"
-                step="0.01"
-                value={formData.price}
-                onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
-              />
+              <div className="flex gap-2">
+                <Select value={formData.currency} onValueChange={(value) => setFormData(prev => ({ ...prev, currency: value }))}>
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {getCurrencyOptions().map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.value}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Input
+                  type="number"
+                  placeholder={formData.listingType === "request" ? t('maximumBudget') : "0.00"}
+                  min="0"
+                  step="0.01"
+                  value={formData.price}
+                  onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
+                  className="flex-1"
+                />
+              </div>
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Category</label>
+              <label className="text-sm font-medium">{t('category')}</label>
               <Select value={formData.category} onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select a category" />
+                  <SelectValue placeholder={t('selectCategory')} />
                 </SelectTrigger>
                 <SelectContent>
                   {categories?.map((category) => (
@@ -480,24 +500,24 @@ const PostItem = () => {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Listing Type</label>
+              <label className="text-sm font-medium">{t('listingType')}</label>
               <Select value={formData.listingType} onValueChange={(value: "sell" | "rent" | "request") => setFormData(prev => ({ ...prev, listingType: value }))}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="sell">For Sale</SelectItem>
-                  <SelectItem value="rent">For Rent</SelectItem>
-                  <SelectItem value="request">Looking For</SelectItem>
+                  <SelectItem value="sell">{t('forSale')}</SelectItem>
+                  <SelectItem value="rent">{t('forRent')}</SelectItem>
+                  <SelectItem value="request">{t('lookingFor')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Location</label>
+              <label className="text-sm font-medium">{t('location')}</label>
               <div className="space-y-2">
                 <Input
-                  placeholder="Enter your city or area"
+                  placeholder={t('enterCityOrArea')}
                   value={formData.city}
                   onChange={(e) => handleCityInputChange(e.target.value)}
                 />
@@ -509,12 +529,12 @@ const PostItem = () => {
                   disabled={locationLoading}
                 >
                   <MapPin className="h-4 w-4" />
-                  {locationLoading ? "Finding Location..." : "Update Location on Map"}
+                  {locationLoading ? t('findingLocation') : t('updateLocationOnMap')}
                 </Button>
 
                 {userLocation && (
                   <div className="text-xs text-muted-foreground">
-                    Current location: {userLocation.lat.toFixed(4)}, {userLocation.lng.toFixed(4)}
+                    {t('currentLocation')}: {userLocation.lat.toFixed(4)}, {userLocation.lng.toFixed(4)}
                   </div>
                 )}
               </div>
@@ -535,14 +555,14 @@ const PostItem = () => {
                     <Marker position={[userLocation.lat, userLocation.lng]} />
                   </MapContainer>
                   <div className="p-2 bg-muted text-xs flex justify-between items-center">
-                    <span>Click anywhere on the map to set your item's location</span>
+                    <span>{t('clickMapToSetLocation')}</span>
                     <Button
                       type="button"
                       size="sm"
                       onClick={confirmLocation}
                       className="ml-2"
                     >
-                      Confirm Location
+                      {t('confirmLocation')}
                     </Button>
                   </div>
                 </div>
@@ -550,9 +570,9 @@ const PostItem = () => {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Description</label>
+              <label className="text-sm font-medium">{t('description')}</label>
               <Textarea
-                placeholder="Describe your item..."
+                placeholder={t('describeYourItem')}
                 className="min-h-[100px]"
                 value={formData.description}
                 onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
@@ -561,7 +581,7 @@ const PostItem = () => {
 
             <div className="flex gap-2">
               <Button type="submit" className="flex-1" disabled={loading}>
-                {loading ? "Posting..." : "Post Item"}
+                {loading ? t('posting') : t('postItem')}
               </Button>
               <Button
                 type="button"
@@ -570,7 +590,7 @@ const PostItem = () => {
                 className="flex items-center gap-2"
               >
                 <TrendingUp className="h-4 w-4" />
-                Promote
+                {t('promote')}
               </Button>
             </div>
           </form>
@@ -580,11 +600,11 @@ const PostItem = () => {
       <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Payment Required</DialogTitle>
+            <DialogTitle>{t('paymentRequired')}</DialogTitle>
           </DialogHeader>
-          <p>This item requires payment to be promoted. Please complete the payment process.</p>
+          <p>{t('itemRequiresPaymentToPromote')}</p>
           <div className="flex justify-end mt-4">
-            <Button onClick={() => handlePayment('Credit Card')}>Pay with Credit Card</Button>
+            <Button onClick={() => handlePayment('Credit Card')}>{t('payWithCreditCard')}</Button>
           </div>
         </DialogContent>
       </Dialog>

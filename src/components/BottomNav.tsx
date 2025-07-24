@@ -2,9 +2,11 @@
 import { Home, PlusSquare, User, MessageSquare, Network } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export function BottomNav() {
   const location = useLocation();
+  const { t } = useLanguage();
 
   return (
     <div className="fixed bottom-0 left-0 right-0 border-t bg-background z-50 safe-area-bottom">
@@ -18,7 +20,7 @@ export function BottomNav() {
             )}
           >
             <Home className="h-6 w-6" />
-            <span className="text-xs">Home</span>
+            <span className="text-xs">{t('home')}</span>
           </Link>
           <Link
             to="/channels"
@@ -28,7 +30,7 @@ export function BottomNav() {
             )}
           >
             <Network className="h-6 w-6" />
-            <span className="text-xs">Channels</span>
+            <span className="text-xs">{t('channels')}</span>
           </Link>
           <Link
             to="/post"
@@ -38,7 +40,7 @@ export function BottomNav() {
             )}
           >
             <PlusSquare className="h-6 w-6" />
-            <span className="text-xs">Post</span>
+            <span className="text-xs">{t('postItem')}</span>
           </Link>
           <Link
             to="/messages"
@@ -48,7 +50,7 @@ export function BottomNav() {
             )}
           >
             <MessageSquare className="h-6 w-6" />
-            <span className="text-xs">Chat</span>
+            <span className="text-xs">{t('messages')}</span>
           </Link>
           <Link
             to="/profile"
@@ -58,7 +60,7 @@ export function BottomNav() {
             )}
           >
             <User className="h-6 w-6" />
-            <span className="text-xs">Profile</span>
+            <span className="text-xs">{t('profile')}</span>
           </Link>
         </div>
       </div>

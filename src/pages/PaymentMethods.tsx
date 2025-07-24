@@ -3,24 +3,27 @@ import { TopBar } from "@/components/TopBar";
 import { Button } from "@/components/ui/button";
 import { CreditCard, Plus } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const PaymentMethods = () => {
+  const { t } = useLanguage();
+
   return (
     <div className="min-h-screen bg-background pb-16">
-      <TopBar title="Payment Methods" showBackButton={true} />
+      <TopBar title={t('paymentMethods')} showBackButton={true} />
       <main className="container mx-auto px-4 py-6">
         <div className="rounded-lg bg-card p-6 shadow">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-lg font-medium">Your Payment Methods</h2>
+            <h2 className="text-lg font-medium">{t('yourPaymentMethods')}</h2>
             <Button size="sm">
               <Plus className="h-4 w-4 mr-2" />
-              Add New
+              {t('addNew')}
             </Button>
           </div>
           <div className="flex items-center justify-center h-32 border-2 border-dashed rounded-lg">
             <div className="text-center">
               <CreditCard className="h-12 w-12 mx-auto text-gray-400" />
-              <p className="mt-2 text-sm text-gray-600">No payment methods added yet</p>
+              <p className="mt-2 text-sm text-gray-600">{t('noPaymentMethodsAddedYet')}</p>
             </div>
           </div>
         </div>

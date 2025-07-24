@@ -8,12 +8,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import avatar from "../assets/avatar.jpg";
 import defaultImage from "../assets/default_item_image.png";
+import { formatPrice } from "@/utils/currency";
 interface Item {
   id: string;
   title: string;
   price: number;
+  currency?: string;
   images?: string[];
   seller_id: string;
   listing_type?: string;
@@ -33,6 +36,7 @@ interface ItemGridProps {
 export function ItemGrid({ userId, isProfile = false, locationRange = 10, selectedCategory = 'all', userLocation, searchQuery = '' }: ItemGridProps) {
   const { toast } = useToast();
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [savingItems, setSavingItems] = useState<Record<string, boolean>>({});
   const navigate = useNavigate();
 
@@ -307,8 +311,8 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
 
     if (!user) {
       toast({
-        title: "Authentication required",
-        description: "Please sign in to save items",
+        title: t('authenticationRequired'),
+        description: t('pleaseSignInToSaveItems'),
         variant: "destructive",
       });
       return;
@@ -328,23 +332,23 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
       if (error) {
         if (error.code === '23505') { // Unique constraint violation
           toast({
-            title: "Already saved",
-            description: "This item is already in your saved items",
+            title: t('alreadySaved'),
+            description: t('itemAlreadyInSaved'),
           });
         } else {
           throw error;
         }
       } else {
         toast({
-          title: "Item saved",
-          description: "Added to your saved items",
+          title: t('itemSaved'),
+          description: t('addedToSavedItems'),
         });
       }
     } catch (error) {
       console.error('Error saving item:', error);
       toast({
-        title: "Error saving item",
-        description: "Please try again later",
+        title: t('errorSavingItem'),
+        description: t('pleaseRetryLater'),
         variant: "destructive",
       });
     } finally {
@@ -359,7 +363,7 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
 
     if (!user) {
       toast({
-        title: "Authentication required",
+        title: t('authenticationRequired'),
         description: "Please sign in to message sellers",
         variant: "destructive",
       });
@@ -369,8 +373,8 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
     // Prevent users from contacting themselves
     if (item.seller_id === user.id) {
       toast({
-        title: "Cannot message yourself",
-        description: "You cannot send messages to yourself",
+        title: t('cannotMessageYourself'),
+        description: t('cannotSendMessagesToYourself'),
         variant: "destructive",
       });
       return;
@@ -441,7 +445,7 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
       console.error('Error getting seller info:', error);
       toast({
         title: "Error",
-        description: "Failed to open chat with seller",
+        description: t('errorGettingSellerInfo'),
         variant: "destructive",
       });
     }
@@ -461,24 +465,24 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
         // Use native share if available (mobile devices)
         await navigator.share(shareData);
         toast({
-          title: "Shared successfully",
-          description: "Item has been shared",
+          title: t('shareSuccessful'),
+          description: t('itemHasBeenShared'),
           duration: 2000,
         });
       } else {
         // Fallback to clipboard
         await navigator.clipboard.writeText(shareData.url);
         toast({
-          title: "Link copied",
-          description: "Item link copied to clipboard",
+          title: t('linkCopied'),
+          description: t('itemLinkCopiedToClipboard'),
           duration: 2000,
         });
       }
     } catch (error) {
       console.error('Error sharing:', error);
       toast({
-        title: "Share failed",
-        description: "Could not share the item",
+        title: t('shareFailed'),
+        description: t('couldNotShareItem'),
         variant: "destructive",
         duration: 2000,
       });
@@ -527,14 +531,14 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M9 7l3-3 3 3" />
             </svg>
           </div>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No items posted yet</h3>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">{t('noItemsPostedYet')}</h3>
           <p className="text-muted-foreground mb-4">
-            Start selling by posting your first item. It's quick and easy!
+            {t('startSellingByPosting')}
           </p>
           <Link to="/post">
             <Button>
               <ImagePlus className="mr-2 h-4 w-4" />
-              Post Your First Item
+              {t('postYourFirstItem')}
             </Button>
           </Link>
         </div>
@@ -621,14 +625,14 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
               <h3 className="font-medium text-sm leading-tight truncate">{item.title}</h3>
               <p className="text-xs text-muted-foreground/70 mt-0.5">
                 {item.listing_type === "request"
-                  ? "Looking For"
+                  ? t('lookingFor')
                   : item.listing_type === "rent"
-                  ? "For Rent"
-                  : "For Sale"}
+                  ? t('forRent')
+                  : t('forSale')}
               </p>
               <div className="flex justify-between items-center mt-1">
                 <p className="text-sm leading-tight text-muted-foreground">
-                  ${typeof item.price === 'number' ? item.price : 0}
+                  {formatPrice(typeof item.price === 'number' ? item.price : 0, item.currency)}
                 </p>
                 <div className="flex items-center gap-1 text-sm text-muted-foreground">
                   <Eye className="h-4 w-4" />

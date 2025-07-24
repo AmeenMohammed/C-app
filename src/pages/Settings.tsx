@@ -39,6 +39,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTheme } from "next-themes";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const Settings = () => {
@@ -46,6 +47,7 @@ const Settings = () => {
   const { toast } = useToast();
   const { theme, setTheme } = useTheme();
   const { user } = useAuth();
+  const { t, currentLanguage, setLanguage, supportedLanguages } = useLanguage();
   const [openEditProfile, setOpenEditProfile] = useState(false);
   const [openChangePassword, setOpenChangePassword] = useState(false);
   const [openPrivacySettings, setOpenPrivacySettings] = useState(false);
@@ -72,7 +74,7 @@ const Settings = () => {
     messageNotifications: true,
     dealAlerts: true,
   });
-  const [language, setLanguage] = useState("english");
+
 
   // Blocked users state
   const [blockedUsers, setBlockedUsers] = useState<Array<{
@@ -88,7 +90,7 @@ const Settings = () => {
 
   const handleSaveProfile = () => {
     toast({
-      description: "Profile updated successfully",
+      description: t('profileUpdated'),
     });
     setOpenEditProfile(false);
   };
@@ -97,13 +99,13 @@ const Settings = () => {
     if (newPassword !== confirmPassword) {
       toast({
         variant: "destructive",
-        description: "Passwords do not match",
+        description: t('passwordsDoNotMatch'),
       });
       return;
     }
 
     toast({
-      description: "Password changed successfully",
+      description: t('passwordChanged'),
     });
     setOpenChangePassword(false);
     setCurrentPassword("");
@@ -113,28 +115,29 @@ const Settings = () => {
 
   const handleSavePrivacySettings = () => {
     toast({
-      description: "Privacy settings updated",
+      description: t('privacySettingsUpdated'),
     });
     setOpenPrivacySettings(false);
   };
 
   const handleSaveNotifications = () => {
     toast({
-      description: "Notification preferences updated",
+      description: t('notificationPreferencesUpdated'),
     });
     setOpenNotifications(false);
   };
 
   const handleSaveLanguage = () => {
+    const selectedLang = supportedLanguages.find(lang => lang.code === currentLanguage);
     toast({
-      description: `Language changed to ${language}`,
+      description: `${t('languageChanged')} ${selectedLang?.nativeName}`,
     });
     setOpenLanguage(false);
   };
 
   const handleSaveTheme = () => {
     toast({
-      description: `Theme changed to ${theme} mode`,
+      description: `${t('themeChanged')} ${t(theme as any)} ${t('mode')}`,
     });
     setOpenTheme(false);
   };
@@ -153,7 +156,7 @@ const Settings = () => {
         console.error('Error fetching blocked users:', error);
         toast({
           variant: "destructive",
-          description: "Failed to load blocked users",
+          description: t('failedToLoadBlockedUsers'),
         });
         return;
       }
@@ -186,10 +189,10 @@ const Settings = () => {
       setBlockedUsers(blockedUsersWithProfiles);
     } catch (error) {
       console.error('Error loading blocked users:', error);
-      toast({
-        variant: "destructive",
-        description: "Failed to load blocked users",
-      });
+              toast({
+          variant: "destructive",
+          description: t('failedToLoadBlockedUsers'),
+        });
     } finally {
       setLoadingBlockedUsers(false);
     }
@@ -210,19 +213,19 @@ const Settings = () => {
         console.error('Error unblocking user:', error);
         toast({
           variant: "destructive",
-          description: `Failed to unblock ${userName}`,
+          description: `${t('failedToUnblock')} ${userName}`,
         });
       } else {
         setBlockedUsers(prev => prev.filter(user => user.blocked_user_id !== userId));
         toast({
-          description: `You've unblocked ${userName}`,
+          description: `${t('youveUnblocked')} ${userName}`,
         });
       }
     } catch (error) {
       console.error('Error unblocking user:', error);
       toast({
         variant: "destructive",
-        description: `Failed to unblock ${userName}`,
+        description: `${t('failedToUnblock')} ${userName}`,
       });
     } finally {
       setUnblockingUsers(prev => {
@@ -244,7 +247,7 @@ const Settings = () => {
       if (error) {
         toast({
           variant: "destructive",
-          description: "Error deleting account. Please try again.",
+          description: t('errorDeletingAccount'),
         });
         return;
       }
@@ -252,23 +255,23 @@ const Settings = () => {
       await supabase.auth.signOut();
       navigate("/");
       toast({
-        description: "Your account has been deleted",
+        description: t('accountDeleted'),
       });
     } catch (error) {
       toast({
         variant: "destructive",
-        description: "An unexpected error occurred",
+        description: t('unexpectedError'),
       });
     }
   };
 
   return (
     <div className="min-h-screen bg-background">
-      <TopBar title="Settings" showBackButton={true} />
+      <TopBar title={t('settings')} showBackButton={true} />
       <main className="container mx-auto px-4 py-6">
         <div className="space-y-6 pb-16">
           <div className="rounded-lg bg-card p-6 shadow">
-            <h2 className="text-lg font-medium">Account Settings</h2>
+            <h2 className="text-lg font-medium">{t('accountSettings')}</h2>
             <Separator className="my-4" />
             <div className="space-y-4">
               <Button
@@ -276,34 +279,34 @@ const Settings = () => {
                 className="w-full justify-start"
                 onClick={() => setOpenEditProfile(true)}
               >
-                Edit Profile
+                {t('editProfile')}
               </Button>
               <Button
                 variant="outline"
                 className="w-full justify-start"
                 onClick={() => setOpenChangePassword(true)}
               >
-                Change Password
+                {t('changePassword')}
               </Button>
               <Button
                 variant="outline"
                 className="w-full justify-start"
                 onClick={() => setOpenPrivacySettings(true)}
               >
-                Privacy Settings
+                {t('privacySettings')}
               </Button>
               <Button
                 variant="outline"
                 className="w-full justify-start"
                 onClick={handleOpenBlockedUsers}
               >
-                Blocked Users
+                {t('blockedUsers')}
               </Button>
             </div>
           </div>
 
           <div className="rounded-lg bg-card p-6 shadow">
-            <h2 className="text-lg font-medium">Preferences</h2>
+            <h2 className="text-lg font-medium">{t('preferences')}</h2>
             <Separator className="my-4" />
             <div className="space-y-4">
               <Button
@@ -311,27 +314,27 @@ const Settings = () => {
                 className="w-full justify-start"
                 onClick={() => setOpenNotifications(true)}
               >
-                Notifications
+                {t('notifications')}
               </Button>
               <Button
                 variant="outline"
                 className="w-full justify-start"
                 onClick={() => setOpenLanguage(true)}
               >
-                Language
+                {t('language')}
               </Button>
               <Button
                 variant="outline"
                 className="w-full justify-start"
                 onClick={() => setOpenTheme(true)}
               >
-                Theme
+                {t('theme')}
               </Button>
             </div>
           </div>
 
           <div className="rounded-lg bg-card p-6 shadow">
-            <h2 className="text-lg font-medium text-destructive">Danger Zone</h2>
+            <h2 className="text-lg font-medium text-destructive">{t('dangerZone')}</h2>
             <Separator className="my-4" />
             <div className="space-y-4">
               <AlertDialog>
@@ -340,24 +343,23 @@ const Settings = () => {
                     variant="destructive"
                     className="w-full justify-start"
                   >
-                    Delete Account
+                    {t('deleteAccount')}
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                    <AlertDialogTitle>{t('deleteAccountTitle')}</AlertDialogTitle>
                     <AlertDialogDescription>
-                      This action cannot be undone. This will permanently delete your
-                      account and remove all your data from our servers.
+                      {t('deleteAccountDescription')}
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
                     <AlertDialogAction
                       onClick={handleDeleteAccount}
                       className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                     >
-                      Delete Account
+                      {t('deleteAccount')}
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
@@ -371,15 +373,15 @@ const Settings = () => {
       <Dialog open={openEditProfile} onOpenChange={setOpenEditProfile}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Edit Profile</DialogTitle>
+            <DialogTitle>{t('editProfileTitle')}</DialogTitle>
             <DialogDescription>
-              Make changes to your profile here. Click save when you're done.
+              {t('editProfileDescription')}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="name" className="text-right">
-                Name
+                {t('name')}
               </Label>
               <Input
                 id="name"
@@ -390,7 +392,7 @@ const Settings = () => {
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="email" className="text-right">
-                Email
+                {t('email')}
               </Label>
               <Input
                 id="email"
@@ -402,7 +404,7 @@ const Settings = () => {
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="bio" className="text-right">
-                Bio
+                {t('bio')}
               </Label>
               <Input
                 id="bio"
@@ -414,9 +416,9 @@ const Settings = () => {
           </div>
           <DialogFooter>
             <DialogClose asChild>
-              <Button variant="outline">Cancel</Button>
+              <Button variant="outline">{t('cancel')}</Button>
             </DialogClose>
-            <Button onClick={handleSaveProfile}>Save changes</Button>
+            <Button onClick={handleSaveProfile}>{t('saveChanges')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -425,15 +427,15 @@ const Settings = () => {
       <Dialog open={openChangePassword} onOpenChange={setOpenChangePassword}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Change Password</DialogTitle>
+            <DialogTitle>{t('changePasswordTitle')}</DialogTitle>
             <DialogDescription>
-              Enter your current password and choose a new one.
+              {t('changePasswordDescription')}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="current-password" className="text-right">
-                Current
+                {t('currentPassword')}
               </Label>
               <Input
                 id="current-password"
@@ -445,7 +447,7 @@ const Settings = () => {
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="new-password" className="text-right">
-                New
+                {t('newPassword')}
               </Label>
               <Input
                 id="new-password"
@@ -457,7 +459,7 @@ const Settings = () => {
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="confirm-password" className="text-right">
-                Confirm
+                {t('confirmPassword')}
               </Label>
               <Input
                 id="confirm-password"
@@ -470,9 +472,9 @@ const Settings = () => {
           </div>
           <DialogFooter>
             <DialogClose asChild>
-              <Button variant="outline">Cancel</Button>
+              <Button variant="outline">{t('cancel')}</Button>
             </DialogClose>
-            <Button onClick={handleChangePassword}>Update Password</Button>
+            <Button onClick={handleChangePassword}>{t('updatePassword')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -481,15 +483,15 @@ const Settings = () => {
       <Dialog open={openPrivacySettings} onOpenChange={setOpenPrivacySettings}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Privacy Settings</DialogTitle>
+            <DialogTitle>{t('privacySettingsTitle')}</DialogTitle>
             <DialogDescription>
-              Manage your privacy preferences.
+              {t('privacySettingsDescription')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="flex items-center justify-between">
               <Label htmlFor="profile-visibility" className="flex-1">
-                Profile Visibility
+                {t('profileVisibility')}
               </Label>
               <Switch
                 id="profile-visibility"
@@ -501,7 +503,7 @@ const Settings = () => {
             </div>
             <div className="flex items-center justify-between">
               <Label htmlFor="direct-messages" className="flex-1">
-                Allow Direct Messages
+                {t('allowDirectMessages')}
               </Label>
               <Switch
                 id="direct-messages"
@@ -513,7 +515,7 @@ const Settings = () => {
             </div>
             <div className="flex items-center justify-between">
               <Label htmlFor="activity-status" className="flex-1">
-                Show Activity Status
+                {t('showActivityStatus')}
               </Label>
               <Switch
                 id="activity-status"
@@ -526,9 +528,9 @@ const Settings = () => {
           </div>
           <DialogFooter>
             <DialogClose asChild>
-              <Button variant="outline">Cancel</Button>
+              <Button variant="outline">{t('cancel')}</Button>
             </DialogClose>
-            <Button onClick={handleSavePrivacySettings}>Save Preferences</Button>
+            <Button onClick={handleSavePrivacySettings}>{t('savePreferences')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -537,15 +539,15 @@ const Settings = () => {
       <Dialog open={openNotifications} onOpenChange={setOpenNotifications}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Notification Settings</DialogTitle>
+            <DialogTitle>{t('notificationSettingsTitle')}</DialogTitle>
             <DialogDescription>
-              Customize how you want to be notified.
+              {t('notificationSettingsDescription')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="flex items-center justify-between">
               <Label htmlFor="push-notifications" className="flex-1">
-                Push Notifications
+                {t('pushNotifications')}
               </Label>
               <Switch
                 id="push-notifications"
@@ -557,7 +559,7 @@ const Settings = () => {
             </div>
             <div className="flex items-center justify-between">
               <Label htmlFor="email-notifications" className="flex-1">
-                Email Notifications
+                {t('emailNotifications')}
               </Label>
               <Switch
                 id="email-notifications"
@@ -569,7 +571,7 @@ const Settings = () => {
             </div>
             <div className="flex items-center justify-between">
               <Label htmlFor="message-notifications" className="flex-1">
-                New Message Alerts
+                {t('messageNotifications')}
               </Label>
               <Switch
                 id="message-notifications"
@@ -581,7 +583,7 @@ const Settings = () => {
             </div>
             <div className="flex items-center justify-between">
               <Label htmlFor="deal-alerts" className="flex-1">
-                Deal Alerts
+                {t('dealAlerts')}
               </Label>
               <Switch
                 id="deal-alerts"
@@ -594,9 +596,9 @@ const Settings = () => {
           </div>
           <DialogFooter>
             <DialogClose asChild>
-              <Button variant="outline">Cancel</Button>
+              <Button variant="outline">{t('cancel')}</Button>
             </DialogClose>
-            <Button onClick={handleSaveNotifications}>Save Preferences</Button>
+            <Button onClick={handleSaveNotifications}>{t('savePreferences')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -605,31 +607,30 @@ const Settings = () => {
       <Dialog open={openLanguage} onOpenChange={setOpenLanguage}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Language Settings</DialogTitle>
+            <DialogTitle>{t('languageSettingsTitle')}</DialogTitle>
             <DialogDescription>
-              Select your preferred language.
+              {t('languageSettingsDescription')}
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
-            <Select value={language} onValueChange={setLanguage}>
+            <Select value={currentLanguage} onValueChange={setLanguage}>
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select a language" />
+                <SelectValue placeholder={t('languageSettingsDescription')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="english">English</SelectItem>
-                <SelectItem value="spanish">Spanish</SelectItem>
-                <SelectItem value="french">French</SelectItem>
-                <SelectItem value="german">German</SelectItem>
-                <SelectItem value="japanese">Japanese</SelectItem>
-                <SelectItem value="chinese">Chinese</SelectItem>
+                {supportedLanguages.map((lang) => (
+                  <SelectItem key={lang.code} value={lang.code}>
+                    {lang.nativeName}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
           <DialogFooter>
             <DialogClose asChild>
-              <Button variant="outline">Cancel</Button>
+              <Button variant="outline">{t('cancel')}</Button>
             </DialogClose>
-            <Button onClick={handleSaveLanguage}>Save Preference</Button>
+            <Button onClick={handleSaveLanguage}>{t('savePreference')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -638,17 +639,17 @@ const Settings = () => {
       <Dialog open={openTheme} onOpenChange={setOpenTheme}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Theme Settings</DialogTitle>
+            <DialogTitle>{t('themeSettingsTitle')}</DialogTitle>
             <DialogDescription>
-              Choose your preferred theme.
+              {t('themeSettingsDescription')}
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
             <Tabs value={theme} className="w-full" onValueChange={setTheme}>
               <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="light">Light</TabsTrigger>
-                <TabsTrigger value="dark">Dark</TabsTrigger>
-                <TabsTrigger value="system">System</TabsTrigger>
+                <TabsTrigger value="light">{t('light')}</TabsTrigger>
+                <TabsTrigger value="dark">{t('dark')}</TabsTrigger>
+                <TabsTrigger value="system">{t('system')}</TabsTrigger>
               </TabsList>
               <TabsContent value="light" className="mt-4">
                 <div className="rounded-md border border-gray-200 p-4 bg-white">
@@ -675,9 +676,9 @@ const Settings = () => {
           </div>
           <DialogFooter>
             <DialogClose asChild>
-              <Button variant="outline">Cancel</Button>
+              <Button variant="outline">{t('cancel')}</Button>
             </DialogClose>
-            <Button onClick={handleSaveTheme}>Save Preference</Button>
+            <Button onClick={handleSaveTheme}>{t('savePreference')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -686,9 +687,9 @@ const Settings = () => {
       <Dialog open={openBlockedUsers} onOpenChange={setOpenBlockedUsers}>
         <DialogContent className="sm:max-w-[500px] max-h-[600px] overflow-hidden">
           <DialogHeader>
-            <DialogTitle>Blocked Users</DialogTitle>
+            <DialogTitle>{t('blockedUsersTitle')}</DialogTitle>
             <DialogDescription>
-              Manage users you have blocked. You can unblock users to allow interactions again.
+              {t('blockedUsersDescription')}
             </DialogDescription>
           </DialogHeader>
 
@@ -699,8 +700,8 @@ const Settings = () => {
               </div>
             ) : blockedUsers.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                <p>You haven't blocked any users yet.</p>
-                <p className="text-sm mt-2">Blocked users will appear here.</p>
+                <p>{t('noBlockedUsers')}</p>
+                <p className="text-sm mt-2">{t('blockedUsersWillAppear')}</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -720,7 +721,7 @@ const Settings = () => {
                           {blockedUser.user_profile?.full_name || 'Unknown User'}
                         </p>
                         <p className="text-sm text-muted-foreground">
-                          Blocked {new Date(blockedUser.blocked_at).toLocaleDateString()}
+                          {t('blocked')} {new Date(blockedUser.blocked_at).toLocaleDateString()}
                         </p>
                       </div>
                     </div>
@@ -736,10 +737,10 @@ const Settings = () => {
                       {unblockingUsers.has(blockedUser.blocked_user_id) ? (
                         <>
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
-                          Unblocking...
+                          {t('unblocking')}
                         </>
                       ) : (
-                        'Unblock'
+                        t('unblock')
                       )}
                     </Button>
                   </div>
@@ -750,7 +751,7 @@ const Settings = () => {
 
           <DialogFooter>
             <DialogClose asChild>
-              <Button variant="outline">Close</Button>
+              <Button variant="outline">{t('close')}</Button>
             </DialogClose>
           </DialogFooter>
         </DialogContent>

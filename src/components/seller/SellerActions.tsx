@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -32,11 +33,12 @@ export const SellerActions = ({
   setIsBlocked
 }: SellerActionsProps) => {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [isBlockDialogOpen, setIsBlockDialogOpen] = useState(false);
 
   const handleContactSeller = () => {
     if (isBlocked) {
-      toast.error("Cannot contact blocked user");
+      toast.error(t('cannotContactBlockedUser'));
       return;
     }
 
@@ -52,7 +54,7 @@ export const SellerActions = ({
   const handleBlockUser = async () => {
     const user = (await supabase.auth.getUser()).data.user;
     if (!user || !sellerId) {
-      toast.error("You need to be logged in to block users");
+      toast.error(t('needToBeLoggedInToBlockUsers'));
       return;
     }
 
@@ -67,10 +69,10 @@ export const SellerActions = ({
 
         if (error) {
           console.error('Error unblocking user:', error);
-          toast.error("Failed to unblock user");
+          toast.error(t('failedToUnblockUser'));
         } else {
           setIsBlocked(false);
-          toast.success(`You've unblocked ${sellerName}`);
+          toast.success(t('youveUnblockedUser').replace('{name}', sellerName));
         }
       } else {
         // Block user using the RPC function
@@ -82,15 +84,15 @@ export const SellerActions = ({
 
         if (error) {
           console.error('Error blocking user:', error);
-          toast.error("Failed to block user");
+          toast.error(t('failedToBlockUser'));
         } else {
           setIsBlocked(true);
-          toast.success(`You've blocked ${sellerName}`);
+          toast.success(t('youveBlockedUser').replace('{name}', sellerName));
         }
       }
     } catch (error) {
       console.error('Error managing block status:', error);
-      toast.error("An error occurred");
+      toast.error(t('anErrorOccurred'));
     }
 
     setIsBlockDialogOpen(false);
@@ -104,7 +106,7 @@ export const SellerActions = ({
         disabled={isBlocked}
         variant={isBlocked ? "secondary" : "default"}
       >
-        {isBlocked ? "Cannot Contact (Blocked)" : "Contact Seller"}
+        {isBlocked ? t('cannotContactBlocked') : t('contactSeller')}
       </Button>
 
       <AlertDialog open={isBlockDialogOpen} onOpenChange={setIsBlockDialogOpen}>
@@ -113,24 +115,24 @@ export const SellerActions = ({
             variant={isBlocked ? "destructive" : "outline"}
             className="w-full"
           >
-            {isBlocked ? "Unblock User" : "Block User"}
+            {isBlocked ? t('unblockUser') : t('blockUser')}
           </Button>
         </AlertDialogTrigger>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {isBlocked ? "Unblock this user?" : "Block this user?"}
+              {isBlocked ? t('unblockThisUser') : t('blockThisUser')}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {isBlocked
-                ? `You will start seeing ${sellerName}'s content again.`
-                : `You won't see ${sellerName}'s content anymore. They won't be notified that you've blocked them.`}
+                ? t('youWillStartSeeingContent').replace('{name}', sellerName)
+                : t('youWontSeeContent').replace('{name}', sellerName)}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
             <AlertDialogAction onClick={handleBlockUser}>
-              {isBlocked ? "Unblock" : "Block"}
+              {isBlocked ? t('unblock') : t('block')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -2,6 +2,7 @@
 import { MapPin, Star, StarHalf } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Avatar } from "@/components/ui/avatar";
+import { useLanguage } from "@/contexts/LanguageContext";
 import avatar from "../../assets/avatar.jpg";
 
 interface SellerRatings {
@@ -25,6 +26,8 @@ interface SellerHeaderProps {
 }
 
 export const SellerHeader = ({ seller, ratings }: SellerHeaderProps) => {
+  const { t } = useLanguage();
+
   const renderStars = (rating: number) => {
     const stars = [];
     const fullStars = Math.floor(rating);
@@ -55,7 +58,7 @@ export const SellerHeader = ({ seller, ratings }: SellerHeaderProps) => {
         />
         <div className="flex-1">
           <h2 className="text-2xl font-semibold">{seller.name}</h2>
-          <p className="text-sm text-muted-foreground">Member since {seller.joinDate}</p>
+          <p className="text-sm text-muted-foreground">{t('memberSince')} {seller.joinDate}</p>
           <div className="flex items-center gap-2 mt-2">
             <MapPin className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm text-muted-foreground">{seller.location}</span>
@@ -64,7 +67,7 @@ export const SellerHeader = ({ seller, ratings }: SellerHeaderProps) => {
             <div className="flex">{ratings && renderStars(ratings.average_rating)}</div>
             <span className="font-medium">{ratings?.average_rating || 0}</span>
             <span className="text-muted-foreground">
-              ({ratings?.total_ratings || 0} ratings)
+              ({ratings?.total_ratings || 0} {t('ratings')})
             </span>
           </div>
         </div>

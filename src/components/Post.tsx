@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Heart, MessageCircle, Share2, Bookmark } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface PostProps {
   username: string;
@@ -15,6 +16,7 @@ interface PostProps {
 export function Post({ username, userImage, image, caption, likes }: PostProps) {
   const [isLiked, setIsLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(likes);
+  const { t } = useLanguage();
 
   const handleLike = () => {
     setIsLiked(!isLiked);
@@ -57,7 +59,7 @@ export function Post({ username, userImage, image, caption, likes }: PostProps) 
           </Button>
         </div>
 
-        <div className="font-medium mb-2">{likesCount.toLocaleString()} likes</div>
+        <div className="font-medium mb-2">{likesCount.toLocaleString()} {t('likes')}</div>
         <div>
           <span className="font-medium mr-2">{username}</span>
           {caption}

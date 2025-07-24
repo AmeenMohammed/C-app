@@ -1,0 +1,501 @@
+export const en = {
+  // Common
+  loading: "Loading...",
+  save: "Save",
+  cancel: "Cancel",
+  close: "Close",
+  delete: "Delete",
+  edit: "Edit",
+  back: "Back",
+  next: "Next",
+  previous: "Previous",
+  search: "Search",
+  filter: "Filter",
+  clear: "Clear",
+  confirm: "Confirm",
+  yes: "Yes",
+  no: "No",
+  ok: "OK",
+
+  // Navigation
+  home: "Home",
+  channels: "Channels",
+  messages: "Messages",
+  notifications: "Notifications",
+  profile: "Profile",
+  settings: "Settings",
+  savedItems: "Saved Items",
+  helpSupport: "Help & Support",
+
+  // Settings Page
+  accountSettings: "Account Settings",
+  editProfile: "Edit Profile",
+  changePassword: "Change Password",
+  privacySettings: "Privacy Settings",
+  blockedUsers: "Blocked Users",
+  preferences: "Preferences",
+  language: "Language",
+  theme: "Theme",
+  dangerZone: "Danger Zone",
+  deleteAccount: "Delete Account",
+
+  // Edit Profile Dialog
+  editProfileTitle: "Edit Profile",
+  editProfileDescription: "Make changes to your profile here. Click save when you're done.",
+  name: "Name",
+  email: "Email",
+  bio: "Bio",
+  saveChanges: "Save changes",
+
+  // Change Password Dialog
+  changePasswordTitle: "Change Password",
+  changePasswordDescription: "Enter your current password and choose a new one.",
+  currentPassword: "Current",
+  newPassword: "New",
+  confirmPassword: "Confirm",
+  updatePassword: "Update Password",
+
+  // Privacy Settings Dialog
+  privacySettingsTitle: "Privacy Settings",
+  privacySettingsDescription: "Manage your privacy preferences.",
+  profileVisibility: "Profile Visibility",
+  allowDirectMessages: "Allow Direct Messages",
+  showActivityStatus: "Show Activity Status",
+  savePreferences: "Save Preferences",
+
+  // Blocked Users Dialog
+  blockedUsersTitle: "Blocked Users",
+  blockedUsersDescription: "Manage users you have blocked. You can unblock users to allow interactions again.",
+  noBlockedUsers: "You haven't blocked any users yet.",
+  blockedUsersWillAppear: "Blocked users will appear here.",
+  unblock: "Unblock",
+  unblocking: "Unblocking...",
+  blocked: "Blocked",
+
+  // Notification Settings Dialog
+  notificationSettingsTitle: "Notification Settings",
+  notificationSettingsDescription: "Customize how you want to be notified.",
+  pushNotifications: "Push Notifications",
+  emailNotifications: "Email Notifications",
+  messageNotifications: "New Message Alerts",
+  dealAlerts: "Deal Alerts",
+
+  // Language Settings Dialog
+  languageSettingsTitle: "Language Settings",
+  languageSettingsDescription: "Select your preferred language.",
+  savePreference: "Save Preference",
+
+  // Theme Settings Dialog
+  themeSettingsTitle: "Theme Settings",
+  themeSettingsDescription: "Choose your preferred theme.",
+  light: "Light",
+  dark: "Dark",
+  system: "System",
+
+  // Delete Account Dialog
+  deleteAccountTitle: "Are you absolutely sure?",
+  deleteAccountDescription: "This action cannot be undone. This will permanently delete your account and remove all your data from our servers.",
+
+  // Toast Messages
+  profileUpdated: "Profile updated successfully",
+  passwordChanged: "Password changed successfully",
+  passwordsDoNotMatch: "Passwords do not match",
+  privacySettingsUpdated: "Privacy settings updated",
+  notificationPreferencesUpdated: "Notification preferences updated",
+  languageChanged: "Language changed to",
+  themeChanged: "Theme changed to",
+  mode: "mode",
+  accountDeleted: "Your account has been deleted",
+  errorDeletingAccount: "Error deleting account. Please try again.",
+  unexpectedError: "An unexpected error occurred",
+  failedToLoadBlockedUsers: "Failed to load blocked users",
+  failedToUnblock: "Failed to unblock",
+  youveUnblocked: "You've unblocked",
+
+  // Languages
+  english: "English",
+  arabic: "Arabic",
+
+  // Common UI Elements
+  connecting: "Connecting...",
+  continueWithGoogle: "Continue with Google",
+  continueWithApple: "Continue with Apple",
+  signIn: "Sign In",
+  signUp: "Sign Up",
+  logout: "Logout",
+
+  // Post Item
+  postItem: "Post Item",
+  title: "Title",
+  description: "Description",
+  price: "Price",
+  category: "Category",
+  images: "Images",
+  location: "Location",
+  listingType: "Listing Type",
+  forSale: "For Sale",
+  forRent: "For Rent",
+
+  // Messages
+  typeMessage: "Type a message...",
+  send: "Send",
+  attachment: "Attachment",
+
+  // Profile
+  joinedOn: "Joined on",
+  items: "Items",
+  reviews: "Reviews",
+
+  // Item Details
+  contactSeller: "Contact Seller",
+  saveItem: "Save Item",
+  share: "Share",
+  viewOnMap: "View on Map",
+
+  // Common Actions
+  block: "Block",
+  unblockUser: "Unblock User",
+  report: "Report",
+  contact: "Contact",
+
+  // Messages Page
+  cannotMessageUser: "Cannot message this user",
+  cannotMessageSeller: "Cannot message this seller",
+  cannotSendMessage: "Cannot send message to this user",
+  conversations: "Conversations",
+  noConversationsYet: "No conversations yet",
+  conversationSingular: "conversation",
+  conversationPlural: "conversations",
+  contactSellerToStart: "Contact a seller to start chatting!",
+  selectConversation: "Select a conversation to start messaging",
+  welcomeToMessages: "Welcome to Messages",
+  contactSellersToStart: "Contact sellers to start conversations",
+  startConversation: "Start a conversation with",
+  deleteConversation: "Delete Conversation",
+  deleteConversationConfirm: "Are you sure you want to delete this conversation with {name}? This action cannot be undone and all messages will be permanently lost.",
+  conversationDeletedSuccess: "Conversation deleted successfully",
+  failedToDeleteConversation: "Failed to delete conversation",
+  loadingConversations: "Loading conversations...",
+  failedToLoadConversations: "Failed to load conversations",
+  failedToLoadMessages: "Failed to load messages",
+  failedToSendMessage: "Failed to send message",
+  failedToSendItemDetails: "Failed to send item details. Please try again.",
+  interestedInItem: "Hi! I'm interested in this item:\n\n📦 {title}\n💰 {price}\n🔗 {link}",
+  messageContainsInappropriate: "Message contains inappropriate content and cannot be sent.",
+  sendCleanedVersion: "Your message contains inappropriate language. Would you like to send a cleaned version instead?\n\nOriginal: \"{original}\"\nCleaned: \"{cleaned}\"",
+  messageCleanedBeforeSending: "Message has been cleaned before sending.",
+  languageFiltered: "Some language has been filtered from your message.",
+  validatingFile: "Validating file...",
+  fileValidationFailed: "File validation failed",
+  fileAttached: "File attached: {name} ({size})",
+  contentVerified: "✅ Content verified",
+  failedToValidateFile: "Failed to validate file",
+  fileUploadLimits: "File Upload Limits",
+  imagesLimit: "📷 Images (JPEG, PNG, GIF, WebP):",
+  videosLimit: "🎥 Videos (MP4, MOV, WMV):",
+  documentsLimit: "📄 Documents (PDF, DOC, TXT):",
+  otherFilesLimit: "📁 Other files:",
+  clickAttachmentButton: "Click the attachment button to select a file",
+  whatsYourMood: "What's your mood?",
+  moveToTop: "Move to Top",
+  paymentMethods: "Payment Methods",
+  justNow: "Just now",
+
+  // Profile Page
+  loadingProfile: "Loading profile...",
+  failedToLoadProfile: "Failed to load profile",
+  memberSince: "Member since",
+  signedInWith: "Signed in with",
+  yourName: "Your name",
+  tellUsAboutYourself: "Tell us about yourself",
+  noPhoneNumber: "No phone number",
+  yourPhoneNumber: "Your phone number",
+  locationNotSet: "Location not set",
+  yourLocation: "Your location",
+  myItems: "My Items",
+  loadingUserInformation: "Loading user information...",
+  profileUpdatedSuccessfully: "Profile updated successfully",
+  failedToUpdateProfile: "Failed to update profile",
+
+  // Seller Profile Page
+  sellerProfile: "Seller Profile",
+  sellerProfileNotFound: "Seller profile not found",
+  backToHome: "Back to Home",
+  rateThisSeller: "Rate this seller",
+  updateRating: "Update Rating",
+  rateSeller: "Rate Seller",
+  updateYourRating: "Update Your Rating",
+  shareYourExperience: "Share your experience with {name}",
+  rateThisSellerLabel: "Rate this seller",
+  poor: "Poor",
+  fair: "Fair",
+  good: "Good",
+  veryGood: "Very Good",
+  excellent: "Excellent",
+  submitting: "Submitting...",
+  submitRating: "Submit Rating",
+  pleaseSelectRating: "Please select a rating",
+  ratingUpdatedSuccessfully: "Rating updated successfully!",
+  ratingSubmittedSuccessfully: "Rating submitted successfully!",
+  failedToSubmitRating: "Failed to submit rating. Please try again.",
+  yourRating: "Your rating:",
+  ratings: "ratings",
+
+  // Additional Pages
+  howCanWeHelpYou: "How can we help you?",
+  liveChat: "Live Chat",
+  emailSupport: "Email Support",
+  phoneSupport: "Phone Support",
+  faqs: "FAQs",
+
+  // Notifications Page
+  notificationsEmpty: "No notifications yet",
+  noNewNotifications: "No new notifications",
+
+  // Payment Methods Page
+  paymentMethodsEmpty: "No payment methods added",
+  yourPaymentMethods: "Your Payment Methods",
+  addNew: "Add New",
+  noPaymentMethodsAddedYet: "No payment methods added yet",
+
+  // Not Found Page
+  pageNotFound: "Oops! Page not found",
+  returnToHome: "Return to Home",
+
+  // Index/Login Page
+  pleaseSignInToContinue: "Please sign in to continue",
+  signingIn: "Signing in...",
+  signedInSuccessfully: "Signed in successfully!",
+  unexpectedErrorOccurred: "An unexpected error occurred",
+  dontHaveAccount: "Don't have an account? Sign up",
+
+  // SignUp Page
+  creatingAccount: "Creating Account...",
+
+  // ItemDetails Page
+  itemDetails: "Item Details",
+  contactRequester: "Contact Requester",
+  contactLandlord: "Contact Landlord",
+  unknownLocation: "Unknown Location",
+
+  // PostItem Page
+  locationDetected: "Location Detected",
+  locationInfo: "Location Info",
+  locationUpdated: "Location Updated",
+  clickConfirmLocation: "Click 'Confirm Location' when you're happy with the position.",
+  coordinatesSet: "Coordinates Set",
+  mapUpdatedWithCoordinates: "Map updated with the entered coordinates.",
+  cityFound: "City Found",
+  mapUpdatedWithCity: "Map updated with the city location.",
+  locationConfirmed: "Location Confirmed",
+  processingPayment: "Processing Payment",
+  paymentSuccessful: "Payment Successful",
+  uploadError: "Upload Error",
+  itemTitle: "Item title",
+  selectCategory: "Select a category",
+  selectListingType: "Select listing type",
+  enterTagsSeparated: "Enter tags separated by commas (e.g., sold, best seller, urgent)",
+  addCustomTags: "Add custom tags like \"sold\", \"rented\", \"best seller\", etc. Separate multiple tags with commas.",
+  describeYourItem: "Describe your item...",
+  enterYourCityOrArea: "Enter your city or area",
+  maximumBudget: "Maximum budget",
+  posting: "Posting...",
+  payWithCreditCard: "Pay with Credit Card",
+  whatAreYouLookingFor: "What are you looking for?",
+  whatAreYouRenting: "What are you renting?",
+  whatAreYouSelling: "What are you selling?",
+
+  // EditItem Page
+  editItem: "Edit Item",
+  saving: "Saving...",
+
+  // CreateChannel Page
+  createChannel: "Create Channel",
+  createNewChannel: "Create New Channel",
+  onlyInvitedMembers: "Only invited members can join",
+  anyoneCanJoin: "Anyone can discover and join",
+  creating: "Creating...",
+  locationUpdatedClickConfirm: "Location updated! Click 'Confirm Location' when ready.",
+
+  // Channels Page
+  discover: "Discover",
+  joined: "Joined",
+  searchChannels: "Search channels...",
+  searchJoinedChannels: "Search joined channels...",
+  noChannelsFound: "No channels found matching your search",
+  noNewChannelsToDiscover: "No new channels to discover",
+  noJoinedChannelsMatch: "No joined channels match your search",
+  haventJoinedAnyChannels: "You haven't joined any channels yet",
+  members: "members",
+  join: "Join",
+  requestJoin: "Request Join",
+  requestPending: "Request Pending",
+  leave: "Leave",
+  open: "Open",
+  typeAMessage: "Type a message...",
+
+  // Channel Management
+  failedToLoadChannels: "Failed to load channels",
+  pleaseSignInToJoinChannels: "Please sign in to join channels",
+  joinedChannel: "Joined {name}!",
+  failedToJoinChannel: "Failed to join channel",
+  leftChannel: "Left {name}",
+  failedToLeaveChannel: "Failed to leave channel",
+  pleaseSignInToRequestJoin: "Please sign in to request to join channels",
+  joinRequestSent: "Join request sent for {name}",
+  failedToSendJoinRequest: "Failed to send join request",
+  joinRequestApproved: "Join request approved!",
+  failedToApproveRequest: "Failed to approve request",
+  joinRequestRejected: "Join request rejected",
+  failedToRejectRequest: "Failed to reject request",
+
+  // Channel Messages
+  messageSent: "Message sent!",
+
+  // Channel Info & Management
+  channelUpdatedSuccessfully: "Channel updated successfully!",
+  failedToUpdateChannel: "Failed to update channel",
+  channelDeletedSuccessfully: "Channel deleted successfully!",
+  failedToDeleteChannel: "Failed to delete channel",
+  editChannel: "Edit Channel",
+  deleteChannel: "Delete Channel",
+  deleteChannelConfirm: "Are you sure you want to delete \"{name}\"? This action cannot be undone and all messages will be permanently lost.",
+  about: "About",
+  noDescriptionProvided: "No description provided.",
+  details: "Details",
+  privateChannel: "Private channel",
+  publicChannel: "Public channel",
+  created: "Created {date}",
+  youAre: "You are: {role}",
+  joinRequests: "Join Requests ({count})",
+
+  // Channel States
+  privateChannelMessage: "You need to be approved by an admin to view messages in this private channel.",
+  noMessagesYet: "No messages yet. Start the conversation!",
+
+
+  // Channel Form
+  privateChannelOption: "Private Channel",
+
+  // Common
+  requests: "requests",
+
+  // LocationMap Page
+  locationRange: "Location Range",
+  selectSearchRange: "Select Search Range",
+  locationSaved: "Location Saved",
+  enterLocationPlaceholder: "e.g., Cairo, Masr El Gedida...",
+  saveRange: "Save Range",
+
+  // Home Page
+  searchItems: "Search items...",
+  openLocationMap: "Open location map",
+
+  // Common
+  unknownUser: "Unknown User",
+  thisUser: "this user",
+
+  // TopBar
+  errorLoggingOut: "Error logging out",
+
+  // AppSidebar
+  main: "Main",
+  browse: "Browse",
+  account: "Account",
+
+  // ItemGrid
+  authenticationRequired: "Authentication required",
+  pleaseSignInToSaveItems: "Please sign in to save items",
+  alreadySaved: "Already saved",
+  itemAlreadyInSaved: "This item is already in your saved items",
+  itemSaved: "Item saved",
+  addedToSavedItems: "Added to your saved items",
+  errorSavingItem: "Error saving item",
+  pleaseRetryLater: "Please try again later",
+  cannotMessageYourself: "Cannot message yourself",
+  cannotSendMessagesToYourself: "You cannot send messages to yourself",
+  errorGettingSellerInfo: "Failed to open chat with seller",
+  shareSuccessful: "Shared successfully",
+  itemHasBeenShared: "Item has been shared",
+  linkCopied: "Link copied",
+  itemLinkCopiedToClipboard: "Item link copied to clipboard",
+  shareFailed: "Share failed",
+  couldNotShareItem: "Could not share the item",
+  noItemsPostedYet: "No items posted yet",
+  startSellingByPosting: "Start selling by posting your first item. It's quick and easy!",
+  postYourFirstItem: "Post Your First Item",
+  lookingFor: "Looking For",
+
+  // Feed
+  loadingMorePosts: "Loading more posts...",
+
+  // ProtectedRoute
+  checkingAuthentication: "Checking authentication...",
+
+  // LoadingScreen
+
+  // LocationRangeSelector
+  openInGoogleMaps: "Open in Google Maps",
+
+  // SellerActions
+  cannotContactBlockedUser: "Cannot contact blocked user",
+  needToBeLoggedInToBlockUsers: "You need to be logged in to block users",
+  failedToUnblockUser: "Failed to unblock user",
+  youveUnblockedUser: "You've unblocked {name}",
+  failedToBlockUser: "Failed to block user",
+  youveBlockedUser: "You've blocked {name}",
+  anErrorOccurred: "An error occurred",
+  cannotContactBlocked: "Cannot Contact (Blocked)",
+  blockUser: "Block User",
+  unblockThisUser: "Unblock this user?",
+  blockThisUser: "Block this user?",
+  youWillStartSeeingContent: "You will start seeing {name}'s content again.",
+  youWontSeeContent: "You won't see {name}'s content anymore.",
+
+  // PostItem Page
+  currentLocationSetAutomatically: "Current location has been set automatically!",
+  clickSetLocationOnMap: "Click 'Set Location on Map' to manually set your item's location.",
+  itemLocationSetSuccessfully: "Your item location has been set successfully.",
+  processingPaymentVia: "Processing payment via",
+  itemPromoted: "Your item has been promoted!",
+  failedToUpload: "Failed to upload",
+  fillAllRequiredFields: "Please fill in all required fields including category",
+  setItemLocationOnMap: "Please set your item's location on the map",
+  mustBeLoggedInToPost: "You must be logged in to post items",
+  itemPostedSuccessfully: "Item posted successfully",
+  failedToPostItem: "Failed to post item. Please try again.",
+  tooManyImages: "Too many images",
+  maximum5ImagesAllowed: "Maximum 5 images allowed",
+  errorLoadingCategories: "Error loading categories",
+  upTo5: "up to 5",
+  upload: "Upload",
+  budget: "Budget",
+  enterCityOrArea: "Enter your city or area",
+  findingLocation: "Finding Location...",
+  updateLocationOnMap: "Update Location on Map",
+  currentLocation: "Current location",
+  clickMapToSetLocation: "Click anywhere on the map to set your item's location",
+  confirmLocation: "Confirm Location",
+  promote: "Promote",
+  paymentRequired: "Payment Required",
+  itemRequiresPaymentToPromote: "This item requires payment to be promoted. Please complete the payment process.",
+  error: "Error",
+  success: "Success",
+  likes: "likes",
+
+  // EditItem Page - Additional keys
+  itemLocationUpdatedSuccessfully: "Your item location has been updated successfully.",
+  itemNotFound: "Item not found",
+  itemNotFoundOrNoPermission: "This item doesn't exist or you don't have permission to edit it",
+  failedToLoadItemDetails: "Failed to load item details",
+  imageUploadedSuccessfully: "Image uploaded successfully",
+  failedToUploadImageTryAgain: "Failed to upload image. Please try again.",
+  itemUpdatedSuccessfully: "Item updated successfully",
+  itemDeletedSuccessfully: "Item deleted successfully",
+  maxBudget: "Max budget...",
+  optional: "Optional",
+  enterTagsPlaceholder: "Enter tags separated by commas (e.g., sold, best seller, urgent)",
+  addCustomTagsDescription: "Add custom tags like \"sold\", \"rented\", \"best seller\", etc. Separate multiple tags with commas.",
+};
+
+export type LanguageKey = keyof typeof en;

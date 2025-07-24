@@ -9,6 +9,7 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ThemeProvider } from "next-themes";
+import { LanguageProvider } from "@/contexts/LanguageContext";
 import Index from "./pages/Index";
 import Home from "./pages/Home";
 import ItemDetails from "./pages/ItemDetails";
@@ -39,10 +40,11 @@ const App = () => (
       enableSystem
       disableTransitionOnChange
     >
-      <AuthProvider>
-        <BrowserRouter>
-          <TooltipProvider>
-            <SidebarProvider>
+      <LanguageProvider>
+        <AuthProvider>
+          <BrowserRouter>
+            <TooltipProvider>
+              <SidebarProvider>
               <div className="min-h-screen flex w-full">
                 {/* <AppSidebar /> */}
                 <main className="flex-1">
@@ -146,11 +148,12 @@ const App = () => (
                 </main>
               </div>
             </SidebarProvider>
-            <Toaster />
-            <Sonner />
-          </TooltipProvider>
-        </BrowserRouter>
-      </AuthProvider>
+              <Toaster />
+              <Sonner />
+            </TooltipProvider>
+          </BrowserRouter>
+        </AuthProvider>
+      </LanguageProvider>
     </ThemeProvider>
   </QueryClientProvider>
 );

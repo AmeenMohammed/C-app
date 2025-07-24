@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { MapPin, ExternalLink } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface LocationRangeSelectorProps {
   value: number[];
@@ -18,6 +19,7 @@ export const LocationRangeSelector: React.FC<LocationRangeSelectorProps> = ({
   showMapButton = true,
   showExternalLink = true
 }) => {
+  const { t, isRTL } = useLanguage();
   const openGoogleMaps = () => {
     if (userLocation) {
       const url = `https://www.google.com/maps/search/?api=1&query=${userLocation.lat},${userLocation.lng}`;
@@ -43,14 +45,14 @@ export const LocationRangeSelector: React.FC<LocationRangeSelectorProps> = ({
   };
 
   return (
-    <div className="flex items-center gap-2">
+    <div className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
       {showMapButton && (
         <Button
           variant="ghost"
           size="icon"
           onClick={openLocationMap}
           className="h-8 w-8"
-          title="Open location map"
+          title={t('openLocationMap')}
         >
           <MapPin className="h-4 w-4 text-primary" />
         </Button>
@@ -67,7 +69,7 @@ export const LocationRangeSelector: React.FC<LocationRangeSelectorProps> = ({
         />
       </div>
 
-      <span className="text-sm text-muted-foreground min-w-[3rem]">
+      <span className={`text-sm text-muted-foreground min-w-[3rem] ${isRTL ? 'text-right' : 'text-left'}`}>
         {value[0]}km
       </span>
 
@@ -77,7 +79,7 @@ export const LocationRangeSelector: React.FC<LocationRangeSelectorProps> = ({
           size="icon"
           onClick={openGoogleMaps}
           className="h-8 w-8"
-          title="Open in Google Maps"
+          title={t('openInGoogleMaps')}
         >
           <ExternalLink className="h-4 w-4" />
         </Button>

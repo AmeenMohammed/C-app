@@ -8,12 +8,15 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import avatar from "../assets/avatar.jpg";
 import defaultImage from "../assets/default_item_image.png";
+import { formatPrice } from "@/utils/currency";
 interface Item {
   id: string;
   title: string;
   price: number;
+  currency?: string;
   category?: string;
   images: string[];
   description?: string;
@@ -43,6 +46,7 @@ const ItemDetails = () => {
   const { id: itemId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { t, isRTL } = useLanguage();
   const [item, setItem] = useState<Item | null>(null);
   const [seller, setSeller] = useState<Seller | null>(null);
   const [sellerRatings, setSellerRatings] = useState<SellerRatings | null>(null);
@@ -73,16 +77,16 @@ const ItemDetails = () => {
       if (data.address) {
         const { city, town, village, suburb, state, country } = data.address;
         // Build a readable address
-        const cityName = city || town || village || suburb || 'Unknown Location';
+        const cityName = city || town || village || suburb || t('unknownLocation');
         const stateName = state ? `, ${state}` : '';
         const countryName = country ? `, ${country}` : '';
         return `${cityName}${stateName}${countryName}`;
       }
 
-      return `Location: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+      return `${t('location')}: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
     } catch (error) {
       console.error('Reverse geocoding failed:', error);
-      return `Location: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+      return `${t('location')}: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
     }
   };
 
@@ -147,18 +151,18 @@ const ItemDetails = () => {
             setSeller({
               id: data.seller_id,
               user_id: data.seller_id,
-              full_name: "User",
+              full_name: t('unknownUser'),
               avatar_url: null,
-              location: "Location not set"
+              location: t('locationNotSet')
             });
           } else if (!sellerData) {
             // No profile found, create fallback
             setSeller({
               id: data.seller_id,
               user_id: data.seller_id,
-              full_name: "User",
+              full_name: t('unknownUser'),
               avatar_url: null,
-              location: "Location not set"
+              location: t('locationNotSet')
             });
           } else {
             setSeller(sellerData as Seller);
@@ -246,7 +250,7 @@ const ItemDetails = () => {
 
   const handleSaveItem = async () => {
     if (!user || !itemId) {
-      toast.error("Please sign in to save items");
+      toast.error(t('pleaseSignInToSaveItems'));
       navigate('/');
       return;
     }
@@ -265,7 +269,7 @@ const ItemDetails = () => {
         if (error) throw error;
 
         setSaved(false);
-        toast.success("Item removed from saved items");
+        toast.success(t('itemSaved')); // Reusing itemSaved for now
       } else {
         // Add to saved items
         const { error } = await supabase
@@ -277,18 +281,18 @@ const ItemDetails = () => {
 
         if (error) {
           if (error.code === '23505') {
-            toast.error("Item is already in your saved items");
+            toast.error(t('alreadySaved'));
           } else {
             throw error;
           }
         } else {
           setSaved(true);
-          toast.success("Item saved successfully");
+          toast.success(t('itemSaved'));
         }
       }
     } catch (error) {
       console.error('Error saving item:', error);
-      toast.error("Failed to save item");
+      toast.error(t('errorSavingItem'));
     } finally {
       setTimeout(() => {
         setSaving(false);
@@ -306,7 +310,7 @@ const ItemDetails = () => {
 
       // Prevent users from contacting themselves
       if (sellerId === user.id) {
-        toast.error("You cannot message yourself");
+        toast.error(t('cannotMessageYourself'));
         return;
       }
 
@@ -345,7 +349,7 @@ const ItemDetails = () => {
       navigate(`/messages?userId=${sellerId}`, {
         state: {
           sellerId: sellerId,
-          sellerName: seller.full_name || "User",
+          sellerName: seller.full_name || t('unknownUser'),
           sellerAvatar: seller.avatar_url || avatar,
           conversationId,
           itemId: item.id,
@@ -359,7 +363,7 @@ const ItemDetails = () => {
       });
     } catch (error) {
       console.error('Error creating conversation:', error);
-      toast.error("Failed to start conversation");
+      toast.error(t('failedToLoadConversations'));
     }
   };
 
@@ -443,9 +447,9 @@ const ItemDetails = () => {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background">
-        <TopBar title="Item Details" />
+        <TopBar title={t('itemDetails')} />
         <div className="container mx-auto px-4 py-6 text-center">
-          <p>Loading item details...</p>
+          <p>{t('loading')}...</p>
         </div>
       </div>
     );
@@ -454,14 +458,14 @@ const ItemDetails = () => {
   if (error || itemFetchError) {
     return (
       <div className="min-h-screen bg-background">
-        <TopBar title="Item Details" />
+        <TopBar title={t('itemDetails')} />
         <div className="container mx-auto px-4 py-6 text-center">
           <Card className="p-6">
-            <h2 className="text-xl font-semibold text-red-500 mb-2">Error Loading Item</h2>
+            <h2 className="text-xl font-semibold text-red-500 mb-2">{t('failedToLoadItemDetails')}</h2>
             <p className="text-gray-600 mb-4">
-              {itemFetchError || "This item doesn't exist or has been removed."}
+              {itemFetchError || t('itemNotFoundOrNoPermission')}
             </p>
-            <Button onClick={() => navigate('/home')}>Back to Home</Button>
+            <Button onClick={() => navigate('/home')}>{t('backToHome')}</Button>
           </Card>
         </div>
       </div>
@@ -471,14 +475,14 @@ const ItemDetails = () => {
   if (!item) {
     return (
       <div className="min-h-screen bg-background">
-        <TopBar title="Item Details" />
+        <TopBar title={t('itemDetails')} />
         <div className="container mx-auto px-4 py-6 text-center">
           <Card className="p-6">
-            <h2 className="text-xl font-semibold mb-2">Item Not Found</h2>
+            <h2 className="text-xl font-semibold mb-2">{t('itemNotFound')}</h2>
             <p className="text-gray-600 mb-4">
-              The item you're looking for doesn't exist or has been removed.
+              {t('itemNotFoundOrNoPermission')}
             </p>
-            <Button onClick={() => navigate('/home')}>Back to Home</Button>
+            <Button onClick={() => navigate('/home')}>{t('backToHome')}</Button>
           </Card>
         </div>
       </div>
@@ -487,9 +491,9 @@ const ItemDetails = () => {
 
   const images = item.images || [defaultImage];
 
-  return (
-    <div className="min-h-screen bg-background">
-      <TopBar title="Item Details" />
+        return (
+    <div className={`min-h-screen bg-background ${isRTL ? 'rtl' : 'ltr'}`}>
+      <TopBar title={t('itemDetails')} />
       <main className="container mx-auto px-4 py-6 space-y-4">
         <Card className="overflow-hidden">
           {/* Image Gallery Section */}
@@ -515,7 +519,7 @@ const ItemDetails = () => {
             )}
             {images.length > 1 && (
               <div className="absolute bottom-4 right-4 bg-black/70 text-white px-2 py-1 rounded text-sm">
-                1 of {images.length}
+                1 / {images.length}
               </div>
             )}
           </div>
@@ -537,14 +541,14 @@ const ItemDetails = () => {
 
           {/* Rest of the existing content */}
           <div className="p-6 space-y-4">
-            <div className="flex justify-between items-start">
-              <div>
+            <div className={`flex justify-between items-start ${isRTL ? 'flex-row-reverse' : ''}`}>
+              <div className={isRTL ? 'text-right' : 'text-left'}>
                 <h1 className="text-2xl font-semibold">{item.title}</h1>
-                <div className="flex items-center gap-4">
+                <div className={`flex items-center gap-4 ${isRTL ? 'flex-row-reverse' : ''}`}>
                   <p className="text-xl font-semibold text-primary">
-                    {item.listing_type === "request" ? "Budget: " : ""}${item.price}
+                    {item.listing_type === "request" ? `${t('budget')}: ` : ""}{formatPrice(item.price, item.currency)}
                   </p>
-                  <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                  <div className={`flex items-center gap-1 text-sm text-muted-foreground ${isRTL ? 'flex-row-reverse' : ''}`}>
                     <Eye className="h-4 w-4" />
                     <span>{viewCount} views</span>
                   </div>
@@ -572,18 +576,18 @@ const ItemDetails = () => {
               )}
             </div>
             <div>
-              <h2 className="font-semibold mb-2">Description</h2>
+              <h2 className="font-semibold mb-2">{t('description')}</h2>
               <p className="text-muted-foreground">
-                {item.description || "No description provided"}
+                {item.description || t('noDescriptionProvided')}
               </p>
             </div>
             {/* Location section */}
             {(item.latitude && item.longitude) && (
               <div>
-                <h2 className="font-semibold mb-2">Location</h2>
-                <div className="flex items-center gap-2 text-muted-foreground">
+                <h2 className={`font-semibold mb-2 ${isRTL ? 'text-right' : 'text-left'}`}>{t('location')}</h2>
+                <div className={`flex items-center gap-2 text-muted-foreground ${isRTL ? 'flex-row-reverse' : ''}`}>
                   <MapPin className="h-4 w-4" />
-                  <span>{itemLocation || "Loading location..."}</span>
+                  <span>{itemLocation || t('loading')}</span>
                 </div>
               </div>
             )}
@@ -610,7 +614,7 @@ const ItemDetails = () => {
                 />
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <p className="font-medium">{seller?.full_name || "User"}</p>
+                    <p className="font-medium">{seller?.full_name || t('unknownUser')}</p>
                     {sellerRatings && sellerRatings.total_ratings > 0 ? (
                       <div className="flex items-center text-sm text-muted-foreground">
                         <Star className="h-4 w-4 fill-primary text-primary mr-1" />
@@ -624,7 +628,7 @@ const ItemDetails = () => {
                     )}
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    {seller?.location || "Location not set"}
+                    {seller?.location || t('locationNotSet')}
                   </p>
                 </div>
               </Link>
@@ -633,15 +637,15 @@ const ItemDetails = () => {
             {isOwner ? (
               <Button onClick={() => navigate(`/edit-item/${item.id}`)} variant="outline" className="w-full">
                 <Pencil className="h-4 w-4 mr-2" />
-                Edit Item
+{t('editItem')}
               </Button>
             ) : (
               <Button size="sm" onClick={handleContactSeller} className="w-full">
                 {item.listing_type === "request"
-                  ? "Contact Requester"
+                  ? t('contactRequester')
                   : item.listing_type === "rent"
-                  ? "Contact Landlord"
-                  : "Contact Seller"}
+                  ? t('contactLandlord')
+                  : t('contactSeller')}
               </Button>
             )}
           </div>
@@ -662,7 +666,7 @@ const ItemDetails = () => {
 
             {/* Image counter */}
             <div className="absolute top-4 left-4 z-10 bg-black/50 text-white px-3 py-1 rounded-full text-sm">
-              {currentImageIndex + 1} of {images.length}
+              {currentImageIndex + 1} / {images.length}
             </div>
 
             {/* Zoom tip - appears briefly when gallery opens */}

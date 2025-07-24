@@ -7,6 +7,7 @@ import { useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { LoadingScreen } from "@/components/LoadingScreen";
 import { Button } from "@/components/ui/button";
 import { Star } from "lucide-react";
@@ -46,6 +47,7 @@ interface SellerProfile {
 const SellerProfile = () => {
   const { id: sellerId } = useParams(); // Fixed: route parameter is :id, not :sellerId
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [seller, setSeller] = useState<SellerProfile | null>(null);
   const [ratings, setRatings] = useState<SellerRatings | null>(null);
   const [isBlocked, setIsBlocked] = useState(false);
@@ -158,7 +160,7 @@ const SellerProfile = () => {
 
   const handleRatingSubmit = async () => {
     if (!user || !sellerId || selectedRating === 0) {
-      toast.error("Please select a rating");
+      toast.error(t('pleaseSelectRating'));
       return;
     }
 
@@ -175,7 +177,7 @@ const SellerProfile = () => {
           .eq('rated_user_id', sellerId);
 
         if (error) throw error;
-        toast.success("Rating updated successfully!");
+        toast.success(t('ratingUpdatedSuccessfully'));
       } else {
         // Insert new rating
         const { error } = await supabase
@@ -188,7 +190,7 @@ const SellerProfile = () => {
 
         if (error) throw error;
         setUserHasRated(true);
-        toast.success("Rating submitted successfully!");
+        toast.success(t('ratingSubmittedSuccessfully'));
       }
 
       setUserRating({ rating: selectedRating });
@@ -209,7 +211,7 @@ const SellerProfile = () => {
       setShowRatingDialog(false);
     } catch (error) {
       console.error('Error submitting rating:', error);
-      toast.error("Failed to submit rating. Please try again.");
+      toast.error(t('failedToSubmitRating'));
     } finally {
       setSubmittingRating(false);
     }
@@ -227,7 +229,7 @@ const SellerProfile = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-background pb-16">
-        <TopBar title="Seller Profile" showBackButton={true} />
+        <TopBar title={t('sellerProfile')} showBackButton={true} />
         <div className="flex items-center justify-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
@@ -237,13 +239,13 @@ const SellerProfile = () => {
 
   if (!seller) {
     return (
-      <div className="min-h-screen bg-gray-50 pb-16">
-        <TopBar title="Seller Profile" />
+      <div className="min-h-screen bg-background pb-16">
+        <TopBar title={t('sellerProfile')} />
         <div className="container mx-auto px-4 py-6">
           <div className="text-center">
-            <p className="text-muted-foreground">Seller profile not found</p>
+            <p className="text-muted-foreground">{t('sellerProfileNotFound')}</p>
             <Button onClick={() => navigate('/home')} className="mt-4">
-              Back to Home
+              {t('backToHome')}
             </Button>
           </div>
         </div>
@@ -263,7 +265,7 @@ const SellerProfile = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-16">
+    <div className="min-h-screen bg-background pb-16">
       <TopBar title={sellerData.name} />
 
       <main className="container mx-auto px-4 py-6 space-y-6">
@@ -279,32 +281,32 @@ const SellerProfile = () => {
 
         {/* Rating Section - only show if not the user's own profile and not blocked */}
         {user && sellerId !== user.id && !isBlocked && (
-          <div className="bg-white rounded-lg p-6 shadow">
-            <h3 className="text-lg font-medium mb-4">Rate this seller</h3>
+          <div className="bg-card rounded-lg p-6 shadow border">
+            <h3 className="text-lg font-medium mb-4">{t('rateThisSeller')}</h3>
             <Dialog open={showRatingDialog} onOpenChange={(open) => {
               setShowRatingDialog(open);
               if (open) resetRatingDialog();
             }}>
               <DialogTrigger asChild>
                 <Button variant="outline" className="w-full">
-                  {userHasRated ? "Update Rating" : "Rate Seller"}
+                  {userHasRated ? t('updateRating') : t('rateSeller')}
                   <Star className="ml-2 h-4 w-4" />
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
                   <DialogTitle>
-                    {userHasRated ? "Update Your Rating" : "Rate This Seller"}
+                    {userHasRated ? t('updateYourRating') : t('rateThisSeller')}
                   </DialogTitle>
                   <DialogDescription>
-                    Share your experience with {sellerData.name}
+                    {t('shareYourExperience').replace('{name}', sellerData.name)}
                   </DialogDescription>
                 </DialogHeader>
 
                 <div className="py-4">
                   {/* Star Rating */}
                   <div className="text-center">
-                    <label className="block text-sm font-medium mb-4">Rate this seller</label>
+                    <label className="block text-sm font-medium mb-4">{t('rateThisSellerLabel')}</label>
                     <div className="flex justify-center gap-2 mb-4">
                       {[1, 2, 3, 4, 5].map((star) => (
                         <button
@@ -319,19 +321,19 @@ const SellerProfile = () => {
                             className={`h-10 w-10 ${
                               star <= (hoverRating || selectedRating)
                                 ? 'fill-yellow-400 text-yellow-400'
-                                : 'text-gray-300 hover:text-gray-400'
+                                : 'text-muted-foreground hover:text-foreground'
                             }`}
                           />
                         </button>
                       ))}
                     </div>
                     {selectedRating > 0 && (
-                      <p className="text-lg font-medium text-gray-700">
-                        {selectedRating === 1 && "Poor"}
-                        {selectedRating === 2 && "Fair"}
-                        {selectedRating === 3 && "Good"}
-                        {selectedRating === 4 && "Very Good"}
-                        {selectedRating === 5 && "Excellent"}
+                      <p className="text-lg font-medium text-foreground">
+                        {selectedRating === 1 && t('poor')}
+                        {selectedRating === 2 && t('fair')}
+                        {selectedRating === 3 && t('good')}
+                        {selectedRating === 4 && t('veryGood')}
+                        {selectedRating === 5 && t('excellent')}
                       </p>
                     )}
                   </div>
@@ -339,13 +341,13 @@ const SellerProfile = () => {
 
                 <DialogFooter>
                   <DialogClose asChild>
-                    <Button variant="outline">Cancel</Button>
+                    <Button variant="outline">{t('cancel')}</Button>
                   </DialogClose>
                   <Button
                     onClick={handleRatingSubmit}
                     disabled={selectedRating === 0 || submittingRating}
                   >
-                    {submittingRating ? "Submitting..." : userHasRated ? "Update Rating" : "Submit Rating"}
+                    {submittingRating ? t('submitting') : userHasRated ? t('updateRating') : t('submitRating')}
                   </Button>
                 </DialogFooter>
               </DialogContent>
@@ -353,9 +355,9 @@ const SellerProfile = () => {
 
             {/* Show current user's rating if they have rated */}
             {userHasRated && userRating && (
-              <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+              <div className="mt-4 p-3 bg-muted rounded-lg">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">Your rating:</span>
+                  <span className="text-sm font-medium">{t('yourRating')}</span>
                   <div className="flex">
                     {[1, 2, 3, 4, 5].map((star) => (
                       <Star
@@ -363,12 +365,12 @@ const SellerProfile = () => {
                         className={`h-4 w-4 ${
                           star <= userRating.rating
                             ? 'fill-yellow-400 text-yellow-400'
-                            : 'text-gray-300'
+                            : 'text-muted-foreground'
                         }`}
                       />
                     ))}
                   </div>
-                  <span className="text-sm text-gray-600">({userRating.rating}/5)</span>
+                  <span className="text-sm text-muted-foreground">({userRating.rating}/5)</span>
                 </div>
               </div>
             )}

@@ -11,11 +11,13 @@ import { useState, useRef, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { LoadingScreen } from "@/components/LoadingScreen";
 import { useCategories } from "@/hooks/useCategories";
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
+import { getCurrencyOptions } from "@/utils/currency";
 
 // Fix for default markers in React-Leaflet
 interface LeafletIconDefault extends L.Icon.Default {
@@ -43,6 +45,7 @@ interface Item {
   id: string;
   title: string;
   price: number;
+  currency?: string;
   description?: string;
   category_id: string;
   images: string[];
@@ -60,6 +63,7 @@ const EditItem = () => {
   const { id: itemId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { t, isRTL } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -74,6 +78,7 @@ const EditItem = () => {
     listing_type: "sell",
     city: "",
     tags: "",
+    currency: "EGP",
   });
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
   const [showLocationSelector, setShowLocationSelector] = useState(false);
@@ -93,16 +98,16 @@ const EditItem = () => {
 
       if (data.address) {
         const { city, town, village, suburb, state, country } = data.address;
-        const cityName = city || town || village || suburb || 'Unknown Location';
+        const cityName = city || town || village || suburb || t('unknownLocation');
         const stateName = state ? `, ${state}` : '';
         const countryName = country ? `, ${country}` : '';
         return `${cityName}${stateName}${countryName}`;
       }
 
-      return `Location: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+      return `${t('location')}: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
     } catch (error) {
       console.error('Reverse geocoding failed:', error);
-      return `Location: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+      return `${t('location')}: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
     }
   };
 
@@ -137,8 +142,8 @@ const EditItem = () => {
 
     // Don't close the map automatically - let user confirm
     toast({
-      title: "Location Updated",
-      description: "Click 'Confirm Location' when you're happy with the position.",
+      title: t('locationUpdated'),
+      description: t('clickConfirmLocation'),
     });
   };
 
@@ -163,8 +168,8 @@ const EditItem = () => {
       if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
         setUserLocation({ lat, lng });
         toast({
-          title: "Coordinates Set",
-          description: "Map updated with the entered coordinates.",
+          title: t('coordinatesSet'),
+          description: t('mapUpdatedWithCoordinates'),
         });
         return;
       }
@@ -179,8 +184,8 @@ const EditItem = () => {
           if (coordinates) {
             setUserLocation(coordinates);
             toast({
-              title: "City Found",
-              description: "Map updated with the city location.",
+              title: t('cityFound'),
+              description: t('mapUpdatedWithCity'),
             });
           }
         } catch (error) {
@@ -197,8 +202,8 @@ const EditItem = () => {
   const confirmLocation = () => {
     setShowLocationSelector(false);
     toast({
-      title: "Location Confirmed",
-      description: "Your item location has been updated successfully.",
+      title: t('locationConfirmed'),
+      description: t('itemLocationUpdatedSuccessfully'),
     });
   };
 
@@ -217,8 +222,8 @@ const EditItem = () => {
         if (error) {
           if (error.code === 'PGRST116') {
             toast({
-              title: "Item not found",
-              description: "This item doesn't exist or you don't have permission to edit it",
+              title: t('itemNotFound'),
+              description: t('itemNotFoundOrNoPermission'),
               variant: "destructive",
             });
             navigate('/profile');
@@ -239,6 +244,7 @@ const EditItem = () => {
           listing_type: data.listing_type || "sell",
           city: "",
           tags: data.status ? data.status.join(", ") : "",
+          currency: data.currency || "EGP",
         };
 
         // Handle location data if coordinates exist
@@ -263,8 +269,8 @@ const EditItem = () => {
       } catch (error) {
         console.error('Error fetching item:', error);
         toast({
-          title: "Error loading item",
-          description: "Failed to load item details",
+          title: t('error'),
+          description: t('failedToLoadItemDetails'),
           variant: "destructive",
         });
         navigate('/profile');
@@ -312,14 +318,14 @@ const EditItem = () => {
 
       setImages(prev => [...prev, data.url]);
       toast({
-        title: "Success",
-        description: "Image uploaded successfully",
+        title: t('success'),
+        description: t('imageUploadedSuccessfully'),
       });
     } catch (error) {
       console.error('Upload error:', error);
       toast({
-        title: "Error",
-        description: "Failed to upload image. Please try again.",
+        title: t('error'),
+        description: t('failedToUploadImageTryAgain'),
         variant: "destructive",
       });
     } finally {
@@ -335,8 +341,8 @@ const EditItem = () => {
     e.preventDefault();
     if (!formData.title || !formData.price || !formData.description || !formData.category_id) {
       toast({
-        title: "Error",
-        description: "Please fill in all required fields",
+        title: t('error'),
+        description: t('fillAllRequiredFields'),
         variant: "destructive",
       });
       return;
@@ -347,6 +353,7 @@ const EditItem = () => {
       const updateData: Partial<Item> = {
         title: formData.title,
         price: parseFloat(formData.price),
+        currency: formData.currency,
         description: formData.description,
         category_id: formData.category_id,
         listing_type: formData.listing_type,
@@ -370,15 +377,15 @@ const EditItem = () => {
       if (error) throw error;
 
       toast({
-        title: "Success",
-        description: "Item updated successfully",
+        title: t('success'),
+        description: t('itemUpdatedSuccessfully'),
       });
       navigate('/profile');
     } catch (error) {
       console.error('Update error:', error);
       toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to update item",
+        title: t('error'),
+        description: error instanceof Error ? error.message : t('failedToUpdateProfile'),
         variant: "destructive",
       });
     } finally {
@@ -390,7 +397,7 @@ const EditItem = () => {
     if (!itemId) return;
 
     // Add confirmation dialog
-    if (!window.confirm("Are you sure you want to delete this item? This action cannot be undone.")) {
+    if (!window.confirm("Are you sure you want to delete this item?")) {
       return;
     }
 
@@ -404,14 +411,14 @@ const EditItem = () => {
       if (error) throw error;
 
       toast({
-        title: "Success",
-        description: "Item deleted successfully",
+        title: t('success'),
+        description: t('itemDeletedSuccessfully'),
       });
       navigate('/profile');
     } catch (error) {
       console.error('Delete error:', error);
       toast({
-        title: "Error",
+        title: t('error'),
         description: error instanceof Error ? error.message : "Failed to delete item",
         variant: "destructive",
       });
@@ -421,15 +428,15 @@ const EditItem = () => {
   };
 
   if (loading || categoriesLoading) {
-    return <LoadingScreen message="Loading item..." />;
+    return <LoadingScreen message={t('loading')} />;
   }
 
   if (categoriesError) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-xl font-semibold mb-2">Error Loading Categories</h2>
-          <p className="text-muted-foreground">Please try again later</p>
+          <h2 className="text-xl font-semibold mb-2">{t('errorLoadingCategories')}</h2>
+          <p className="text-muted-foreground">{t('pleaseRetryLater')}</p>
         </div>
       </div>
     );
@@ -440,14 +447,14 @@ const EditItem = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
-      <TopBar title="Edit Item" />
+      <TopBar title={t('editItem')} />
 
       <div className="container mx-auto px-4 py-6">
         <Card className="max-w-2xl mx-auto p-6">
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Image Upload */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">Images *</label>
+              <label className="text-sm font-medium">{t('images')} *</label>
               <div className="grid grid-cols-3 gap-2">
                 {images.map((image, index) => (
                   <div key={index} className="relative">
@@ -483,9 +490,9 @@ const EditItem = () => {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Title *</label>
+              <label className="text-sm font-medium">{t('title')} *</label>
               <Input
-                placeholder="Item title"
+                placeholder={t('itemTitle')}
                 value={formData.title}
                 onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
                 required
@@ -494,23 +501,38 @@ const EditItem = () => {
 
             <div className="space-y-2">
               <label className="text-sm font-medium">
-                {formData.listing_type === "request" ? "Budget *" : "Price *"}
+                {formData.listing_type === "request" ? `${t('budget')} *` : `${t('price')} *`}
               </label>
-              <Input
-                type="number"
-                step="0.01"
-                placeholder={formData.listing_type === "request" ? "Max budget..." : "0.00"}
-                value={formData.price}
-                onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
-                required
-              />
+              <div className="flex gap-2">
+                <Select value={formData.currency} onValueChange={(value) => setFormData(prev => ({ ...prev, currency: value }))}>
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {getCurrencyOptions().map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.value}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder={formData.listing_type === "request" ? t('maxBudget') : "0.00"}
+                  value={formData.price}
+                  onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
+                  className="flex-1"
+                  required
+                />
+              </div>
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Category *</label>
+              <label className="text-sm font-medium">{t('category')} *</label>
               <Select value={formData.category_id} onValueChange={(value) => setFormData(prev => ({ ...prev, category_id: value }))}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select category" />
+                  <SelectValue placeholder={t('selectCategory')} />
                 </SelectTrigger>
                 <SelectContent>
                   {editCategories.map((category) => (
@@ -526,35 +548,35 @@ const EditItem = () => {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Listing Type</label>
+              <label className="text-sm font-medium">{t('listingType')}</label>
               <Select value={formData.listing_type} onValueChange={(value) => setFormData(prev => ({ ...prev, listing_type: value }))}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select listing type" />
+                  <SelectValue placeholder={t('selectListingType')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="sell">For Sale</SelectItem>
-                  <SelectItem value="rent">For Rent</SelectItem>
-                  <SelectItem value="request">Looking For</SelectItem>
+                  <SelectItem value="sell">{t('forSale')}</SelectItem>
+                  <SelectItem value="rent">{t('forRent')}</SelectItem>
+                  <SelectItem value="request">{t('lookingFor')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Tags (Optional)</label>
+              <label className="text-sm font-medium">Tags ({t('optional')})</label>
               <Input
-                placeholder="Enter tags separated by commas (e.g., sold, best seller, urgent)"
+                placeholder={t('enterTagsPlaceholder')}
                 value={formData.tags}
                 onChange={(e) => setFormData(prev => ({ ...prev, tags: e.target.value }))}
               />
               <p className="text-xs text-muted-foreground">
-                Add custom tags like "sold", "rented", "best seller", etc. Separate multiple tags with commas.
+                {t('addCustomTagsDescription')}
               </p>
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Description *</label>
+              <label className="text-sm font-medium">{t('description')} *</label>
               <Textarea
-                placeholder="Describe your item..."
+                placeholder={t('describeYourItem')}
                 className="min-h-[100px]"
                 value={formData.description}
                 onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
@@ -564,10 +586,10 @@ const EditItem = () => {
 
             {/* Location Section - Same as PostItem */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">Location</label>
+              <label className="text-sm font-medium">{t('location')}</label>
               <div className="space-y-2">
                 <Input
-                  placeholder="Enter your city or area"
+                  placeholder={t('enterCityOrArea')}
                   value={formData.city}
                   onChange={(e) => handleCityInputChange(e.target.value)}
                 />
@@ -579,12 +601,12 @@ const EditItem = () => {
                   disabled={locationLoading}
                 >
                   <MapPin className="h-4 w-4" />
-                  {locationLoading ? "Finding Location..." : "Update Location on Map"}
+                  {locationLoading ? t('findingLocation') : t('updateLocationOnMap')}
                 </Button>
 
                 {userLocation && (
                   <div className="text-xs text-muted-foreground">
-                    Current location: {userLocation.lat.toFixed(4)}, {userLocation.lng.toFixed(4)}
+                    {t('currentLocation')}: {userLocation.lat.toFixed(4)}, {userLocation.lng.toFixed(4)}
                   </div>
                 )}
               </div>
@@ -605,14 +627,14 @@ const EditItem = () => {
                     <Marker position={[userLocation.lat, userLocation.lng]} />
                   </MapContainer>
                   <div className="p-2 bg-muted text-xs flex justify-between items-center">
-                    <span>Click anywhere on the map to set your item's location</span>
+                    <span>{t('clickMapToSetLocation')}</span>
                     <Button
                       type="button"
                       size="sm"
                       onClick={confirmLocation}
                       className="ml-2"
                     >
-                      Confirm Location
+                      {t('confirmLocation')}
                     </Button>
                   </div>
                 </div>
@@ -621,7 +643,7 @@ const EditItem = () => {
 
             <div className="flex gap-2">
               <Button type="submit" className="flex-1" disabled={saving}>
-                {saving ? "Saving..." : "Save Changes"}
+                {saving ? t('saving') : t('saveChanges')}
               </Button>
               <Button
                 type="button"
@@ -631,7 +653,7 @@ const EditItem = () => {
                 className="flex items-center gap-2"
               >
                 <Trash2 className="h-4 w-4" />
-                {deleting ? "Deleting..." : "Delete"}
+{deleting ? "Deleting..." : t('delete')}
               </Button>
             </div>
           </form>

@@ -2,71 +2,71 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
- 
+
 @layer base {
   :root {
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
- 
+
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
- 
+
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
- 
+
     --primary: 0 100% 50%;
     --primary-foreground: 0 0% 100%;
- 
+
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
- 
+
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
- 
+
     --accent: 210 40% 96.1%;
     --accent-foreground: 222.2 47.4% 11.2%;
- 
+
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
- 
+
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
     --ring: 0 100% 50%;
- 
+
     --radius: 0.5rem;
   }
- 
+
   .dark {
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
- 
+
     --card: 222.2 84% 4.9%;
     --card-foreground: 210 40% 98%;
- 
+
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
- 
+
     --primary: 0 100% 50%;
     --primary-foreground: 0 0% 100%;
- 
+
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
- 
+
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
- 
+
     --accent: 217.2 32.6% 17.5%;
     --accent-foreground: 210 40% 98%;
- 
+
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
- 
+
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 0 100% 50%;
   }
 }
- 
+
 @layer base {
   * {
     @apply border-border;
@@ -107,4 +107,127 @@ body {
   max-width: 600px;
   margin-left: auto;
   margin-right: auto;
+}
+
+/* RTL Support */
+[dir="rtl"] {
+  direction: rtl;
+}
+
+/* [dir="rtl"] .text-left {
+  text-align: right;
+}
+
+[dir="rtl"] .text-right {
+  text-align: left;
+} */
+
+/* Margin adjustments for RTL */
+[dir="rtl"] .ml-2 {
+  margin-left: 0;
+  margin-right: 0.5rem;
+}
+
+[dir="rtl"] .mr-2 {
+  margin-right: 0;
+  margin-left: 0.5rem;
+}
+
+[dir="rtl"] .ml-4 {
+  margin-left: 0;
+  margin-right: 1rem;
+}
+
+[dir="rtl"] .mr-4 {
+  margin-right: 0;
+  margin-left: 1rem;
+}
+
+/* Padding adjustments for RTL */
+[dir="rtl"] .pl-4 {
+  padding-left: 0;
+  padding-right: 1rem;
+}
+
+[dir="rtl"] .pr-4 {
+  padding-right: 0;
+  padding-left: 1rem;
+}
+
+[dir="rtl"] .pl-6 {
+  padding-left: 0;
+  padding-right: 1.5rem;
+}
+
+[dir="rtl"] .pr-6 {
+  padding-right: 0;
+  padding-left: 1.5rem;
+}
+
+/* Flex direction for RTL */
+[dir="rtl"] .flex-row-reverse {
+  flex-direction: row;
+}
+
+[dir="rtl"] .flex-row {
+  flex-direction: row-reverse;
+}
+
+/* Left/Right positioning for RTL */
+[dir="rtl"] .left-4 {
+  left: auto;
+  right: 1rem;
+}
+
+[dir="rtl"] .right-4 {
+  right: auto;
+  left: 1rem;
+}
+
+/* Border radius for RTL */
+[dir="rtl"] .rounded-l-lg {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  border-top-right-radius: 0.5rem;
+  border-bottom-right-radius: 0.5rem;
+}
+
+[dir="rtl"] .rounded-r-lg {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  border-top-left-radius: 0.5rem;
+  border-bottom-left-radius: 0.5rem;
+}
+
+/* Transform for icons in RTL */
+[dir="rtl"] .rotate-180 {
+  transform: rotate(0deg);
+}
+
+[dir="rtl"] .transform {
+  transform: scaleX(-1);
+}
+
+/* RTL Icon spacing fixes */
+[dir="rtl"] .mr-2 {
+  margin-right: 0;
+  margin-left: 0.5rem;
+}
+
+[dir="rtl"] .ml-2 {
+  margin-left: 0;
+  margin-right: 0.5rem;
+}
+
+/* Specific fixes for dropdown menu items in RTL */
+[dir="rtl"] .dropdown-menu-item .lucide {
+  margin-right: 0;
+  margin-left: 0.5rem;
+}
+
+/* Fix for all icons with mr-2 class in RTL */
+[dir="rtl"] svg.mr-2,
+[dir="rtl"] .mr-2 svg {
+  margin-right: 0 !important;
+  margin-left: 0.5rem !important;
 }

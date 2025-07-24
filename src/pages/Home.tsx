@@ -10,10 +10,12 @@ import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { MapPin, ExternalLink, Search } from "lucide-react";
 import { useCategories } from "@/hooks/useCategories";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { LoadingScreen } from "@/components/LoadingScreen";
 
 const Home = () => {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [searchParams] = useSearchParams();
   const [range, setRange] = useState([parseInt(searchParams.get('range') || '5')]); // Get range from URL or default to 10km
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -95,7 +97,7 @@ const Home = () => {
 
   return (
     <div className="min-h-screen bg-background pb-24">
-      <TopBar title="Home" showBackButton={false} />
+      <TopBar title={t('home')} showBackButton={false} />
 
       {/* Categories Bar */}
       <div className="bg-background border-b sticky top-14 z-40">
@@ -105,7 +107,7 @@ const Home = () => {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search items..."
+                placeholder={t('searchItems')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10 h-8"
@@ -159,7 +161,7 @@ const Home = () => {
               size="icon"
               onClick={openLocationMap}
               className="h-8 w-8"
-              title="Open location map"
+              title={t('openLocationMap')}
             >
               <MapPin className="h-4 w-4 text-primary" />
             </Button>

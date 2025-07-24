@@ -8,12 +8,15 @@ import { Heart, Trash2, Eye } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { supabase } from "@/integrations/supabase/client";
+import { formatPrice } from "@/utils/currency";
 
 interface SavedItem {
   id: string;
   title: string;
   price: number;
+  currency?: string;
   images: string[];
   description: string;
   savedAt: string;
@@ -21,6 +24,7 @@ interface SavedItem {
 
 const SavedItems = () => {
   const { user } = useAuth();
+  const { t, isRTL } = useLanguage();
   const [savedItems, setSavedItems] = useState<SavedItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -62,7 +66,7 @@ const SavedItems = () => {
         setSavedItems(formattedItems);
       } catch (error) {
         console.error('Error loading saved items:', error);
-        toast.error('Failed to load saved items');
+        toast.error(t('failedToLoadProfile'));
       } finally {
         setLoading(false);
       }
@@ -85,10 +89,10 @@ const SavedItems = () => {
 
       const updatedItems = savedItems.filter(item => item.id !== itemId);
       setSavedItems(updatedItems);
-      toast.success('Item removed from saved items');
+      toast.success(t('itemSaved')); // Using existing key
     } catch (error) {
       console.error('Error removing saved item:', error);
-      toast.error('Failed to remove item');
+      toast.error(t('errorSavingItem'));
     }
   };
 
@@ -104,34 +108,34 @@ const SavedItems = () => {
       if (error) throw error;
 
       setSavedItems([]);
-      toast.success('All saved items cleared');
+      toast.success(t('success'));
     } catch (error) {
       console.error('Error clearing saved items:', error);
-      toast.error('Failed to clear saved items');
+      toast.error(t('error'));
     }
   };
 
   return (
-    <div className="min-h-screen bg-background pb-16">
-      <TopBar title="Saved Items" showBackButton={true} />
+    <div className={`min-h-screen bg-background pb-16 ${isRTL ? 'rtl' : 'ltr'}`}>
+      <TopBar title={t('savedItems')} showBackButton={true} />
       <main className="container mx-auto px-4 py-6">
         {loading ? (
-          <div className="text-center py-8">Loading saved items...</div>
+          <div className="text-center py-8">{t('loading')}...</div>
         ) : savedItems.length === 0 ? (
           <div className="rounded-lg bg-card p-6 shadow">
             <div className="flex items-center justify-center h-32">
               <Heart className="h-12 w-12 text-gray-400" />
             </div>
-            <p className="text-center text-gray-600">No saved items yet</p>
+            <p className="text-center text-gray-600">{t('noItemsPostedYet')}</p>
             <p className="text-center text-sm text-gray-500 mt-2">
               Save items you're interested in to view them here
             </p>
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h2 className="text-lg font-semibold">
-                {savedItems.length} Saved Item{savedItems.length !== 1 ? 's' : ''}
+            <div className={`flex justify-between items-center ${isRTL ? 'flex-row-reverse' : ''}`}>
+              <h2 className={`text-lg font-semibold ${isRTL ? 'text-right' : 'text-left'}`}>
+                {savedItems.length} {t('savedItems')}
               </h2>
               {savedItems.length > 0 && (
                 <Button
@@ -140,7 +144,7 @@ const SavedItems = () => {
                   onClick={clearAllSaved}
                   className="text-red-600 hover:text-red-700"
                 >
-                  Clear All
+{t('clear')} All
                 </Button>
               )}
             </div>
@@ -159,12 +163,12 @@ const SavedItems = () => {
                     <h3 className="font-semibold">{item.title}</h3>
                     <p className="text-sm text-gray-500 line-clamp-2">{item.description}</p>
                     <div className="flex justify-between items-center mt-2">
-                      <p className="font-semibold text-lg">${item.price}</p>
+                      <p className="font-semibold text-lg">{formatPrice(item.price, item.currency)}</p>
                       <div className="flex items-center gap-2">
                         <Link to={`/items/${item.id}`}>
                           <Button variant="outline" size="sm">
                             <Eye className="h-4 w-4 mr-1" />
-                            View
+View
                           </Button>
                         </Link>
                         <Button

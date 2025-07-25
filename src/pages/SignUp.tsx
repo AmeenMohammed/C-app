@@ -74,9 +74,9 @@ const SignUp = () => {
         }
       }
 
-      toast.success("Check your email to confirm your account!");
+      toast.success(t('checkEmailToConfirm'));
     } catch (error) {
-      toast.error("An error occurred during sign up.");
+      toast.error(t('errorDuringSignUp'));
     } finally {
       setLoading(false);
     }
@@ -98,7 +98,7 @@ const SignUp = () => {
 
       if (error) {
         console.error('Google OAuth error:', error);
-        toast.error(error.message || "Failed to continue with Google");
+        toast.error(error.message || t('failedContinueWithGoogle'));
         setLoading(false);
         return;
       }
@@ -107,7 +107,7 @@ const SignUp = () => {
       // The loading state will be maintained until the redirect completes
     } catch (error) {
       console.error('Unexpected Google OAuth error:', error);
-      toast.error("An unexpected error occurred while continuing with Google.");
+      toast.error(t('unexpectedErrorGoogle'));
       setLoading(false);
     }
   };
@@ -124,7 +124,7 @@ const SignUp = () => {
 
       if (error) {
         console.error('Apple OAuth error:', error);
-        toast.error(error.message || "Failed to continue with Apple");
+        toast.error(error.message || t('failedContinueWithApple'));
         setLoading(false);
         return;
       }
@@ -133,7 +133,7 @@ const SignUp = () => {
       // The loading state will be maintained until the redirect completes
     } catch (error) {
       console.error('Unexpected Apple OAuth error:', error);
-      toast.error("An unexpected error occurred while continuing with Apple.");
+      toast.error(t('unexpectedErrorApple'));
       setLoading(false);
     }
   };
@@ -142,9 +142,9 @@ const SignUp = () => {
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <Card className="w-full max-w-md p-6 space-y-6">
         <div className="text-center space-y-2">
-          <h1 className="text-2xl font-bold">Create an Account</h1>
+          <h1 className="text-2xl font-bold">{t('createAccount')}</h1>
           <p className="text-muted-foreground">
-            Sign up to start buying and selling
+            {t('signUpToStartBuyingSelling')}
           </p>
         </div>
 
@@ -168,6 +168,7 @@ const SignUp = () => {
             {loading ? t('connecting') : t('continueWithGoogle')}
           </Button>
 
+          {/* Apple Sign-In temporarily disabled - requires paid Apple Developer Program ($99/year) */}
           {/* <Button
             variant="outline"
             className="w-full"
@@ -181,7 +182,7 @@ const SignUp = () => {
             >
               <path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.087 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701" />
             </svg>
-            {loading ? "Connecting..." : "Continue with Apple"}
+            {loading ? t('connecting') : t('continueWithApple')}
           </Button> */}
 
           <div className="relative">
@@ -190,7 +191,7 @@ const SignUp = () => {
             </div>
             <div className="relative flex justify-center text-xs uppercase">
               <span className="bg-background px-2 text-muted-foreground">
-                Or continue with
+                {t('orContinueWith')}
               </span>
             </div>
           </div>
@@ -199,7 +200,7 @@ const SignUp = () => {
             <div className="space-y-2">
               <Input
                 type="email"
-                placeholder="Email"
+                placeholder={t('email')}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -209,7 +210,7 @@ const SignUp = () => {
             <div className="space-y-2">
               <Input
                 type="password"
-                placeholder="Password"
+                placeholder={t('password')}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -218,15 +219,15 @@ const SignUp = () => {
               />
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Creating Account..." : "Sign Up"}
+              {loading ? t('creatingAccount') : t('signUp')}
             </Button>
           </form>
         </div>
 
         <div className="text-center text-sm">
-          Already have an account?{" "}
+          {t('alreadyHaveAccount')}{" "}
           <Link to="/" className="text-primary hover:underline">
-            Sign In
+            {t('signIn')}
           </Link>
         </div>
       </Card>

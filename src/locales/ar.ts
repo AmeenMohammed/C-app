@@ -272,6 +272,17 @@ export const ar = {
   dontHaveAccount: "ليس لديك حساب؟ سجل الآن",
 
   // SignUp Page
+  createAccount: "إنشاء حساب",
+  signUpToStartBuyingSelling: "سجل الآن لتبدأ في البيع والشراء",
+  orContinueWith: "أو تابع باستخدام",
+  password: "كلمة المرور",
+  alreadyHaveAccount: "لديك حساب بالفعل؟",
+  checkEmailToConfirm: "تحقق من بريدك الإلكتروني لتأكيد حسابك!",
+  failedContinueWithGoogle: "فشل في المتابعة مع جوجل",
+  failedContinueWithApple: "فشل في المتابعة مع أبل",
+  unexpectedErrorGoogle: "حدث خطأ غير متوقع أثناء المتابعة مع جوجل.",
+  unexpectedErrorApple: "حدث خطأ غير متوقع أثناء المتابعة مع أبل.",
+  errorDuringSignUp: "حدث خطأ أثناء التسجيل.",
   creatingAccount: "جاري إنشاء الحساب...",
 
   // ItemDetails Page

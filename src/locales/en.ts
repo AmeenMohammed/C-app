@@ -270,6 +270,17 @@ export const en = {
   dontHaveAccount: "Don't have an account? Sign up",
 
   // SignUp Page
+  createAccount: "Create an Account",
+  signUpToStartBuyingSelling: "Sign up to start buying and selling",
+  orContinueWith: "Or continue with",
+  password: "Password",
+  alreadyHaveAccount: "Already have an account?",
+  checkEmailToConfirm: "Check your email to confirm your account!",
+  failedContinueWithGoogle: "Failed to continue with Google",
+  failedContinueWithApple: "Failed to continue with Apple",
+  unexpectedErrorGoogle: "An unexpected error occurred while continuing with Google.",
+  unexpectedErrorApple: "An unexpected error occurred while continuing with Apple.",
+  errorDuringSignUp: "An error occurred during sign up.",
   creatingAccount: "Creating Account...",
 
   // ItemDetails Page

@@ -25,6 +25,7 @@ import Notifications from "./pages/Notifications";
 import SavedItems from "./pages/SavedItems";
 import Settings from "./pages/Settings";
 import PaymentMethods from "./pages/PaymentMethods";
+import PromotedItems from "./pages/PromotedItems";
 import HelpSupport from "./pages/HelpSupport";
 import Channels from "./pages/Channels";
 import CreateChannel from "./pages/CreateChannel";
@@ -138,6 +139,14 @@ const App = () => (
                       element={
                         <ProtectedRoute>
                           <PaymentMethods />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/promoted-items"
+                      element={
+                        <ProtectedRoute>
+                          <PromotedItems />
                         </ProtectedRoute>
                       }
                     />

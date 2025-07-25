@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ImagePlus, X, Trash2, MapPin } from "lucide-react";
+import { ImagePlus, X, Trash2, MapPin, TrendingUp } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
 import { toast } from "@/hooks/use-toast";
 import { useState, useRef, useEffect } from "react";
@@ -635,13 +635,22 @@ const EditItem = () => {
               </Button>
               <Button
                 type="button"
+                variant="outline"
+                onClick={() => navigate('/promoted-items')}
+                className="flex items-center gap-2"
+              >
+                <TrendingUp className="h-4 w-4" />
+                {t('promote')}
+              </Button>
+              <Button
+                type="button"
                 variant="destructive"
                 onClick={handleDelete}
                 disabled={deleting}
                 className="flex items-center gap-2"
               >
                 <Trash2 className="h-4 w-4" />
-{deleting ? "Deleting..." : t('delete')}
+                {deleting ? "Deleting..." : t('delete')}
               </Button>
             </div>
           </form>

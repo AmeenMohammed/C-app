@@ -6,8 +6,8 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ImagePlus, X, MapPin, TrendingUp } from "lucide-react";
+
+import { ImagePlus, X, MapPin } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -47,7 +47,7 @@ const PostItem = () => {
   const { user } = useAuth();
   const { t } = useLanguage();
   const showBackButton = location.state?.from === 'profile';
-  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [images, setImages] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -229,24 +229,7 @@ const PostItem = () => {
     });
   };
 
-  const handlePromoteItem = () => {
-    setShowPaymentDialog(true);
-  };
 
-  const handlePayment = (method: string) => {
-    setShowPaymentDialog(false);
-    toast({
-      title: t('processingPayment'),
-      description: `${t('processingPaymentVia')} ${method}...`,
-    });
-    // Here you would integrate with actual payment processing
-    setTimeout(() => {
-      toast({
-        title: t('paymentSuccessful'),
-        description: t('itemPromoted'),
-      });
-    }, 2000);
-  };
 
   const uploadImages = async (files: FileList): Promise<string[]> => {
     const uploadedUrls: string[] = [];
@@ -336,7 +319,14 @@ const PostItem = () => {
         title: t('success'),
         description: t('itemPostedSuccessfully'),
       });
-      navigate('/profile');
+
+      // Ask user if they want to promote the item
+      const shouldPromote = window.confirm(t('wouldYouLikeToPromoteItem'));
+      if (shouldPromote) {
+        navigate('/promoted-items');
+      } else {
+        navigate('/profile');
+      }
     } catch (error) {
       console.error('Error posting item:', error);
       toast({
@@ -579,35 +569,14 @@ const PostItem = () => {
               />
             </div>
 
-            <div className="flex gap-2">
-              <Button type="submit" className="flex-1" disabled={loading}>
-                {loading ? t('posting') : t('postItem')}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handlePromoteItem}
-                className="flex items-center gap-2"
-              >
-                <TrendingUp className="h-4 w-4" />
-                {t('promote')}
-              </Button>
-            </div>
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? t('posting') : t('postItem')}
+            </Button>
           </form>
         </Card>
       </div>
 
-      <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('paymentRequired')}</DialogTitle>
-          </DialogHeader>
-          <p>{t('itemRequiresPaymentToPromote')}</p>
-          <div className="flex justify-end mt-4">
-            <Button onClick={() => handlePayment('Credit Card')}>{t('payWithCreditCard')}</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+
 
       <BottomNav />
     </div>

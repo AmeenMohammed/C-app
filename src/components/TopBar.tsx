@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, Menu, Bell, Heart, Settings, CreditCard, ArrowUp, LogOut, ShoppingCart } from "lucide-react";
+import { ArrowLeft, ArrowRight, Menu, Bell, Heart, Settings, CreditCard, ArrowUp, LogOut, ShoppingCart, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import {
@@ -33,6 +33,10 @@ export function TopBar({ title, showBackButton = true, onBackClick }: TopBarProp
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleMoveToTop = () => {
+    navigate('/promoted-items');
   };
 
   const handleLogout = async () => {
@@ -70,9 +74,9 @@ export function TopBar({ title, showBackButton = true, onBackClick }: TopBarProp
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align={isRTL ? "start" : "end"} className={isRTL ? "rtl" : "ltr"}>
-            <DropdownMenuItem onClick={scrollToTop} className={`${isRTL ? 'flex-row-reverse' : ''}`}>
-              <ArrowUp className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
-              {t('moveToTop')}
+            <DropdownMenuItem onClick={handleMoveToTop} className={`${isRTL ? 'flex-row-reverse' : ''}`}>
+              <TrendingUp className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
+              {t('promotedItems')}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => navigate('/notifications')} className={`${isRTL ? 'flex-row-reverse' : ''}`}>
               <Bell className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />

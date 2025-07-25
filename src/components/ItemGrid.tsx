@@ -1,7 +1,8 @@
 import { Card } from "@/components/ui/card";
 import { Link, useNavigate } from "react-router-dom";
-import { BookmarkPlus, MessageSquare, Eye, Share2, ImagePlus } from "lucide-react";
+import { BookmarkPlus, MessageSquare, Eye, Share2, ImagePlus, Star, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,6 +23,10 @@ interface Item {
   listing_type?: string;
   status?: string[];
   created_at?: string;
+  // Promotion fields
+  promotion_id?: string;
+  promotion_start?: string;
+  promotion_priority?: number;
 }
 
 interface ItemGridProps {
@@ -38,6 +43,8 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
   const { user } = useAuth();
   const { t } = useLanguage();
   const [savingItems, setSavingItems] = useState<Record<string, boolean>>({});
+  const [promotedItems, setPromotedItems] = useState<Item[]>([]);
+  const [regularItems, setRegularItems] = useState<Item[]>([]);
   const navigate = useNavigate();
 
   // Fetch user's saved location from profile if authenticated
@@ -66,6 +73,36 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
   const effectiveUserLocation = userProfile?.latitude && userProfile?.longitude
     ? { lat: userProfile.latitude, lng: userProfile.longitude }
     : userLocation;
+
+  // Query to fetch promoted items (only for home feed, not profile)
+  const { data: fetchedPromotedItems } = useQuery({
+    queryKey: ['promotedItems', effectiveUserLocation, selectedCategory, locationRange],
+    queryFn: async () => {
+      if (!effectiveUserLocation || isProfile) return [];
+
+      try {
+        const { data, error } = await supabase.rpc('get_promoted_items_for_rotation', {
+          user_lat: effectiveUserLocation.lat,
+          user_lon: effectiveUserLocation.lng,
+          max_distance: locationRange,
+          category_filter: selectedCategory === 'all' ? null : selectedCategory,
+          limit_count: 5
+        });
+
+        if (error) {
+          console.warn('Promoted items query failed, fallback to empty:', error.message);
+          return [];
+        }
+
+        return data || [];
+      } catch (error) {
+        console.warn('Promoted items not available:', error);
+        return [];
+      }
+    },
+    enabled: !!effectiveUserLocation && !isProfile,
+    refetchInterval: 30000, // Refresh every 30 seconds for rotation
+  });
 
   // Query to fetch user items or filtered items based on location and category
   const { data: items, isLoading, error } = useQuery({
@@ -120,24 +157,26 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
           console.log('✅ Found items for user:', data?.length || 0);
           return data || [];
         } else {
-          // Use location-based filtering if user location is available
+          // Use location-based filtering for home feed
           if (effectiveUserLocation) {
-            console.log('🌍 Using location-based filtering:', effectiveUserLocation);
+            console.log('🌍 Using location-based filtering with promoted/regular separation');
 
-            // Try to use blocking-aware function if user is authenticated, fallback to regular function
+            // Try to use new regular items function if user is authenticated
             if (user) {
               try {
-                const { data, error } = await supabase.rpc('get_items_within_range_with_blocking', {
+                const { data, error } = await supabase.rpc('get_regular_items_with_blocking', {
                   user_lat: effectiveUserLocation.lat,
                   user_lon: effectiveUserLocation.lng,
                   max_distance: locationRange,
                   user_uuid: user.id,
-                  category_filter: selectedCategory === 'all' ? null : selectedCategory
+                  category_filter: selectedCategory === 'all' ? null : selectedCategory,
+                  offset_count: 0,
+                  limit_count: 50
                 });
 
                 if (error) {
-                  console.warn('Blocking function not available, falling back to regular function:', error.message);
-                  throw error; // This will trigger the fallback
+                  console.warn('Regular items function not available, falling back:', error.message);
+                  throw error;
                 }
 
                 // Filter by search query if provided
@@ -150,8 +189,37 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
                 }
 
                 return filteredData;
-              } catch (blockingError) {
-                console.log('Using fallback regular function due to:', blockingError.message);
+              } catch (regularItemsError) {
+                console.log('Using fallback for regular items');
+
+                // Fallback to old method
+                try {
+                  const { data, error } = await supabase.rpc('get_items_within_range_with_blocking', {
+                    user_lat: effectiveUserLocation.lat,
+                    user_lon: effectiveUserLocation.lng,
+                    max_distance: locationRange,
+                    user_uuid: user.id,
+                    category_filter: selectedCategory === 'all' ? null : selectedCategory
+                  });
+
+                  if (error) {
+                    console.warn('Blocking function not available, falling back to regular function:', error.message);
+                    throw error; // This will trigger the fallback
+                  }
+
+                  // Filter by search query if provided
+                  let filteredData = data || [];
+                  if (searchQuery.trim()) {
+                    filteredData = filteredData.filter(item =>
+                      item.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                      item.description?.toLowerCase().includes(searchQuery.toLowerCase())
+                    );
+                  }
+
+                  return filteredData;
+                } catch (blockingError) {
+                  console.log('Using fallback regular function due to:', blockingError.message);
+                }
               }
             }
 
@@ -276,14 +344,22 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
     },
   });
 
+  // Update state when data changes
+  useEffect(() => {
+    if (!isProfile) {
+      setPromotedItems(fetchedPromotedItems || []);
+      setRegularItems(items || []);
+    }
+  }, [fetchedPromotedItems, items, isProfile]);
+
   // Get view counts for all items
   const { data: viewCounts } = useQuery({
-    queryKey: ['itemViews', items],
+    queryKey: ['itemViews', items, promotedItems],
     queryFn: async () => {
-      const itemsToFetch = items || [];
-      if (itemsToFetch.length === 0) return {};
+      const allItems = isProfile ? (items || []) : [...(promotedItems || []), ...(regularItems || [])];
+      if (allItems.length === 0) return {};
 
-      const viewPromises = itemsToFetch.map(async (item) => {
+      const viewPromises = allItems.map(async (item) => {
         if (!item.id) return { itemId: item.id, views: 0 };
 
         try {
@@ -303,10 +379,25 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
       const counts = await Promise.all(viewPromises);
       return Object.fromEntries(counts.map(({ itemId, views }) => [itemId, views]));
     },
-    enabled: !!items,
+    enabled: !!(items || promotedItems),
   });
 
-  const handleSave = async (e: React.MouseEvent, itemId: string) => {
+  // Track promotion analytics
+  const trackPromotionAnalytics = async (item: Item, eventType: 'view' | 'click' | 'contact' | 'share') => {
+    if (item.promotion_id && user) {
+      try {
+        await supabase.rpc('track_promotion_event', {
+          promotion_uuid: item.promotion_id,
+          event_type_param: eventType,
+          user_uuid: user.id
+        });
+      } catch (error) {
+        console.warn('Failed to track promotion analytics:', error);
+      }
+    }
+  };
+
+  const handleSave = async (e: React.MouseEvent, itemId: string, item?: Item) => {
     e.preventDefault(); // Prevent navigation
 
     if (!user) {
@@ -316,6 +407,11 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
         variant: "destructive",
       });
       return;
+    }
+
+    // Track analytics for promoted items
+    if (item?.promotion_id) {
+      trackPromotionAnalytics(item, 'click');
     }
 
     // Show animation
@@ -378,6 +474,11 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
         variant: "destructive",
       });
       return;
+    }
+
+    // Track analytics for promoted items
+    if (item.promotion_id) {
+      trackPromotionAnalytics(item, 'contact');
     }
 
     try {
@@ -451,8 +552,13 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
     }
   };
 
-  const handleShare = async (e: React.MouseEvent, itemId: string, title: string) => {
+  const handleShare = async (e: React.MouseEvent, itemId: string, title: string, item?: Item) => {
     e.preventDefault(); // Prevent navigation
+
+    // Track analytics for promoted items
+    if (item?.promotion_id) {
+      trackPromotionAnalytics(item, 'share');
+    }
 
     const shareData = {
       title: title,
@@ -489,11 +595,11 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
     }
   };
 
-  const trackView = async (itemId: string) => {
+  const trackView = async (itemId: string, item?: Item) => {
     const user = (await supabase.auth.getUser()).data.user;
     if (user) {
       try {
-        // First check if the view already exists
+        // Track regular item view
         const { data: existingView } = await supabase
           .from('item_views')
           .select('id')
@@ -514,6 +620,11 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
             console.error('Error tracking view:', error);
           }
         }
+
+        // Track promotion analytics if it's a promoted item
+        if (item?.promotion_id) {
+          trackPromotionAnalytics(item, 'view');
+        }
       } catch (error) {
         // Handle any other errors silently to not disrupt user experience
         console.error('Error tracking view:', error);
@@ -521,8 +632,103 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
     }
   };
 
+  // Render item card with promotion styling
+  const renderItemCard = (item: Item, isPromoted: boolean = false) => (
+    <Link
+      key={item.id}
+      to={`/items/${item.id}`}
+      onClick={() => trackView(item.id, item)}
+    >
+      <Card className={`overflow-hidden relative group ${isPromoted ? 'ring-2 ring-yellow-400 shadow-lg' : ''}`}>
+        {/* Promoted badge */}
+        {isPromoted && (
+          <div className="absolute top-2 left-2 z-20">
+            <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 border-yellow-300">
+              <Star className="h-3 w-3 mr-1 fill-current" />
+              {t('promoted')}
+            </Badge>
+          </div>
+        )}
+
+        <div className="absolute top-2 right-2 flex gap-2 z-10">
+          {/* Only show save and message buttons if it's not the user's own item */}
+          {item.seller_id !== user?.id && (
+            <>
+              <Button
+                variant="secondary"
+                size="icon"
+                className={`h-8 w-8 opacity-0 group-hover:opacity-100 transition-all ${savingItems[item.id] ? 'opacity-100 scale-125' : ''}`}
+                onClick={(e) => handleSave(e, item.id, item)}
+              >
+                <BookmarkPlus className={`h-4 w-4 transition-all ${savingItems[item.id] ? 'text-primary fill-primary' : ''}`} />
+              </Button>
+              <Button
+                variant="secondary"
+                size="icon"
+                className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={(e) => handleContact(e, item)}
+              >
+                <MessageSquare className="h-4 w-4" />
+              </Button>
+            </>
+          )}
+          {/* Share button is always visible */}
+          <Button
+            variant="secondary"
+            size="icon"
+            className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+            onClick={(e) => handleShare(e, item.id, item.title, item)}
+          >
+            <Share2 className="h-4 w-4" />
+          </Button>
+        </div>
+
+        <div className="relative pb-[100%]">
+          <img
+            src={item.images?.[0] || defaultImage}
+            alt={item.title}
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+          {/* Tags displayed on image */}
+          {item.status && item.status.length > 0 && (
+            <div className={`absolute ${isPromoted ? 'bottom-2' : 'top-2'} left-2 flex flex-wrap gap-1 max-w-[calc(100%-4rem)]`}>
+              {item.status.map((tag, index) => (
+                <div
+                  key={index}
+                  className="bg-black/70 text-white px-2 py-0.5 rounded-full text-xs font-medium shadow-md"
+                >
+                  {tag}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="p-3">
+          <h3 className="font-medium text-sm leading-tight truncate">{item.title}</h3>
+          <p className="text-xs text-muted-foreground/70 mt-0.5">
+            {item.listing_type === "request"
+              ? t('lookingFor')
+              : item.listing_type === "rent"
+              ? t('forRent')
+              : t('forSale')}
+          </p>
+          <div className="flex justify-between items-center mt-1">
+            <p className="text-sm leading-tight text-muted-foreground">
+              {formatPrice(typeof item.price === 'number' ? item.price : 0, item.currency)}
+            </p>
+            <div className="flex items-center gap-1 text-sm text-muted-foreground">
+              <Eye className="h-4 w-4" />
+              <span>{viewCounts?.[item.id] ?? 0}</span>
+            </div>
+          </div>
+        </div>
+      </Card>
+    </Link>
+  );
+
   // Show appropriate message when no items are found
-  if (items && items.length === 0 && isProfile) {
+  if ((items && items.length === 0 && promotedItems.length === 0) && isProfile) {
     return (
       <div className="text-center py-12">
         <div className="bg-gray-50 rounded-lg p-8 max-w-md mx-auto">
@@ -558,91 +764,52 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
     );
   }
 
-  const displayItems = items || [];
+  // For profile page, show regular items only
+  if (isProfile) {
+    const displayItems = items || [];
+    return (
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+        {displayItems.map((item) => renderItemCard(item, false))}
+      </div>
+    );
+  }
 
+  // For home page, show promoted items first, then regular items
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-      {displayItems.map((item) => (
-        <Link
-          key={item.id}
-          to={`/items/${item.id}`}
-          onClick={() => trackView(item.id)}
-        >
-          <Card className="overflow-hidden relative group">
-            <div className="absolute top-2 right-2 flex gap-2 z-10">
-              {/* Only show save and message buttons if it's not the user's own item */}
-              {item.seller_id !== user?.id && (
-                <>
-                  <Button
-                    variant="secondary"
-                    size="icon"
-                    className={`h-8 w-8 opacity-0 group-hover:opacity-100 transition-all ${savingItems[item.id] ? 'opacity-100 scale-125' : ''}`}
-                    onClick={(e) => handleSave(e, item.id)}
-                  >
-                    <BookmarkPlus className={`h-4 w-4 transition-all ${savingItems[item.id] ? 'text-primary fill-primary' : ''}`} />
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    size="icon"
-                    className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={(e) => handleContact(e, item)}
-                  >
-                    <MessageSquare className="h-4 w-4" />
-                  </Button>
-                </>
-              )}
-              {/* Share button is always visible */}
-              <Button
-                variant="secondary"
-                size="icon"
-                className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                onClick={(e) => handleShare(e, item.id, item.title)}
-              >
-                <Share2 className="h-4 w-4" />
-              </Button>
+    <div className="space-y-6">
+      {/* Promoted Items Section */}
+      {promotedItems.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <TrendingUp className="h-5 w-5 text-yellow-600" />
+            <h2 className="text-lg font-semibold text-gray-900">{t('promotedItems')}</h2>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            {promotedItems.map((item) => renderItemCard(item, true))}
+          </div>
+        </div>
+      )}
+
+      {/* Regular Items Section */}
+      {regularItems.length > 0 && (
+        <div>
+          {promotedItems.length > 0 && (
+            <div className="border-t pt-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('allItems')}</h2>
             </div>
-            <div className="relative pb-[100%]">
-              <img
-                src={item.images?.[0] || defaultImage}
-                alt={item.title}
-                className="absolute inset-0 w-full h-full object-cover"
-              />
-              {/* Tags displayed on image */}
-              {item.status && item.status.length > 0 && (
-                <div className="absolute top-2 left-2 flex flex-wrap gap-1 max-w-[calc(100%-4rem)]">
-                  {item.status.map((tag, index) => (
-                    <div
-                      key={index}
-                      className="bg-black/70 text-white px-2 py-0.5 rounded-full text-xs font-medium shadow-md"
-                    >
-                      {tag}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="p-3">
-              <h3 className="font-medium text-sm leading-tight truncate">{item.title}</h3>
-              <p className="text-xs text-muted-foreground/70 mt-0.5">
-                {item.listing_type === "request"
-                  ? t('lookingFor')
-                  : item.listing_type === "rent"
-                  ? t('forRent')
-                  : t('forSale')}
-              </p>
-              <div className="flex justify-between items-center mt-1">
-                <p className="text-sm leading-tight text-muted-foreground">
-                  {formatPrice(typeof item.price === 'number' ? item.price : 0, item.currency)}
-                </p>
-                <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                  <Eye className="h-4 w-4" />
-                  <span>{viewCounts?.[item.id] ?? 0}</span>
-                </div>
-              </div>
-            </div>
-          </Card>
-        </Link>
-      ))}
+          )}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            {regularItems.map((item) => renderItemCard(item, false))}
+          </div>
+        </div>
+      )}
+
+      {/* No items message */}
+      {promotedItems.length === 0 && regularItems.length === 0 && !isLoading && (
+        <div className="text-center py-12">
+          <p className="text-muted-foreground">{t('noItemsFound')}</p>
+        </div>
+      )}
     </div>
   );
 }

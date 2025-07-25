@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Send, Smile, Paperclip, X, ArrowLeft, Plus, MessageCircle, User, Phone, Video, MoreVertical, Image, Mic, Trash2 } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useSearchParams, useLocation, Link } from "react-router-dom";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -90,267 +90,324 @@ const Messages = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const [attachment, setAttachment] = useState<File | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [messagesLoading, setMessagesLoading] = useState(false);
   const [showMobileChat, setShowMobileChat] = useState(false);
   const [locationStateProcessed, setLocationStateProcessed] = useState(false);
   const { width: windowWidth, height: windowHeight } = useWindowSize();
 
-  // Fetch user's conversations from database
+  // Auto-scroll to bottom of messages
+  const scrollToBottom = useCallback(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, []);
+
+  // Scroll to bottom when messages change or conversation is selected
   useEffect(() => {
-    const fetchConversations = async () => {
-      if (!user) return;
+    if (messages.length > 0) {
+      // Use setTimeout to ensure DOM is updated
+      setTimeout(scrollToBottom, 100);
+    }
+  }, [messages, selectedUserId, scrollToBottom]);
 
-      setLoading(true);
-      try {
-        // Get conversations where user is participant
-        const { data: conversationsData, error } = await supabase
-          .from('conversations')
-          .select(`
-            id,
-            participant1_id,
-            participant2_id,
-            item_id,
-            updated_at,
-            created_at
-          `)
-          .or(`participant1_id.eq.${user.id},participant2_id.eq.${user.id}`)
-          .order('updated_at', { ascending: false });
+  // Optimized conversation fetching with better queries
+  const fetchConversations = useCallback(async () => {
+    if (!user) return;
 
-        if (error) throw error;
+    setLoading(true);
+    try {
+      // Get conversations where user is participant
+      const { data: conversationsData, error } = await supabase
+        .from('conversations')
+        .select(`
+          id,
+          participant1_id,
+          participant2_id,
+          item_id,
+          updated_at,
+          created_at
+        `)
+        .or(`participant1_id.eq.${user.id},participant2_id.eq.${user.id}`)
+        .order('updated_at', { ascending: false });
 
-        const conversationsWithUsers = await Promise.all(
-          (conversationsData || []).map(async (conv) => {
-            const otherUserId = conv.participant1_id === user.id ? conv.participant2_id : conv.participant1_id;
+      if (error) throw error;
 
-            // Check if user is blocked or has blocked the other user
-            try {
-              const { data: isBlocked } = await supabase.rpc('check_if_user_is_blocked', {
-                blocker_uuid: user.id,
-                blocked_uuid: otherUserId
-              });
-
-              const { data: hasBlockedMe } = await supabase.rpc('check_if_user_is_blocked', {
-                blocker_uuid: otherUserId,
-                blocked_uuid: user.id
-              });
-
-              // Skip blocked users
-              if (isBlocked || hasBlockedMe) {
-                return null;
-              }
-            } catch (blockingError) {
-              console.warn('Blocking check failed for conversation, continuing:', blockingError.message);
-              // Continue without blocking if functions don't exist
-            }
-
-            // Get user profile for the other participant
-            const { data: profile, error: profileError } = await supabase
-              .from('user_profiles')
-              .select('full_name, avatar_url')
-              .eq('user_id', otherUserId)
-              .maybeSingle();
-
-            // Get last message for this conversation
-            const { data: lastMessage } = await supabase
-              .from('messages')
-              .select('content, created_at')
-              .eq('conversation_id', conv.id)
-              .order('created_at', { ascending: false })
-              .limit(1)
-              .maybeSingle();
-
-            // Calculate unread message count
-            let unreadCount = 0;
-            try {
-              const lastVisitKey = `conversation_${otherUserId}_last_visit_${user.id}`;
-              const lastVisit = localStorage.getItem(lastVisitKey);
-              const lastVisitTime = lastVisit ? new Date(lastVisit) : new Date(Date.now() - 24 * 60 * 60 * 1000);
-
-              const { count } = await supabase
-                .from('messages')
-                .select('*', { count: 'exact', head: true })
-                .eq('conversation_id', conv.id)
-                .neq('sender_id', user.id)
-                .gt('created_at', lastVisitTime.toISOString());
-
-              unreadCount = count || 0;
-            } catch (error) {
-              console.error('Error calculating unread count for conversation:', error);
-            }
-
-            return {
-              id: otherUserId,
-              conversationId: conv.id,
-              user: {
-                name: profile?.full_name || "User",
-                avatar: profile?.avatar_url || `https://api.dicebear.com/7.x/avatars/svg?seed=${profile?.full_name || 'user'}`
-              },
-              lastMessage: lastMessage?.content || "Start a conversation...",
-              timestamp: lastMessage?.created_at
-                ? new Date(lastMessage.created_at).toLocaleDateString()
-                : new Date(conv.created_at).toLocaleDateString(),
-              unread: unreadCount > 0,
-              unreadCount: unreadCount > 0 ? unreadCount : undefined
-            };
-          })
-        );
-
-        // Filter out null values (blocked users)
-        const filteredConversations = conversationsWithUsers.filter(conv => conv !== null);
-
-        setConversations(filteredConversations);
-
+      if (!conversationsData || conversationsData.length === 0) {
+        setConversations([]);
         // Handle new conversation from location state (only once)
         if (!locationStateProcessed) {
-          const sellerInfo = location.state as {
-            sellerId?: string;
-            sellerName?: string;
-            sellerAvatar?: string;
-            itemId?: string;
-            itemDetails?: {
-              title: string;
-              price: number;
-              image: string;
-              link: string;
-            };
-          } | null;
-
-          if (sellerInfo?.sellerId && sellerInfo?.sellerName) {
-            // Check if this conversation was previously deleted
-            const deletedConversationsKey = `deleted_conversations_${user.id}`;
-            const deletedConversations = JSON.parse(localStorage.getItem(deletedConversationsKey) || '[]');
-
-            if (deletedConversations.includes(sellerInfo.sellerId)) {
-              setLocationStateProcessed(true);
-              return;
-            }
-
-            // Check if seller is blocked or has blocked the current user before creating conversation
-            try {
-              const { data: isBlocked } = await supabase.rpc('check_if_user_is_blocked', {
-                blocker_uuid: user.id,
-                blocked_uuid: sellerInfo.sellerId
-              });
-
-              const { data: hasBlockedMe } = await supabase.rpc('check_if_user_is_blocked', {
-                blocker_uuid: sellerInfo.sellerId,
-                blocked_uuid: user.id
-              });
-
-              if (isBlocked || hasBlockedMe) {
-                toast.error(t('cannotMessageUser'));
-                setLocationStateProcessed(true);
-                return;
-              }
-            } catch (blockingError) {
-              console.warn('Blocking check failed for new conversation, continuing:', blockingError.message);
-              // Continue without blocking if functions don't exist
-            }
-
-            const existingConv = filteredConversations.find(c => c && c.id === sellerInfo.sellerId);
-
-            if (!existingConv) {
-              const newConversation: Conversation = {
-                id: sellerInfo.sellerId,
-                conversationId: '', // Will be set when first message is sent
-                user: {
-                  name: sellerInfo.sellerName,
-                  avatar: sellerInfo.sellerAvatar || `https://api.dicebear.com/7.x/avatars/svg?seed=${sellerInfo.sellerName}`
-                },
-                lastMessage: "Start a conversation...",
-                timestamp: "Just now",
-                unread: false
-              };
-              setConversations(prev => [newConversation, ...prev]);
-            }
-
-            // Auto-send default message with item details if provided
-            // Always send for new item inquiries, regardless of conversation status
-            if (sellerInfo.itemDetails) {
-              setTimeout(() => {
-                sendDefaultItemMessage(sellerInfo.sellerId!, sellerInfo.itemDetails!);
-              }, 1000); // Increase delay to ensure everything is ready
-            }
-          }
-
+          await handleLocationState([]);
           setLocationStateProcessed(true);
         }
-      } catch (error) {
-        console.error('Error fetching conversations:', error);
-        toast.error(t('failedToLoadConversations'));
-      } finally {
-        setLoading(false);
+        return;
       }
-    };
 
-    fetchConversations();
-  }, [user, locationStateProcessed]);
+      // Get all unique user IDs to fetch profiles in batch
+      const userIds = new Set<string>();
+      conversationsData.forEach(conv => {
+        const otherUserId = conv.participant1_id === user.id ? conv.participant2_id : conv.participant1_id;
+        userIds.add(otherUserId);
+      });
 
-  // Fetch messages for selected conversation
-  useEffect(() => {
-    const fetchMessages = async () => {
-      if (!selectedUserId || !user) return;
+      // Batch fetch user profiles
+      const { data: userProfiles } = await supabase
+        .from('user_profiles')
+        .select('user_id, full_name, avatar_url')
+        .in('user_id', Array.from(userIds));
 
-      try {
-        // Find the conversation between current user and selected user
-        const { data: conversations, error: convError } = await supabase
-          .from('conversations')
-          .select('id, participant1_id, participant2_id')
-          .or(`participant1_id.eq.${user.id},participant2_id.eq.${user.id}`)
-          .or(`participant1_id.eq.${selectedUserId},participant2_id.eq.${selectedUserId}`);
+      // Create a map for quick profile lookup
+      const profileMap = new Map();
+      userProfiles?.forEach(profile => {
+        profileMap.set(profile.user_id, profile);
+      });
 
-        if (convError) {
-          throw convError;
+      // Get last messages for all conversations in batch
+      const conversationIds = conversationsData.map(conv => conv.id);
+      const { data: allMessages } = await supabase
+        .from('messages')
+        .select('conversation_id, content, created_at, sender_id')
+        .in('conversation_id', conversationIds)
+        .order('created_at', { ascending: false });
+
+      // Group messages by conversation
+      const messagesByConversation = new Map();
+      allMessages?.forEach(msg => {
+        if (!messagesByConversation.has(msg.conversation_id)) {
+          messagesByConversation.set(msg.conversation_id, []);
         }
+        messagesByConversation.get(msg.conversation_id).push(msg);
+      });
 
-        // Find conversation where both users are participants
-        const conversation = conversations?.find(conv =>
-          (conv.participant1_id === user.id && conv.participant2_id === selectedUserId) ||
-          (conv.participant1_id === selectedUserId && conv.participant2_id === user.id)
-        );
+      // Process conversations more efficiently
+      const processedConversations = await Promise.all(
+        conversationsData.map(async (conv) => {
+          const otherUserId = conv.participant1_id === user.id ? conv.participant2_id : conv.participant1_id;
+          const otherUserProfile = profileMap.get(otherUserId);
 
-        if (!conversation) {
-          // No conversation exists yet
-          setMessages([]);
-          return;
-        }
+          // Check blocking status efficiently (batch if possible)
+          try {
+            const [isBlockedResult, hasBlockedMeResult] = await Promise.all([
+              supabase.rpc('check_if_user_is_blocked', {
+                blocker_uuid: user.id,
+                blocked_uuid: otherUserId
+              }),
+              supabase.rpc('check_if_user_is_blocked', {
+                blocker_uuid: otherUserId,
+                blocked_uuid: user.id
+              })
+            ]);
 
-        // Get messages for this conversation
-        const { data, error } = await supabase
-          .from('messages')
-          .select(`
-            id,
-            content,
-            sender_id,
-            created_at
-          `)
-          .eq('conversation_id', conversation.id)
-          .order('created_at', { ascending: true });
+            if (isBlockedResult.data || hasBlockedMeResult.data) {
+              return null;
+            }
+          } catch (blockingError) {
+            console.warn('Blocking check failed for conversation, continuing:', blockingError.message);
+          }
 
-        if (error) throw error;
+          // Get last message for this conversation
+          const conversationMessages = messagesByConversation.get(conv.id) || [];
+          const lastMessage = conversationMessages[0]; // Already sorted by created_at desc
 
-        const formattedMessages: Message[] = (data || []).map(msg => ({
+          // Calculate unread count efficiently
+          let unreadCount = 0;
+          try {
+            const lastVisitKey = `conversation_${otherUserId}_last_visit_${user.id}`;
+            const lastVisit = localStorage.getItem(lastVisitKey);
+            const lastVisitTime = lastVisit ? new Date(lastVisit) : new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+            unreadCount = conversationMessages.filter(msg =>
+              msg.sender_id !== user.id &&
+              new Date(msg.created_at) > lastVisitTime
+            ).length || 0;
+          } catch (error) {
+            console.error('Error calculating unread count for conversation:', error);
+          }
+
+          return {
+            id: otherUserId,
+            conversationId: conv.id,
+            user: {
+              name: otherUserProfile?.full_name || "User",
+              avatar: otherUserProfile?.avatar_url || `https://api.dicebear.com/7.x/avatars/svg?seed=${otherUserProfile?.full_name || 'user'}`
+            },
+            lastMessage: lastMessage?.content || "Start a conversation...",
+            timestamp: lastMessage?.created_at
+              ? new Date(lastMessage.created_at).toLocaleDateString()
+              : new Date(conv.created_at).toLocaleDateString(),
+            unread: unreadCount > 0,
+            unreadCount: unreadCount > 0 ? unreadCount : undefined
+          };
+        })
+      );
+
+      // Filter out null values (blocked users) and set conversations
+      const filteredConversations = processedConversations.filter(conv => conv !== null);
+      setConversations(filteredConversations);
+
+      // Handle new conversation from location state (only once)
+      if (!locationStateProcessed) {
+        await handleLocationState(filteredConversations);
+        setLocationStateProcessed(true);
+      }
+    } catch (error) {
+      console.error('Error fetching conversations:', error);
+      toast.error(t('failedToLoadConversations'));
+    } finally {
+      setLoading(false);
+    }
+  }, [user, locationStateProcessed, t]);
+
+  // Handle location state for new conversations
+  const handleLocationState = useCallback(async (existingConversations: Conversation[]) => {
+    const sellerInfo = location.state as {
+      sellerId?: string;
+      sellerName?: string;
+      sellerAvatar?: string;
+      itemId?: string;
+      itemDetails?: {
+        title: string;
+        price: number;
+        image: string;
+        link: string;
+      };
+    } | null;
+
+    if (!sellerInfo?.sellerId || !sellerInfo?.sellerName || !user) return;
+
+    // Check if this conversation was previously deleted
+    const deletedConversationsKey = `deleted_conversations_${user.id}`;
+    const deletedConversations = JSON.parse(localStorage.getItem(deletedConversationsKey) || '[]');
+
+    if (deletedConversations.includes(sellerInfo.sellerId)) {
+      return;
+    }
+
+    // Check blocking status before creating conversation
+    try {
+      const [isBlockedResult, hasBlockedMeResult] = await Promise.all([
+        supabase.rpc('check_if_user_is_blocked', {
+          blocker_uuid: user.id,
+          blocked_uuid: sellerInfo.sellerId
+        }),
+        supabase.rpc('check_if_user_is_blocked', {
+          blocker_uuid: sellerInfo.sellerId,
+          blocked_uuid: user.id
+        })
+      ]);
+
+      if (isBlockedResult.data || hasBlockedMeResult.data) {
+        toast.error(t('cannotMessageUser'));
+        return;
+      }
+    } catch (blockingError) {
+      console.warn('Blocking check failed for new conversation, continuing:', blockingError.message);
+    }
+
+    const existingConv = existingConversations.find(c => c && c.id === sellerInfo.sellerId);
+
+    if (!existingConv) {
+      const newConversation: Conversation = {
+        id: sellerInfo.sellerId,
+        conversationId: '', // Will be set when first message is sent
+        user: {
+          name: sellerInfo.sellerName,
+          avatar: sellerInfo.sellerAvatar || `https://api.dicebear.com/7.x/avatars/svg?seed=${sellerInfo.sellerName}`
+        },
+        lastMessage: "Start a conversation...",
+        timestamp: "Just now",
+        unread: false
+      };
+      setConversations(prev => [newConversation, ...prev]);
+    }
+
+    // Auto-send default message with item details if provided
+    if (sellerInfo.itemDetails) {
+      setTimeout(() => {
+        sendDefaultItemMessage(sellerInfo.sellerId!, sellerInfo.itemDetails!);
+      }, 1000);
+    }
+  }, [location.state, user, t]);
+
+  // Optimized message fetching with pagination
+  const fetchMessages = useCallback(async (limit: number = 50) => {
+    if (!selectedUserId || !user) return;
+
+    setMessagesLoading(true);
+    try {
+      // Find the conversation between current user and selected user
+      const { data: conversations, error: convError } = await supabase
+        .from('conversations')
+        .select('id, participant1_id, participant2_id')
+        .or(`participant1_id.eq.${user.id},participant2_id.eq.${user.id}`)
+        .or(`participant1_id.eq.${selectedUserId},participant2_id.eq.${selectedUserId}`);
+
+      if (convError) {
+        throw convError;
+      }
+
+      // Find conversation where both users are participants
+      const conversation = conversations?.find(conv =>
+        (conv.participant1_id === user.id && conv.participant2_id === selectedUserId) ||
+        (conv.participant1_id === selectedUserId && conv.participant2_id === user.id)
+      );
+
+      if (!conversation) {
+        // No conversation exists yet
+        setMessages([]);
+        return;
+      }
+
+      // Get messages for this conversation with pagination
+      const { data, error } = await supabase
+        .from('messages')
+        .select(`
+          id,
+          content,
+          sender_id,
+          created_at
+        `)
+        .eq('conversation_id', conversation.id)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+      if (error) throw error;
+
+      // Reverse the order to show oldest first (since we got newest first from query)
+      const formattedMessages: Message[] = (data || [])
+        .reverse()
+        .map(msg => ({
           id: msg.id,
           text: msg.content,
           isMine: msg.sender_id === user.id,
           timestamp: msg.created_at
         }));
 
-        setMessages(formattedMessages);
-      } catch (error) {
-        console.error('Error fetching messages:', error);
-        toast.error(t('failedToLoadMessages'));
-      }
-    };
+      setMessages(formattedMessages);
+    } catch (error) {
+      console.error('Error fetching messages:', error);
+      toast.error(t('failedToLoadMessages'));
+    } finally {
+      setMessagesLoading(false);
+    }
+  }, [selectedUserId, user, t]);
 
+  // Memoized conversation list to prevent unnecessary re-renders
+  const memoizedConversations = useMemo(() => conversations, [conversations]);
+
+  // Effects
+  useEffect(() => {
+    fetchConversations();
+  }, [fetchConversations]);
+
+  useEffect(() => {
     fetchMessages();
-  }, [selectedUserId, user]);
+  }, [fetchMessages]);
 
-  const selectConversation = (conversationId: string) => {
+  const selectConversation = useCallback((conversationId: string) => {
     setSearchParams({ userId: conversationId });
-    setShowMobileChat(true); // Show chat on mobile when conversation is selected
+    setShowMobileChat(true);
 
     // Mark conversation as visited to reset unread count
     if (user) {
@@ -364,35 +421,35 @@ const Messages = () => {
           : conv
       ));
     }
-  };
+  }, [setSearchParams, user]);
 
-  const handleBackToConversations = () => {
+  const handleBackToConversations = useCallback(() => {
     setShowMobileChat(false);
-    setSearchParams({}); // Clear the selected user from URL params
-  };
+    setSearchParams({});
+  }, [setSearchParams]);
 
   const sendDefaultItemMessage = async (sellerId: string, itemDetails: { title: string; price: number; image: string; link: string; }) => {
     if (!user) return;
 
     // Check if user is blocked or has blocked the seller before sending message
     try {
-      const { data: isBlocked } = await supabase.rpc('check_if_user_is_blocked', {
-        blocker_uuid: user.id,
-        blocked_uuid: sellerId
-      });
+      const [isBlockedResult, hasBlockedMeResult] = await Promise.all([
+        supabase.rpc('check_if_user_is_blocked', {
+          blocker_uuid: user.id,
+          blocked_uuid: sellerId
+        }),
+        supabase.rpc('check_if_user_is_blocked', {
+          blocker_uuid: sellerId,
+          blocked_uuid: user.id
+        })
+      ]);
 
-      const { data: hasBlockedMe } = await supabase.rpc('check_if_user_is_blocked', {
-        blocker_uuid: sellerId,
-        blocked_uuid: user.id
-      });
-
-                    if (isBlocked || hasBlockedMe) {
-                toast.error(t('cannotMessageSeller'));
-                return;
-              }
+      if (isBlockedResult.data || hasBlockedMeResult.data) {
+        toast.error(t('cannotMessageSeller'));
+        return;
+      }
     } catch (blockingError) {
       console.warn('Blocking check failed for default message, continuing:', blockingError.message);
-      // Continue without blocking if functions don't exist
     }
 
     try {
@@ -488,7 +545,6 @@ const Messages = () => {
 
     } catch (error) {
       console.error('Error sending default message:', error);
-      // Show user-friendly error
       toast.error("Failed to send item details. Please try again.");
     }
   };
@@ -498,23 +554,23 @@ const Messages = () => {
 
     // Check if user is blocked or has blocked the recipient before sending message
     try {
-      const { data: isBlocked } = await supabase.rpc('check_if_user_is_blocked', {
-        blocker_uuid: user.id,
-        blocked_uuid: selectedUserId
-      });
+      const [isBlockedResult, hasBlockedMeResult] = await Promise.all([
+        supabase.rpc('check_if_user_is_blocked', {
+          blocker_uuid: user.id,
+          blocked_uuid: selectedUserId
+        }),
+        supabase.rpc('check_if_user_is_blocked', {
+          blocker_uuid: selectedUserId,
+          blocked_uuid: user.id
+        })
+      ]);
 
-      const { data: hasBlockedMe } = await supabase.rpc('check_if_user_is_blocked', {
-        blocker_uuid: selectedUserId,
-        blocked_uuid: user.id
-      });
-
-      if (isBlocked || hasBlockedMe) {
+      if (isBlockedResult.data || hasBlockedMeResult.data) {
         toast.error(t('cannotSendMessage'));
         return;
       }
     } catch (blockingError) {
       console.warn('Blocking check failed for send message, continuing:', blockingError.message);
-      // Continue without blocking if functions don't exist
     }
 
     let messageContent = newMessage.trim();
@@ -647,15 +703,15 @@ const Messages = () => {
     setAttachment(null);
   };
 
-  const onEmojiClick = (emojiData: EmojiClickData) => {
+  const onEmojiClick = useCallback((emojiData: EmojiClickData) => {
     setNewMessage(prev => prev + emojiData.emoji);
-  };
+  }, []);
 
-  const handleAttachmentClick = () => {
+  const handleAttachmentClick = useCallback(() => {
     fileInputRef.current?.click();
-  };
+  }, []);
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       // Show loading state
@@ -698,11 +754,11 @@ const Messages = () => {
         return;
       }
     }
-  };
+  }, []);
 
-  const removeAttachment = () => {
+  const removeAttachment = useCallback(() => {
     setAttachment(null);
-  };
+  }, []);
 
   const handleDeleteConversation = async (conversationId: string, otherUserId: string) => {
     if (!user || !conversationId) return;
@@ -757,14 +813,21 @@ const Messages = () => {
     }
   };
 
-  const selectedConversation = conversations.find(conv => conv.id === selectedUserId);
+  const selectedConversation = useMemo(() =>
+    conversations.find(conv => conv.id === selectedUserId),
+    [conversations, selectedUserId]
+  );
 
   if (loading) {
     return (
       <div className="min-h-screen bg-background pb-16">
         <TopBar title={t('messages')} />
         <div className="flex items-center justify-center py-12">
-          <p className="text-muted-foreground">{t('loadingConversations')}</p>
+          <div className="animate-pulse space-y-4 w-full max-w-md mx-auto">
+            <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+            <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+            <div className="h-4 bg-gray-200 rounded w-5/6"></div>
+          </div>
         </div>
         <BottomNav />
       </div>
@@ -802,7 +865,7 @@ const Messages = () => {
                 </p>
               </div>
             ) : (
-              conversations.map((conversation) => (
+              memoizedConversations.map((conversation) => (
                 <div
                   key={conversation.id}
                   onClick={() => selectConversation(conversation.id)}
@@ -911,98 +974,110 @@ const Messages = () => {
 
               {/* Messages */}
               <ScrollArea className="flex-1 p-4">
-                <div className="space-y-4">
-                  {messages.length === 0 ? (
-                    <div className="text-center py-8">
-                      <p className="text-muted-foreground">
-                        {t('startConversation')} {selectedConversation.user.name}
-                      </p>
+                {messagesLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-pulse space-y-4 w-full max-w-md">
+                      <div className="h-8 bg-gray-200 rounded w-3/4 ml-auto"></div>
+                      <div className="h-8 bg-gray-200 rounded w-1/2"></div>
+                      <div className="h-8 bg-gray-200 rounded w-5/6 ml-auto"></div>
                     </div>
-                  ) : (
-                    messages.map((message, index) => (
-                      <div
-                        key={index}
-                        className={`flex ${message.isMine ? 'justify-end' : 'justify-start'}`}
-                      >
-                        <div className={`flex gap-2 max-w-xs lg:max-w-md`}>
-                          {!message.isMine && (
-                            <Avatar className="h-6 w-6 mt-2">
-                              <AvatarImage src={message.user?.avatar} />
-                              <AvatarFallback>{message.user?.name?.charAt(0)}</AvatarFallback>
-                            </Avatar>
-                          )}
-                          <div
-                            className={`px-3 py-2 rounded-lg ${
-                              message.isMine
-                                ? 'bg-red-500 text-white'
-                                : 'bg-muted text-muted-foreground'
-                            }`}
-                          >
-                            {message.attachment && (
-                              <div className="mb-2">
-                                {message.attachment.type === 'image' ? (
-                                  <img
-                                    src={message.attachment.url}
-                                    alt="Attachment"
-                                    className="max-w-full h-auto rounded"
-                                  />
-                                ) : (
-                                  <div className="flex items-center gap-2 text-sm">
-                                    <Paperclip className="h-4 w-4" />
-                                    <span>{message.attachment.name || 'File'}</span>
-                                  </div>
-                                )}
-                              </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {messages.length === 0 ? (
+                      <div className="text-center py-8">
+                        <p className="text-muted-foreground">
+                          {t('startConversation')} {selectedConversation.user.name}
+                        </p>
+                      </div>
+                    ) : (
+                      messages.map((message, index) => (
+                        <div
+                          key={index}
+                          className={`flex ${message.isMine ? 'justify-end' : 'justify-start'}`}
+                        >
+                          <div className={`flex gap-2 max-w-xs lg:max-w-md`}>
+                            {!message.isMine && (
+                              <Avatar className="h-6 w-6 mt-2">
+                                <AvatarImage src={message.user?.avatar} />
+                                <AvatarFallback>{message.user?.name?.charAt(0)}</AvatarFallback>
+                              </Avatar>
                             )}
-                            {message.text && (
-                              <p className="text-sm">{message.text}</p>
-                            )}
-                            {message.itemDetails && (
-                              <div className={`mt-2 p-3 rounded-lg border ${
+                            <div
+                              className={`px-3 py-2 rounded-lg ${
                                 message.isMine
-                                  ? 'bg-primary/10 border-primary/20 text-primary-foreground'
-                                  : 'bg-muted border-border text-foreground'
-                              }`}>
-                                <div className="flex items-center gap-2 mb-2">
-                                  <div className="w-12 h-12 rounded-lg overflow-hidden bg-muted">
+                                  ? 'bg-red-500 text-white'
+                                  : 'bg-muted text-muted-foreground'
+                              }`}
+                            >
+                              {message.attachment && (
+                                <div className="mb-2">
+                                  {message.attachment.type === 'image' ? (
                                     <img
-                                      src={message.itemDetails.image}
-                                      alt={message.itemDetails.title}
-                                      className="w-full h-full object-cover"
+                                      src={message.attachment.url}
+                                      alt="Attachment"
+                                      className="max-w-full h-auto rounded"
                                     />
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <h4 className="font-semibold text-sm truncate">{message.itemDetails.title}</h4>
-                                    <p className="text-sm font-medium">{formatPrice(message.itemDetails.price, message.itemDetails.currency)}</p>
-                                  </div>
+                                  ) : (
+                                    <div className="flex items-center gap-2 text-sm">
+                                      <Paperclip className="h-4 w-4" />
+                                      <span>{message.attachment.name || 'File'}</span>
+                                    </div>
+                                  )}
                                 </div>
-                                <a
-                                  href={message.itemDetails.link}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className={`text-xs underline ${
-                                    message.isMine ? 'text-primary' : 'text-blue-600'
-                                  }`}
-                                >
-                                  View Item Details →
-                                </a>
-                              </div>
+                              )}
+                              {message.text && (
+                                <p className="text-sm">{message.text}</p>
+                              )}
+                              {message.itemDetails && (
+                                <div className={`mt-2 p-3 rounded-lg border ${
+                                  message.isMine
+                                    ? 'bg-primary/10 border-primary/20 text-primary-foreground'
+                                    : 'bg-muted border-border text-foreground'
+                                }`}>
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <div className="w-12 h-12 rounded-lg overflow-hidden bg-muted">
+                                      <img
+                                        src={message.itemDetails.image}
+                                        alt={message.itemDetails.title}
+                                        className="w-full h-full object-cover"
+                                      />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <h4 className="font-semibold text-sm truncate">{message.itemDetails.title}</h4>
+                                      <p className="text-sm font-medium">{formatPrice(message.itemDetails.price, message.itemDetails.currency)}</p>
+                                    </div>
+                                  </div>
+                                  <a
+                                    href={message.itemDetails.link}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className={`text-xs underline ${
+                                      message.isMine ? 'text-primary' : 'text-blue-600'
+                                    }`}
+                                  >
+                                    View Item Details →
+                                  </a>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Message Reactions */}
+                            {message.id && (
+                              <MessageReactions
+                                messageId={message.id}
+                                isChannelMessage={false}
+                                className="mt-1"
+                              />
                             )}
                           </div>
-
-                          {/* Message Reactions */}
-                          {message.id && (
-                            <MessageReactions
-                              messageId={message.id}
-                              isChannelMessage={false}
-                              className="mt-1"
-                            />
-                          )}
                         </div>
-                      </div>
-                    ))
-                  )}
-                </div>
+                      ))
+                    )}
+                    {/* Auto-scroll anchor */}
+                    <div ref={messagesEndRef} />
+                  </div>
+                )}
               </ScrollArea>
 
               {/* Message Input - Sticky at bottom using flex */}

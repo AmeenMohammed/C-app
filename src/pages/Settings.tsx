@@ -40,6 +40,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTheme } from "next-themes";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useNotificationSettings } from "@/contexts/NotificationContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const Settings = () => {
@@ -48,33 +49,18 @@ const Settings = () => {
   const { theme, setTheme } = useTheme();
   const { user } = useAuth();
   const { t, currentLanguage, setLanguage, supportedLanguages } = useLanguage();
-  const [openEditProfile, setOpenEditProfile] = useState(false);
+  const { settings: notificationSettings, updateSettings: updateNotificationSettings } = useNotificationSettings();
   const [openChangePassword, setOpenChangePassword] = useState(false);
-  const [openPrivacySettings, setOpenPrivacySettings] = useState(false);
   const [openNotifications, setOpenNotifications] = useState(false);
   const [openLanguage, setOpenLanguage] = useState(false);
   const [openTheme, setOpenTheme] = useState(false);
   const [openBlockedUsers, setOpenBlockedUsers] = useState(false);
 
   // Form state
-  const [profileName, setProfileName] = useState("");
-  const [profileEmail, setProfileEmail] = useState("");
-  const [profileBio, setProfileBio] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [privacySettings, setPrivacySettings] = useState({
-    profileVisibility: true,
-    allowDirectMessages: true,
-    showActivityStatus: true,
-  });
-  const [notifications, setNotifications] = useState({
-    pushNotifications: true,
-    emailNotifications: true,
-    messageNotifications: true,
-    dealAlerts: true,
-  });
-
+  const [loadingPassword, setLoadingPassword] = useState(false);
 
   // Blocked users state
   const [blockedUsers, setBlockedUsers] = useState<Array<{
@@ -88,14 +74,9 @@ const Settings = () => {
   const [loadingBlockedUsers, setLoadingBlockedUsers] = useState(false);
   const [unblockingUsers, setUnblockingUsers] = useState<Set<string>>(new Set());
 
-  const handleSaveProfile = () => {
-    toast({
-      description: t('profileUpdated'),
-    });
-    setOpenEditProfile(false);
-  };
 
-  const handleChangePassword = () => {
+
+  const handleChangePassword = async () => {
     if (newPassword !== confirmPassword) {
       toast({
         variant: "destructive",
@@ -104,21 +85,44 @@ const Settings = () => {
       return;
     }
 
-    toast({
-      description: t('passwordChanged'),
-    });
-    setOpenChangePassword(false);
-    setCurrentPassword("");
-    setNewPassword("");
-    setConfirmPassword("");
+    if (newPassword.length < 6) {
+      toast({
+        variant: "destructive",
+        description: t('passwordTooShort'),
+      });
+      return;
+    }
+
+    setLoadingPassword(true);
+
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        description: t('passwordChanged'),
+      });
+      setOpenChangePassword(false);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (error) {
+      console.error('Error changing password:', error);
+      toast({
+        variant: "destructive",
+        description: (error as Error)?.message || t('errorChangingPassword'),
+      });
+    } finally {
+      setLoadingPassword(false);
+    }
   };
 
-  const handleSavePrivacySettings = () => {
-    toast({
-      description: t('privacySettingsUpdated'),
-    });
-    setOpenPrivacySettings(false);
-  };
+
 
   const handleSaveNotifications = () => {
     toast({
@@ -136,8 +140,9 @@ const Settings = () => {
   };
 
   const handleSaveTheme = () => {
+    const themeDisplayName = theme === 'light' ? t('light') : theme === 'dark' ? t('dark') : t('system');
     toast({
-      description: `${t('themeChanged')} ${t(theme as any)} ${t('mode')}`,
+      description: `${t('themeChanged')} ${themeDisplayName} ${t('mode')}`,
     });
     setOpenTheme(false);
   };
@@ -277,23 +282,9 @@ const Settings = () => {
               <Button
                 variant="outline"
                 className="w-full justify-start"
-                onClick={() => setOpenEditProfile(true)}
-              >
-                {t('editProfile')}
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full justify-start"
                 onClick={() => setOpenChangePassword(true)}
               >
                 {t('changePassword')}
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full justify-start"
-                onClick={() => setOpenPrivacySettings(true)}
-              >
-                {t('privacySettings')}
               </Button>
               <Button
                 variant="outline"
@@ -369,60 +360,6 @@ const Settings = () => {
         </div>
       </main>
 
-      {/* Edit Profile Dialog */}
-      <Dialog open={openEditProfile} onOpenChange={setOpenEditProfile}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>{t('editProfileTitle')}</DialogTitle>
-            <DialogDescription>
-              {t('editProfileDescription')}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="name" className="text-right">
-                {t('name')}
-              </Label>
-              <Input
-                id="name"
-                value={profileName}
-                onChange={(e) => setProfileName(e.target.value)}
-                className="col-span-3"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="email" className="text-right">
-                {t('email')}
-              </Label>
-              <Input
-                id="email"
-                type="email"
-                value={profileEmail}
-                onChange={(e) => setProfileEmail(e.target.value)}
-                className="col-span-3"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="bio" className="text-right">
-                {t('bio')}
-              </Label>
-              <Input
-                id="bio"
-                value={profileBio}
-                onChange={(e) => setProfileBio(e.target.value)}
-                className="col-span-3"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="outline">{t('cancel')}</Button>
-            </DialogClose>
-            <Button onClick={handleSaveProfile}>{t('saveChanges')}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       {/* Change Password Dialog */}
       <Dialog open={openChangePassword} onOpenChange={setOpenChangePassword}>
         <DialogContent className="sm:max-w-[425px]">
@@ -434,18 +371,6 @@ const Settings = () => {
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="current-password" className="text-right">
-                {t('currentPassword')}
-              </Label>
-              <Input
-                id="current-password"
-                type="password"
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                className="col-span-3"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="new-password" className="text-right">
                 {t('newPassword')}
               </Label>
@@ -455,6 +380,7 @@ const Settings = () => {
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 className="col-span-3"
+                disabled={loadingPassword}
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
@@ -467,70 +393,17 @@ const Settings = () => {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 className="col-span-3"
+                disabled={loadingPassword}
               />
             </div>
           </div>
           <DialogFooter>
             <DialogClose asChild>
-              <Button variant="outline">{t('cancel')}</Button>
+              <Button variant="outline" disabled={loadingPassword}>{t('cancel')}</Button>
             </DialogClose>
-            <Button onClick={handleChangePassword}>{t('updatePassword')}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Privacy Settings Dialog */}
-      <Dialog open={openPrivacySettings} onOpenChange={setOpenPrivacySettings}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>{t('privacySettingsTitle')}</DialogTitle>
-            <DialogDescription>
-              {t('privacySettingsDescription')}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="profile-visibility" className="flex-1">
-                {t('profileVisibility')}
-              </Label>
-              <Switch
-                id="profile-visibility"
-                checked={privacySettings.profileVisibility}
-                onCheckedChange={(checked) =>
-                  setPrivacySettings({...privacySettings, profileVisibility: checked})
-                }
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <Label htmlFor="direct-messages" className="flex-1">
-                {t('allowDirectMessages')}
-              </Label>
-              <Switch
-                id="direct-messages"
-                checked={privacySettings.allowDirectMessages}
-                onCheckedChange={(checked) =>
-                  setPrivacySettings({...privacySettings, allowDirectMessages: checked})
-                }
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <Label htmlFor="activity-status" className="flex-1">
-                {t('showActivityStatus')}
-              </Label>
-              <Switch
-                id="activity-status"
-                checked={privacySettings.showActivityStatus}
-                onCheckedChange={(checked) =>
-                  setPrivacySettings({...privacySettings, showActivityStatus: checked})
-                }
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="outline">{t('cancel')}</Button>
-            </DialogClose>
-            <Button onClick={handleSavePrivacySettings}>{t('savePreferences')}</Button>
+            <Button onClick={handleChangePassword} disabled={loadingPassword}>
+              {loadingPassword ? t('updating') : t('updatePassword')}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -551,21 +424,9 @@ const Settings = () => {
               </Label>
               <Switch
                 id="push-notifications"
-                checked={notifications.pushNotifications}
+                checked={notificationSettings.pushNotifications}
                 onCheckedChange={(checked) =>
-                  setNotifications({...notifications, pushNotifications: checked})
-                }
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <Label htmlFor="email-notifications" className="flex-1">
-                {t('emailNotifications')}
-              </Label>
-              <Switch
-                id="email-notifications"
-                checked={notifications.emailNotifications}
-                onCheckedChange={(checked) =>
-                  setNotifications({...notifications, emailNotifications: checked})
+                  updateNotificationSettings({ pushNotifications: checked })
                 }
               />
             </div>
@@ -575,21 +436,9 @@ const Settings = () => {
               </Label>
               <Switch
                 id="message-notifications"
-                checked={notifications.messageNotifications}
+                checked={notificationSettings.messageNotifications}
                 onCheckedChange={(checked) =>
-                  setNotifications({...notifications, messageNotifications: checked})
-                }
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <Label htmlFor="deal-alerts" className="flex-1">
-                {t('dealAlerts')}
-              </Label>
-              <Switch
-                id="deal-alerts"
-                checked={notifications.dealAlerts}
-                onCheckedChange={(checked) =>
-                  setNotifications({...notifications, dealAlerts: checked})
+                  updateNotificationSettings({ messageNotifications: checked })
                 }
               />
             </div>

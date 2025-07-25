@@ -31,7 +31,6 @@ export const en = {
   accountSettings: "Account Settings",
   editProfile: "Edit Profile",
   changePassword: "Change Password",
-  privacySettings: "Privacy Settings",
   blockedUsers: "Blocked Users",
   preferences: "Preferences",
   language: "Language",
@@ -55,14 +54,6 @@ export const en = {
   confirmPassword: "Confirm",
   updatePassword: "Update Password",
 
-  // Privacy Settings Dialog
-  privacySettingsTitle: "Privacy Settings",
-  privacySettingsDescription: "Manage your privacy preferences.",
-  profileVisibility: "Profile Visibility",
-  allowDirectMessages: "Allow Direct Messages",
-  showActivityStatus: "Show Activity Status",
-  savePreferences: "Save Preferences",
-
   // Blocked Users Dialog
   blockedUsersTitle: "Blocked Users",
   blockedUsersDescription: "Manage users you have blocked. You can unblock users to allow interactions again.",
@@ -72,13 +63,12 @@ export const en = {
   unblocking: "Unblocking...",
   blocked: "Blocked",
 
-  // Notification Settings Dialog
+    // Notification Settings Dialog
   notificationSettingsTitle: "Notification Settings",
   notificationSettingsDescription: "Customize how you want to be notified.",
   pushNotifications: "Push Notifications",
-  emailNotifications: "Email Notifications",
   messageNotifications: "New Message Alerts",
-  dealAlerts: "Deal Alerts",
+  savePreferences: "Save Preferences",
 
   // Language Settings Dialog
   languageSettingsTitle: "Language Settings",
@@ -91,6 +81,22 @@ export const en = {
   light: "Light",
   dark: "Dark",
   system: "System",
+  mode: "mode",
+
+  // Notifications Page
+  noNewNotifications: "No new notifications",
+  unreadMessage: "unread message",
+  unreadMessages: "unread messages",
+  newMessageIn: "New message in",
+  newMessageFrom: "New message from",
+  markAsRead: "Mark as read",
+  markAllAsRead: "Mark all as read",
+  openChannel: "Open Channel",
+  openConversation: "Open Conversation",
+  channelNotification: "Channel notification",
+  privateMessageNotification: "Private message notification",
+  notificationPreferencesUpdated: "Notification preferences updated successfully",
+  youreAllCaughtUp: "You're all caught up! Check back later for new notifications.",
 
   // Delete Account Dialog
   deleteAccountTitle: "Are you absolutely sure?",
@@ -101,10 +107,8 @@ export const en = {
   passwordChanged: "Password changed successfully",
   passwordsDoNotMatch: "Passwords do not match",
   privacySettingsUpdated: "Privacy settings updated",
-  notificationPreferencesUpdated: "Notification preferences updated",
   languageChanged: "Language changed to",
   themeChanged: "Theme changed to",
-  mode: "mode",
   accountDeleted: "Your account has been deleted",
   errorDeletingAccount: "Error deleting account. Please try again.",
   unexpectedError: "An unexpected error occurred",
@@ -247,10 +251,6 @@ export const en = {
   emailSupport: "Email Support",
   phoneSupport: "Phone Support",
   faqs: "FAQs",
-
-  // Notifications Page
-  notificationsEmpty: "No notifications yet",
-  noNewNotifications: "No new notifications",
 
   // Payment Methods Page
   paymentMethodsEmpty: "No payment methods added",
@@ -511,6 +511,11 @@ export const en = {
   doubleClickToZoomOut: "Double-click to zoom out",
   dragToMoveWhenZoomed: "Drag to move when zoomed",
   thumbnail: "Thumbnail",
+
+  // Settings - Additional error messages and states
+  passwordTooShort: "Password must be at least 6 characters long",
+  errorChangingPassword: "Failed to change password",
+  updating: "Updating...",
 };
 
 export type LanguageKey = keyof typeof en;

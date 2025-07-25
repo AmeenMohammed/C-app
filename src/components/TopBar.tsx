@@ -1,4 +1,4 @@
-import { ArrowLeft, Menu, Bell, Heart, Settings, CreditCard, ArrowUp, LogOut, ShoppingCart } from "lucide-react";
+import { ArrowLeft, ArrowRight, Menu, Bell, Heart, Settings, CreditCard, ArrowUp, LogOut, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import {
@@ -48,7 +48,7 @@ export function TopBar({ title, showBackButton = true, onBackClick }: TopBarProp
   return (
     <div className="sticky top-0 z-50 bg-background border-b">
       <div className={`container mx-auto px-4 h-14 flex items-center justify-between ${isRTL ? 'flex-row-reverse' : ''}`}>
-        <div className={`flex items-center ${isRTL ? 'flex-row' : ''}`}>
+        <div className={`flex items-center ${isRTL ? 'flex-row-reverse' : ''}`}>
           {showBackButton && (
             <Button
               variant="ghost"
@@ -56,7 +56,7 @@ export function TopBar({ title, showBackButton = true, onBackClick }: TopBarProp
               onClick={handleBack}
               className={`${isRTL ? 'ml-1' : 'mr-1'}`}
             >
-              <ArrowLeft className={`h-5 w-5 ${isRTL ? 'rotate-180' : ''}`} />
+              {isRTL ? <ArrowRight className={`h-5 w-5`} /> : <ArrowLeft className={`h-5 w-5`} />}
             </Button>
           )}
           <h1 className={`text-lg font-semibold ${showBackButton ? (isRTL ? 'mr-2' : 'ml-2') : ''}`}>

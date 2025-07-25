@@ -31,7 +31,6 @@ export const ar = {
   accountSettings: "إعدادات الحساب",
   editProfile: "تعديل الملف الشخصي",
   changePassword: "تغيير كلمة المرور",
-  privacySettings: "إعدادات الخصوصية",
   blockedUsers: "المستخدمون المحظورون",
   preferences: "التفضيلات",
   language: "اللغة",
@@ -55,13 +54,7 @@ export const ar = {
   confirmPassword: "تأكيد",
   updatePassword: "تحديث كلمة المرور",
 
-  // Privacy Settings Dialog
-  privacySettingsTitle: "إعدادات الخصوصية",
-  privacySettingsDescription: "إدارة تفضيلات الخصوصية الخاصة بك.",
-  profileVisibility: "رؤية الملف الشخصي",
-  allowDirectMessages: "السماح بالرسائل المباشرة",
-  showActivityStatus: "إظهار حالة النشاط",
-  savePreferences: "حفظ التفضيلات",
+
 
   // Blocked Users Dialog
   blockedUsersTitle: "المستخدمون المحظورون",
@@ -74,11 +67,10 @@ export const ar = {
 
   // Notification Settings Dialog
   notificationSettingsTitle: "إعدادات الإشعارات",
-  notificationSettingsDescription: "تخصيص كيفية تلقي الإشعارات.",
-  pushNotifications: "الإشعارات المدفوعة",
-  emailNotifications: "إشعارات البريد الإلكتروني",
+  notificationSettingsDescription: "خصص كيف تريد أن يتم إشعارك.",
+  pushNotifications: "الإشعارات الفورية",
   messageNotifications: "تنبيهات الرسائل الجديدة",
-  dealAlerts: "تنبيهات الصفقات",
+  savePreferences: "حفظ التفضيلات",
 
   // Language Settings Dialog
   languageSettingsTitle: "إعدادات اللغة",
@@ -91,20 +83,34 @@ export const ar = {
   light: "فاتح",
   dark: "داكن",
   system: "النظام",
+  mode: "الوضع",
+
+  // Notifications Page
+  noNewNotifications: "لا توجد إشعارات جديدة",
+  unreadMessage: "رسالة غير مقروءة",
+  unreadMessages: "رسائل غير مقروءة",
+  newMessageIn: "رسالة جديدة في",
+  newMessageFrom: "رسالة جديدة من",
+  markAsRead: "وضع علامة كمقروء",
+  markAllAsRead: "وضع علامة على الكل كمقروء",
+  openChannel: "فتح القناة",
+  openConversation: "فتح المحادثة",
+  channelNotification: "إشعار القناة",
+  privateMessageNotification: "إشعار رسالة خاصة",
+  notificationPreferencesUpdated: "تم تحديث تفضيلات الإشعارات بنجاح",
+  youreAllCaughtUp: "أنت مطلع على كل شيء! تحقق مرة أخرى لاحقاً للحصول على إشعارات جديدة.",
 
   // Delete Account Dialog
   deleteAccountTitle: "هل أنت متأكد تماماً؟",
-  deleteAccountDescription: "لا يمكن التراجع عن هذا الإجراء. سيؤدي هذا إلى حذف حسابك نهائياً وإزالة جميع بياناتك من خوادمنا.",
+  deleteAccountDescription: "لا يمكن التراجع عن هذا الإجراء. سيؤدي ذلك إلى حذف حسابك نهائياً وإزالة جميع بياناتك من خوادمنا.",
 
   // Toast Messages
   profileUpdated: "تم تحديث الملف الشخصي بنجاح",
   passwordChanged: "تم تغيير كلمة المرور بنجاح",
   passwordsDoNotMatch: "كلمات المرور غير متطابقة",
   privacySettingsUpdated: "تم تحديث إعدادات الخصوصية",
-  notificationPreferencesUpdated: "تم تحديث تفضيلات الإشعارات",
   languageChanged: "تم تغيير اللغة إلى",
   themeChanged: "تم تغيير المظهر إلى",
-  mode: "وضع",
   accountDeleted: "تم حذف حسابك",
   errorDeletingAccount: "خطأ في حذف الحساب. يرجى المحاولة مرة أخرى.",
   unexpectedError: "حدث خطأ غير متوقع",
@@ -246,10 +252,6 @@ export const ar = {
   emailSupport: "دعم البريد الإلكتروني",
   phoneSupport: "الدعم الهاتفي",
   faqs: "الأسئلة الشائعة",
-
-  // Notifications Page
-  notificationsEmpty: "لا توجد إشعارات بعد",
-  noNewNotifications: "لا توجد إشعارات جديدة",
 
   // Payment Methods Page
   paymentMethodsEmpty: "لم يتم إضافة طرق دفع",
@@ -510,4 +512,9 @@ export const ar = {
   doubleClickToZoomOut: "انقر مرتين للتصغير",
   dragToMoveWhenZoomed: "اسحب للتحريك عند التكبير",
   thumbnail: "صورة مصغرة",
+
+  // Settings - Additional error messages and states
+  passwordTooShort: "يجب أن تكون كلمة المرور 6 أحرف على الأقل",
+  errorChangingPassword: "فشل في تغيير كلمة المرور",
+  updating: "جاري التحديث...",
 };

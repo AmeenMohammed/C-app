@@ -90,6 +90,12 @@ const Channels = () => {
   const [editForm, setEditForm] = useState({ name: "", description: "", isPrivate: false });
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Function to scroll to bottom of messages
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
 
   // Fetch user's saved location from profile if authenticated (same as ItemGrid)
   const { data: userProfile } = useQuery({
@@ -446,6 +452,26 @@ const Channels = () => {
     }
   }, [activeChannel?.id, user, queryClient]);
 
+  // Scroll to bottom when messages change or channel is opened
+  useEffect(() => {
+    if (activeChannel?.messages && activeChannel.messages.length > 0) {
+      // Small delay to ensure DOM is updated
+      setTimeout(() => {
+        scrollToBottom();
+      }, 100);
+    }
+  }, [activeChannel?.messages]);
+
+  // Scroll to bottom when opening a new channel
+  useEffect(() => {
+    if (activeChannel) {
+      // Small delay to ensure DOM is updated
+      setTimeout(() => {
+        scrollToBottom();
+      }, 100);
+    }
+  }, [activeChannel?.id]);
+
   // Fetch messages for active channel
   useEffect(() => {
     const fetchMessages = async () => {
@@ -549,7 +575,6 @@ const Channels = () => {
       queryClient.invalidateQueries({ queryKey: ['channels'] });
 
       setActiveChannel({ ...channel, isJoined: true });
-      toast.success(t('joinedChannel').replace('{name}', channel.name));
     } catch (error) {
       console.error('Error joining channel:', error);
       toast.error(t('failedToJoinChannel'));
@@ -574,8 +599,6 @@ const Channels = () => {
       if (activeChannel?.id === channel.id) {
         setActiveChannel(null);
       }
-
-      toast.success(t('leftChannel').replace('{name}', channel.name));
     } catch (error) {
       console.error('Error leaving channel:', error);
       toast.error(t('failedToLeaveChannel'));
@@ -605,11 +628,9 @@ const Channels = () => {
               return;
             }
             messageContent = moderationResult.cleanedText || messageContent;
-            toast.info(t('messageCleanedBeforeSending'));
           } else {
             // Low severity - send cleaned version automatically
             messageContent = moderationResult.cleanedText || messageContent;
-            toast.info(t('languageFiltered'));
           }
         }
       }
@@ -680,7 +701,10 @@ const Channels = () => {
         localStorage.setItem(lastVisitKey, new Date().toISOString());
       }
 
-      toast.success(t('messageSent'));
+      // Scroll to bottom to show the new message
+      setTimeout(() => {
+        scrollToBottom();
+      }, 100);
     } catch (error) {
       console.error('Error sending message:', error);
       toast.error(t('failedToSendMessage'));
@@ -699,7 +723,6 @@ const Channels = () => {
     const file = e.target.files?.[0];
     if (file) {
       // Show loading state
-      toast.info(t('validatingFile'));
 
       try {
         const validation = await validateAndModerateFile(file);
@@ -724,13 +747,7 @@ const Channels = () => {
           }
         }
 
-        toast.success(successMessage);
         setAttachment(file);
-
-        // Show warning if moderation service was unavailable
-        if (validation.error) {
-          toast.warning(validation.error);
-        }
 
       } catch (error) {
         console.error('File validation error:', error);
@@ -791,7 +808,6 @@ const Channels = () => {
       }
 
       setEditingChannel(null);
-      toast.success(t('channelUpdatedSuccessfully'));
     } catch (error) {
       console.error('Error updating channel:', error);
       toast.error(t('failedToUpdateChannel'));
@@ -815,8 +831,6 @@ const Channels = () => {
       if (activeChannel?.id === channel.id) {
         setActiveChannel(null);
       }
-
-      toast.success(t('channelDeletedSuccessfully'));
     } catch (error) {
       console.error('Error deleting channel:', error);
       toast.error(t('failedToDeleteChannel'));
@@ -850,8 +864,6 @@ const Channels = () => {
 
       // Invalidate channels query to refresh data
       queryClient.invalidateQueries({ queryKey: ['channels'] });
-
-      toast.success(t('joinRequestSent').replace('{name}', channel.name));
     } catch (error) {
       console.error('Error sending join request:', error);
       toast.error(t('failedToSendJoinRequest'));
@@ -869,7 +881,6 @@ const Channels = () => {
       if (data) {
         // Invalidate channels query to refresh data
         queryClient.invalidateQueries({ queryKey: ['channels'] });
-        toast.success(t('joinRequestApproved'));
       } else {
         toast.error(t('failedToApproveRequest'));
       }
@@ -890,7 +901,6 @@ const Channels = () => {
       if (data) {
         // Invalidate channels query to refresh data
         queryClient.invalidateQueries({ queryKey: ['channels'] });
-        toast.success(t('joinRequestRejected'));
       } else {
         toast.error(t('failedToRejectRequest'));
       }
@@ -1448,6 +1458,8 @@ const Channels = () => {
                   </div>
                 ))
               )}
+              {/* Scroll anchor for auto-scroll to bottom */}
+              <div ref={messagesEndRef} />
             </div>
           </ScrollArea>
 

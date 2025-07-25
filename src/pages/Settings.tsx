@@ -104,9 +104,6 @@ const Settings = () => {
         throw error;
       }
 
-      toast({
-        description: t('passwordChanged'),
-      });
       setOpenChangePassword(false);
       setCurrentPassword("");
       setNewPassword("");
@@ -125,25 +122,14 @@ const Settings = () => {
 
 
   const handleSaveNotifications = () => {
-    toast({
-      description: t('notificationPreferencesUpdated'),
-    });
     setOpenNotifications(false);
   };
 
   const handleSaveLanguage = () => {
-    const selectedLang = supportedLanguages.find(lang => lang.code === currentLanguage);
-    toast({
-      description: `${t('languageChanged')} ${selectedLang?.nativeName}`,
-    });
     setOpenLanguage(false);
   };
 
   const handleSaveTheme = () => {
-    const themeDisplayName = theme === 'light' ? t('light') : theme === 'dark' ? t('dark') : t('system');
-    toast({
-      description: `${t('themeChanged')} ${themeDisplayName} ${t('mode')}`,
-    });
     setOpenTheme(false);
   };
 
@@ -222,9 +208,6 @@ const Settings = () => {
         });
       } else {
         setBlockedUsers(prev => prev.filter(user => user.blocked_user_id !== userId));
-        toast({
-          description: `${t('youveUnblocked')} ${userName}`,
-        });
       }
     } catch (error) {
       console.error('Error unblocking user:', error);
@@ -259,9 +242,6 @@ const Settings = () => {
 
       await supabase.auth.signOut();
       navigate("/");
-      toast({
-        description: t('accountDeleted'),
-      });
     } catch (error) {
       toast({
         variant: "destructive",

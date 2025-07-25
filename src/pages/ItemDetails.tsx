@@ -287,7 +287,6 @@ const ItemDetails = () => {
           }
         } else {
           setSaved(true);
-          toast.success(t('itemSaved'));
         }
       }
     } catch (error) {

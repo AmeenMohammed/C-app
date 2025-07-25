@@ -96,15 +96,10 @@ const AuthCallback = () => {
                     if (insertError) {
                       console.error('Manual profile creation failed:', insertError);
                       toast.error('Account created but profile setup failed. Please complete your profile in settings.');
-                    } else {
-                      toast.success('Welcome! Your account has been created successfully.');
                     }
-                  } else {
-                    toast.success('Successfully signed in!');
                   }
                 } catch (profileError) {
                   console.error('Profile check error:', profileError);
-                  toast.success('Successfully signed in!');
                 }
 
                 navigate('/home', { replace: true });
@@ -158,15 +153,10 @@ const AuthCallback = () => {
               if (insertError) {
                 console.error('Manual profile creation failed:', insertError);
                 toast.error('Account created but profile setup failed. Please complete your profile in settings.');
-              } else {
-                toast.success('Welcome! Your account has been created successfully.');
               }
-            } else {
-              toast.success('Successfully signed in!');
             }
           } catch (profileError) {
             console.error('Profile check error:', profileError);
-            toast.success('Successfully signed in!');
           }
 
           navigate('/home', { replace: true });

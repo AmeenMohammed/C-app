@@ -42,7 +42,6 @@ const Index = () => {
       }
 
       if (data.session) {
-        toast.success("Signed in successfully!");
         // The useEffect will handle the redirect
       }
     } catch (error) {

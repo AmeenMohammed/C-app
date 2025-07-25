@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Send, Smile, Paperclip, X, ArrowLeft, Plus, MessageCircle, User, Phone, Video, MoreVertical, Image, Mic, Trash2 } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from "react";
 import { useSearchParams, useLocation, Link } from "react-router-dom";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -91,6 +91,7 @@ const Messages = () => {
   const [newMessage, setNewMessage] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const [attachment, setAttachment] = useState<File | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -99,18 +100,106 @@ const Messages = () => {
   const [locationStateProcessed, setLocationStateProcessed] = useState(false);
   const { width: windowWidth, height: windowHeight } = useWindowSize();
 
-  // Auto-scroll to bottom of messages
-  const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  // Enhanced scroll functions
+  const scrollToBottom = useCallback((smooth: boolean = true) => {
+    const container = messagesContainerRef.current;
+    if (container) {
+      if (smooth) {
+        container.scrollTo({
+          top: container.scrollHeight,
+          behavior: "smooth"
+        });
+      } else {
+        // Instant scroll for immediate navigation
+        container.scrollTop = container.scrollHeight;
+      }
+    }
   }, []);
 
-  // Scroll to bottom when messages change or conversation is selected
-  useEffect(() => {
-    if (messages.length > 0) {
-      // Use setTimeout to ensure DOM is updated
-      setTimeout(scrollToBottom, 100);
+  const scrollToFirstUnreadMessage = useCallback(() => {
+    if (!selectedUserId || !user) return;
+
+    const lastVisitKey = `conversation_${selectedUserId}_last_visit_${user.id}`;
+    const lastVisit = localStorage.getItem(lastVisitKey);
+
+    if (!lastVisit) {
+      // No previous visit, scroll to bottom
+      scrollToBottom(false);
+      return;
     }
-  }, [messages, selectedUserId, scrollToBottom]);
+
+    const lastVisitTime = new Date(lastVisit);
+    const container = messagesContainerRef.current;
+
+    if (!container) {
+      scrollToBottom(false);
+      return;
+    }
+
+    // Find first unread message
+    const messageElements = container.querySelectorAll('[data-message-timestamp]');
+    let firstUnreadElement = null;
+
+    for (const element of messageElements) {
+      const timestamp = element.getAttribute('data-message-timestamp');
+      if (timestamp && new Date(timestamp) > lastVisitTime) {
+        firstUnreadElement = element;
+        break;
+      }
+    }
+
+    if (firstUnreadElement) {
+      firstUnreadElement.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+    } else {
+      // No unread messages, scroll to bottom
+      scrollToBottom(false);
+    }
+  }, [selectedUserId, user, scrollToBottom]);
+
+  // Scroll when messages change or conversation is selected
+  useLayoutEffect(() => {
+    if (messages.length > 0 && selectedUserId) {
+      // Use requestAnimationFrame to ensure DOM is fully rendered
+      requestAnimationFrame(() => {
+        scrollToFirstUnreadMessage();
+      });
+    }
+  }, [messages, selectedUserId, scrollToFirstUnreadMessage]);
+
+        // Auto-show mobile chat when there's a selectedUserId (from external links/buttons)
+  useEffect(() => {
+    if (selectedUserId) {
+      setShowMobileChat(true);
+
+      // Mark conversation as visited to reset unread count if conversation exists
+      if (user && conversations.length > 0) {
+        const lastVisitKey = `conversation_${selectedUserId}_last_visit_${user.id}`;
+        localStorage.setItem(lastVisitKey, new Date().toISOString());
+
+        // Update the conversation in state to remove unread count
+        setConversations(prev => prev.map(conv =>
+          conv.id === selectedUserId
+            ? { ...conv, unread: false, unreadCount: undefined }
+            : conv
+        ));
+      }
+    } else {
+      // Hide mobile chat when no user is selected
+      setShowMobileChat(false);
+    }
+  }, [selectedUserId, conversations.length, user]);
+
+  // Scroll when opening a conversation directly
+  useLayoutEffect(() => {
+    if (selectedUserId && showMobileChat) {
+      requestAnimationFrame(() => {
+        scrollToFirstUnreadMessage();
+      });
+    }
+  }, [selectedUserId, showMobileChat, scrollToFirstUnreadMessage]);
 
   // Optimized conversation fetching with better queries
   const fetchConversations = useCallback(async () => {
@@ -242,8 +331,13 @@ const Messages = () => {
         })
       );
 
-      // Filter out null values (blocked users) and set conversations
-      const filteredConversations = processedConversations.filter(conv => conv !== null);
+      // Filter out null values (blocked users) and duplicates, then set conversations
+      const filteredConversations = processedConversations
+        .filter(conv => conv !== null)
+        .filter((conv, index, array) =>
+          // Remove duplicates by keeping only the first occurrence of each user ID
+          array.findIndex(c => c && c.id === conv!.id) === index
+        );
       setConversations(filteredConversations);
 
       // Handle new conversation from location state (only once)
@@ -319,7 +413,15 @@ const Messages = () => {
         timestamp: "Just now",
         unread: false
       };
-      setConversations(prev => [newConversation, ...prev]);
+
+      // Prevent duplicates by checking if conversation already exists in state
+      setConversations(prev => {
+        const exists = prev.some(conv => conv.id === sellerInfo.sellerId);
+        if (exists) {
+          return prev;
+        }
+        return [newConversation, ...prev];
+      });
     }
 
     // Auto-send default message with item details if provided
@@ -421,6 +523,7 @@ const Messages = () => {
           : conv
       ));
     }
+
   }, [setSearchParams, user]);
 
   const handleBackToConversations = useCallback(() => {
@@ -543,6 +646,11 @@ const Messages = () => {
           : conv
       ));
 
+      // Scroll to bottom after sending default message
+      requestAnimationFrame(() => {
+        scrollToBottom(true);
+      });
+
     } catch (error) {
       console.error('Error sending default message:', error);
       toast.error("Failed to send item details. Please try again.");
@@ -591,11 +699,9 @@ const Messages = () => {
             return;
           }
           messageContent = moderationResult.cleanedText || messageContent;
-          toast.info("Message has been cleaned before sending.");
         } else {
           // Low severity - send cleaned version automatically
           messageContent = moderationResult.cleanedText || messageContent;
-          toast.info("Some language has been filtered from your message.");
         }
       }
     }
@@ -692,6 +798,11 @@ const Messages = () => {
         localStorage.setItem(lastVisitKey, new Date().toISOString());
       }
 
+      // Scroll to bottom after sending message
+      requestAnimationFrame(() => {
+        scrollToBottom(true);
+      });
+
     } catch (error) {
       console.error('Error saving message:', error);
       toast.error("Failed to send message");
@@ -715,7 +826,6 @@ const Messages = () => {
     const file = e.target.files?.[0];
     if (file) {
       // Show loading state
-      toast.info("Validating file...");
 
       try {
         const validation = await validateAndModerateFile(file);
@@ -740,13 +850,7 @@ const Messages = () => {
           }
         }
 
-        toast.success(successMessage);
         setAttachment(file);
-
-        // Show warning if moderation service was unavailable
-        if (validation.error) {
-          toast.warning(validation.error);
-        }
 
       } catch (error) {
         console.error('File validation error:', error);
@@ -805,8 +909,6 @@ const Messages = () => {
         existingDeleted.push(otherUserId);
         localStorage.setItem(deletedConversationsKey, JSON.stringify(existingDeleted));
       }
-
-      toast.success(t('conversationDeletedSuccess'));
     } catch (error) {
       console.error('Error deleting conversation:', error);
       toast.error(t('failedToDeleteConversation'));
@@ -845,55 +947,55 @@ const Messages = () => {
         </div>
       </div>
 
-      <div className="flex h-[calc(100vh-8rem)]">
+      <div className="flex h-[calc(100vh-8rem)] min-w-0 overflow-hidden">
         {/* Conversations Sidebar */}
         <div className={`w-full md:w-80 bg-background border-r flex flex-col ${
           showMobileChat ? 'hidden md:flex' : 'flex'
-        }`}>
-          <div className="p-4 border-b">
-            <h2 className="font-semibold text-lg">{t('conversations')}</h2>
-            <p className="text-sm text-muted-foreground">
+        } max-w-full overflow-hidden`}>
+          <div className="p-3 md:p-4 border-b">
+            <h2 className="font-semibold text-base md:text-lg truncate">{t('conversations')}</h2>
+            <p className="text-xs md:text-sm text-muted-foreground truncate">
               {conversations.length === 0 ? t('noConversationsYet') : `${conversations.length} ${conversations.length !== 1 ? t('conversationPlural') : t('conversationSingular')}`}
             </p>
           </div>
 
           <ScrollArea className="flex-1">
             {conversations.length === 0 ? (
-              <div className="p-4 text-center">
-                <p className="text-muted-foreground text-sm">
+              <div className="p-3 md:p-4 text-center">
+                <p className="text-muted-foreground text-xs md:text-sm">
                   {t('noConversationsYet')}. {t('contactSellerToStart')}
                 </p>
               </div>
             ) : (
-              memoizedConversations.map((conversation) => (
+              memoizedConversations.map((conversation, index) => (
                 <div
-                  key={conversation.id}
+                  key={`${conversation.id}-${index}`}
                   onClick={() => selectConversation(conversation.id)}
-                  className={`p-4 border-b cursor-pointer hover:bg-muted/50 transition-colors ${
+                  className={`p-2 md:p-4 border-b cursor-pointer hover:bg-muted/50 transition-colors ${
                     selectedUserId === conversation.id ? 'bg-muted border-primary' : ''
-                  }`}
+                  } overflow-hidden`}
                 >
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-10 w-10">
+                  <div className="flex items-center gap-2 md:gap-3 min-w-0">
+                    <Avatar className="h-8 w-8 md:h-10 md:w-10 flex-shrink-0">
                       <AvatarImage src={conversation.user.avatar} />
-                      <AvatarFallback>{conversation.user.name.charAt(0)}</AvatarFallback>
+                      <AvatarFallback className="text-xs md:text-sm">{conversation.user.name.charAt(0)}</AvatarFallback>
                     </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <h3 className="font-medium text-sm truncate">
+                    <div className="flex-1 min-w-0 overflow-hidden">
+                      <div className="flex items-center justify-between gap-2 min-w-0">
+                        <h3 className="font-medium text-xs md:text-sm truncate flex-1">
                           {conversation.user.name}
                         </h3>
-                        <span className="text-xs text-muted-foreground">
+                        <span className="text-xs text-muted-foreground flex-shrink-0">
                           {conversation.timestamp}
                         </span>
                       </div>
-                      <p className="text-sm text-muted-foreground truncate">
+                      <p className="text-xs md:text-sm text-muted-foreground truncate max-w-24">
                         {conversation.lastMessage}
                       </p>
                     </div>
                     {conversation.unreadCount && conversation.unreadCount > 0 && (
-                      <div className="bg-primary text-primary-foreground text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                        {conversation.unreadCount}
+                      <div className="bg-primary text-primary-foreground text-xs rounded-full h-4 w-4 md:h-5 md:w-5 flex items-center justify-center flex-shrink-0 ml-1">
+                        <span className="text-xs leading-none">{conversation.unreadCount > 99 ? '99+' : conversation.unreadCount}</span>
                       </div>
                     )}
                   </div>
@@ -904,31 +1006,31 @@ const Messages = () => {
         </div>
 
         {/* Messages Area */}
-        <div className={`flex-1 flex flex-col ${
+        <div className={`flex-1 flex flex-col min-w-0 overflow-hidden ${
           showMobileChat ? 'flex' : 'hidden md:flex'
         }`}>
           {selectedConversation ? (
             <>
               {/* Chat Header */}
-              <div className="p-4 border-b bg-background flex-shrink-0">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
+              <div className="p-2 md:p-4 border-b bg-background flex-shrink-0">
+                <div className="flex items-center justify-between min-w-0">
+                  <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
                     {/* Back button for mobile */}
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={handleBackToConversations}
-                      className="md:hidden"
+                      className="md:hidden flex-shrink-0"
                     >
                       <ArrowLeft className="h-4 w-4" />
                     </Button>
-                    <Avatar className="h-8 w-8">
+                    <Avatar className="h-6 w-6 md:h-8 md:w-8 flex-shrink-0">
                       <AvatarImage src={selectedConversation.user.avatar} />
-                      <AvatarFallback>{selectedConversation.user.name.charAt(0)}</AvatarFallback>
+                      <AvatarFallback className="text-xs md:text-sm">{selectedConversation.user.name.charAt(0)}</AvatarFallback>
                     </Avatar>
                     <Link
                       to={`/seller/${selectedUserId}`}
-                      className="font-medium hover:text-primary transition-colors cursor-pointer"
+                      className="font-medium hover:text-primary transition-colors cursor-pointer truncate text-sm md:text-base"
                     >
                       {selectedConversation.user.name}
                     </Link>
@@ -973,7 +1075,7 @@ const Messages = () => {
               </div>
 
               {/* Messages */}
-              <ScrollArea className="flex-1 p-4">
+              <div className="flex-1 overflow-y-auto p-4" ref={messagesContainerRef}>
                 {messagesLoading ? (
                   <div className="flex items-center justify-center py-8">
                     <div className="animate-pulse space-y-4 w-full max-w-md">
@@ -994,6 +1096,7 @@ const Messages = () => {
                       messages.map((message, index) => (
                         <div
                           key={index}
+                          data-message-timestamp={message.timestamp}
                           className={`flex ${message.isMine ? 'justify-end' : 'justify-start'}`}
                         >
                           <div className={`flex gap-2 max-w-xs lg:max-w-md`}>
@@ -1078,7 +1181,7 @@ const Messages = () => {
                     <div ref={messagesEndRef} />
                   </div>
                 )}
-              </ScrollArea>
+              </div>
 
               {/* Message Input - Sticky at bottom using flex */}
               <div className="p-4 border-t bg-background flex-shrink-0">

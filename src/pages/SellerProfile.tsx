@@ -177,7 +177,6 @@ const SellerProfile = () => {
           .eq('rated_user_id', sellerId);
 
         if (error) throw error;
-        toast.success(t('ratingUpdatedSuccessfully'));
       } else {
         // Insert new rating
         const { error } = await supabase
@@ -190,7 +189,6 @@ const SellerProfile = () => {
 
         if (error) throw error;
         setUserHasRated(true);
-        toast.success(t('ratingSubmittedSuccessfully'));
       }
 
       setUserRating({ rating: selectedRating });

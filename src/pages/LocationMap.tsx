@@ -233,7 +233,6 @@ const LocationMap = () => {
     setSelectedSuggestionIndex(-1);
     setLocationError(null);
     setMapKey(prev => prev + 1); // Force map re-render
-    sonnerToast.success(`Selected ${suggestion.shortName}`);
   };
 
   // Clear city search

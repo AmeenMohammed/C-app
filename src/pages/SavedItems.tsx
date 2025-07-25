@@ -89,7 +89,6 @@ const SavedItems = () => {
 
       const updatedItems = savedItems.filter(item => item.id !== itemId);
       setSavedItems(updatedItems);
-      toast.success(t('itemSaved')); // Using existing key
     } catch (error) {
       console.error('Error removing saved item:', error);
       toast.error(t('errorSavingItem'));
@@ -108,7 +107,6 @@ const SavedItems = () => {
       if (error) throw error;
 
       setSavedItems([]);
-      toast.success(t('success'));
     } catch (error) {
       console.error('Error clearing saved items:', error);
       toast.error(t('error'));

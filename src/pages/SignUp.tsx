@@ -73,8 +73,6 @@ const SignUp = () => {
           // Don't show error to user as the trigger might have created it
         }
       }
-
-      toast.success(t('checkEmailToConfirm'));
     } catch (error) {
       toast.error(t('errorDuringSignUp'));
     } finally {

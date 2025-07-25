@@ -68,7 +68,6 @@ const CreateChannel = () => {
             try {
               const cityName = await reverseGeocode(location.lat, location.lng);
               setCity(cityName);
-              toast.success("Current location detected and set automatically!");
             } catch (error) {
               console.error("Failed to get city name:", error);
             } finally {
@@ -146,7 +145,6 @@ const CreateChannel = () => {
     setLocationLoading(false);
 
     // Don't close the map automatically - let user confirm
-    toast.success("Location updated! Click 'Confirm Location' when ready.");
   };
 
   const handleCityInputChange = async (value: string) => {
@@ -168,7 +166,6 @@ const CreateChannel = () => {
       // Validate coordinates
       if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
         setUserLocation({ lat, lng });
-        toast.success("Map updated with the entered coordinates.");
         return;
       }
     }
@@ -180,7 +177,6 @@ const CreateChannel = () => {
         const coordinates = await forwardGeocode(value.trim());
         if (coordinates) {
           setUserLocation(coordinates);
-          toast.success("Map updated with the city location.");
         }
         setLocationLoading(false);
       }, 1000); // Wait 1 second after user stops typing
@@ -191,7 +187,6 @@ const CreateChannel = () => {
 
   const confirmLocation = () => {
     setShowLocationSelector(false);
-    toast.success("Channel location confirmed successfully.");
   };
 
   const handleCreateChannel = async (e: React.FormEvent) => {
@@ -231,7 +226,6 @@ const CreateChannel = () => {
         throw error;
       }
 
-      toast.success("Channel created successfully!");
       navigate("/channels");
     } catch (error) {
       console.error('Error creating channel:', error);

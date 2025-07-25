@@ -317,10 +317,6 @@ const EditItem = () => {
       if (data.error) throw new Error(data.error);
 
       setImages(prev => [...prev, data.url]);
-      toast({
-        title: t('success'),
-        description: t('imageUploadedSuccessfully'),
-      });
     } catch (error) {
       console.error('Upload error:', error);
       toast({
@@ -376,10 +372,6 @@ const EditItem = () => {
 
       if (error) throw error;
 
-      toast({
-        title: t('success'),
-        description: t('itemUpdatedSuccessfully'),
-      });
       navigate('/profile');
     } catch (error) {
       console.error('Update error:', error);
@@ -410,10 +402,6 @@ const EditItem = () => {
 
       if (error) throw error;
 
-      toast({
-        title: t('success'),
-        description: t('itemDeletedSuccessfully'),
-      });
       navigate('/profile');
     } catch (error) {
       console.error('Delete error:', error);

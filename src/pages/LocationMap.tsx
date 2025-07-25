@@ -319,23 +319,26 @@ const LocationMap = () => {
 
     setSaving(true);
     try {
-      // Use INSERT with ON CONFLICT to handle the upsert properly
-      const { error } = await supabase
-        .from('user_profiles')
-        .upsert({
-          user_id: user.id,
-          latitude: userLocation.lat,
-          longitude: userLocation.lng,
-          updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'user_id',
-          ignoreDuplicates: false
-        });
+      console.log('Saving location for user:', user.id, 'Location:', userLocation);
 
-      if (error) {
-        console.error('Error saving location:', error);
-        // Try a simple update instead if upsert fails
-        const { error: updateError } = await supabase
+      // First check if user profile exists
+      const { data: existingProfile, error: fetchError } = await supabase
+        .from('user_profiles')
+        .select('id, user_id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (fetchError && fetchError.code !== 'PGRST116') {
+        // PGRST116 is "not found" error, which is ok - means no profile exists yet
+        console.error('Error checking existing profile:', fetchError);
+        throw new Error(`Failed to check existing profile: ${fetchError.message}`);
+      }
+
+      let result;
+      if (existingProfile) {
+        // Profile exists, update it
+        console.log('Updating existing profile:', existingProfile.id);
+        result = await supabase
           .from('user_profiles')
           .update({
             latitude: userLocation.lat,
@@ -343,12 +346,31 @@ const LocationMap = () => {
             updated_at: new Date().toISOString()
           })
           .eq('user_id', user.id);
-
-        if (updateError) {
-          throw updateError;
-        }
+      } else {
+        // Profile doesn't exist, create it
+        console.log('Creating new profile for user:', user.id);
+        result = await supabase
+          .from('user_profiles')
+          .insert({
+            user_id: user.id,
+            latitude: userLocation.lat,
+            longitude: userLocation.lng,
+            full_name: user.user_metadata?.full_name || user.email || 'Anonymous',
+            avatar_url: user.user_metadata?.avatar_url || '',
+            bio: '',
+            phone: user.user_metadata?.phone || '',
+            location: cityInput || '',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
       }
 
+      if (result.error) {
+        console.error('Error saving location:', result.error);
+        throw new Error(`Database operation failed: ${result.error.message}`);
+      }
+
+      console.log('Location saved successfully');
       toast({
         title: t('locationSaved'),
         description: "Your location and search range have been saved successfully.",
@@ -359,10 +381,10 @@ const LocationMap = () => {
       console.error('Error saving location:', error);
       toast({
         title: t('error'),
-        description: "Failed to save location. Please try again.",
+        description: `Failed to save location. ${error.message || 'Please try again.'}`,
         variant: "destructive",
       });
-      // Still navigate on error
+      // Still navigate on error to prevent user from being stuck
       navigate(`/?range=${radius[0]}`);
     } finally {
       setSaving(false);

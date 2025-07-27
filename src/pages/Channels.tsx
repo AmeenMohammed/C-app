@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Lock, Globe, MapPin, ExternalLink, Users, Send, Smile, Search, Paperclip, X, Plus, Settings, Info, Edit3, Trash2, MoreVertical } from "lucide-react";
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { Slider } from "@/components/ui/slider";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -92,10 +92,18 @@ const Channels = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Function to scroll to bottom of messages
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  // Simplified and reliable scroll function
+  const scrollToBottom = useCallback(() => {
+    // Use setTimeout to ensure DOM is fully rendered
+    setTimeout(() => {
+      if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({
+          behavior: "smooth",
+          block: "end"
+        });
+      }
+    }, 50);
+  }, []);
 
   // Fetch user's saved location from profile if authenticated (same as ItemGrid)
   const { data: userProfile } = useQuery({
@@ -408,7 +416,7 @@ const Channels = () => {
                 };
               })
           );
-          console.log('📍 Final discoverable channels:', discoverableChannels.length);
+          console.log('�� Final discoverable channels:', discoverableChannels.length);
         }
 
         // Combine joined and discoverable channels
@@ -452,25 +460,15 @@ const Channels = () => {
     }
   }, [activeChannel?.id, user, queryClient]);
 
-  // Scroll to bottom when messages change or channel is opened
+  // Single effect to handle scrolling when messages change or channel opens
   useEffect(() => {
     if (activeChannel?.messages && activeChannel.messages.length > 0) {
-      // Small delay to ensure DOM is updated
-      setTimeout(() => {
-        scrollToBottom();
-      }, 100);
+      scrollToBottom();
+    } else if (activeChannel) {
+      // New channel opened, scroll to bottom
+      scrollToBottom();
     }
-  }, [activeChannel?.messages]);
-
-  // Scroll to bottom when opening a new channel
-  useEffect(() => {
-    if (activeChannel) {
-      // Small delay to ensure DOM is updated
-      setTimeout(() => {
-        scrollToBottom();
-      }, 100);
-    }
-  }, [activeChannel?.id]);
+  }, [activeChannel?.messages, activeChannel?.id, scrollToBottom]);
 
   // Fetch messages for active channel
   useEffect(() => {
@@ -702,9 +700,7 @@ const Channels = () => {
       }
 
       // Scroll to bottom to show the new message
-      setTimeout(() => {
-        scrollToBottom();
-      }, 100);
+      scrollToBottom();
     } catch (error) {
       console.error('Error sending message:', error);
       toast.error(t('failedToSendMessage'));

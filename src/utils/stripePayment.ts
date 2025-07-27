@@ -67,8 +67,16 @@ export const processPromotionPayment = async (
         throw new Error('Payment failed. Your payment method may have expired or been declined.');
       }
     } else {
-      // Fallback for when no payment method is properly selected
-      throw new Error('No payment method provided. Please select a payment method.');
+      // Direct payment integration (no saved payment method)
+      paymentId = `pi_direct_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      paymentIntentId = `pi_direct_${Date.now()}`;
+
+      console.log('💳 Simulating direct payment integration (Paymob-style)');
+
+      // Simulate slightly higher failure rate for new payments (5% chance)
+      if (Math.random() < 0.05) {
+        throw new Error('Payment failed. Please try again or use a different payment method.');
+      }
     }
 
     console.log('✅ Simulated payment successful:', paymentId);

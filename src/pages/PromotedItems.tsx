@@ -378,49 +378,49 @@ const PromotedItems = () => {
     <div className="min-h-screen bg-background pb-16">
       <TopBar title={t('promotedItems')} />
 
-      <div className="container mx-auto px-4 py-6 space-y-6">
+      <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-4 sm:space-y-6">
         {/* Promotion Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card className="p-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <Card className="p-3 sm:p-4">
             <div className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-blue-600" />
-              <div>
-                <p className="text-sm text-muted-foreground">{t('activePromotions')}</p>
-                <p className="text-2xl font-bold">{activePromotions.length}</p>
+              <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 flex-shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="text-xs sm:text-sm text-muted-foreground truncate">{t('activePromotions')}</p>
+                <p className="text-xl sm:text-2xl font-bold">{activePromotions.length}</p>
               </div>
             </div>
           </Card>
 
-          <Card className="p-4">
+          <Card className="p-3 sm:p-4">
             <div className="flex items-center gap-2">
-              <Eye className="h-5 w-5 text-green-600" />
-              <div>
-                <p className="text-sm text-muted-foreground">{t('totalViews')}</p>
-                <p className="text-2xl font-bold">
+              <Eye className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 flex-shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="text-xs sm:text-sm text-muted-foreground truncate">{t('totalViews')}</p>
+                <p className="text-xl sm:text-2xl font-bold">
                   {promotedItems?.reduce((sum, item) => sum + item.total_views, 0) || 0}
                 </p>
               </div>
             </div>
           </Card>
 
-          <Card className="p-4">
+          <Card className="p-3 sm:p-4">
             <div className="flex items-center gap-2">
-              <MessageSquare className="h-5 w-5 text-purple-600" />
-              <div>
-                <p className="text-sm text-muted-foreground">{t('totalContacts')}</p>
-                <p className="text-2xl font-bold">
+              <MessageSquare className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600 flex-shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="text-xs sm:text-sm text-muted-foreground truncate">{t('totalContacts')}</p>
+                <p className="text-xl sm:text-2xl font-bold">
                   {promotedItems?.reduce((sum, item) => sum + item.total_contacts, 0) || 0}
                 </p>
               </div>
             </div>
           </Card>
 
-          <Card className="p-4">
+          <Card className="p-3 sm:p-4">
             <div className="flex items-center gap-2">
-              <DollarSign className="h-5 w-5 text-yellow-600" />
-              <div>
-                <p className="text-sm text-muted-foreground">{t('totalSpent')}</p>
-                <p className="text-2xl font-bold">
+              <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-600 flex-shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="text-xs sm:text-sm text-muted-foreground truncate">{t('totalSpent')}</p>
+                <p className="text-xl sm:text-2xl font-bold">
                   ${promotedItems?.reduce((sum, item) => sum + item.amount_paid, 0).toFixed(2) || '0.00'}
                 </p>
               </div>
@@ -556,9 +556,15 @@ const PromotedItems = () => {
         <Tabs key={`tabs-${activePromotions.length}-${expiredPromotions.length}`} defaultValue="active" className="space-y-4">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="active">{t('activePromotions')} ({activePromotions.length})</TabsTrigger>
-            <TabsTrigger value="history">
-              {t('promotionHistory')} ({expiredPromotions.length})
-              {pendingCount > 0 && <span className="ml-1 text-yellow-600">• {pendingCount} pending</span>}
+            <TabsTrigger value="history" className="flex-1 text-center">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:gap-1">
+                <span>{t('promotionHistory')} ({expiredPromotions.length})</span>
+                {pendingCount > 0 && (
+                  <span className="text-xs sm:text-sm text-yellow-600 whitespace-nowrap">
+                    • {pendingCount} pending
+                  </span>
+                )}
+              </div>
             </TabsTrigger>
           </TabsList>
 
@@ -571,27 +577,27 @@ const PromotedItems = () => {
               </Card>
             ) : (
               activePromotions.map((item) => (
-                <Card key={item.promotion_id} className="p-6">
-                  <div className="flex items-start gap-4">
-                    <Link to={`/items/${item.item_id}`}>
+                <Card key={item.promotion_id} className="p-4 sm:p-6">
+                  <div className="flex flex-col sm:flex-row items-start gap-3 sm:gap-4">
+                    <Link to={`/items/${item.item_id}`} className="w-full sm:w-auto flex-shrink-0">
                       <img
                         src={item.images[0]}
                         alt={item.title}
-                        className="w-20 h-20 object-cover rounded-lg"
+                        className="w-full h-48 sm:w-20 sm:h-20 object-cover rounded-lg"
                       />
                     </Link>
 
-                    <div className="flex-1 space-y-3">
-                      <div className="flex items-start justify-between">
-                        <div>
+                    <div className="flex-1 w-full space-y-3">
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                        <div className="flex-1">
                           <Link to={`/items/${item.item_id}`}>
-                            <h3 className="font-semibold hover:text-primary">{item.title}</h3>
+                            <h3 className="font-semibold hover:text-primary" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden'}}>{item.title}</h3>
                           </Link>
-                          <p className="text-muted-foreground">
+                          <p className="text-muted-foreground text-sm sm:text-base">
                             {formatPrice(item.price, item.currency)}
                           </p>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <Badge className={getStatusColor(item.status)}>
                             {item.status}
                           </Badge>
@@ -620,7 +626,7 @@ const PromotedItems = () => {
                       </div>
 
                       {/* Analytics */}
-                      <div className="grid grid-cols-3 gap-4 text-sm">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 text-sm">
                         <div className="flex items-center gap-1">
                           <Eye className="h-4 w-4 text-muted-foreground" />
                           <span>{item.total_views} {t('views')}</span>
@@ -639,6 +645,7 @@ const PromotedItems = () => {
                       <Button
                         variant="outline"
                         size="sm"
+                        className="w-full sm:w-auto"
                         onClick={() => cancelMutation.mutate(item.promotion_id)}
                         disabled={cancelMutation.isPending}
                       >
@@ -660,23 +667,23 @@ const PromotedItems = () => {
               </Card>
             ) : (
               expiredPromotions.map((item) => (
-                <Card key={item.promotion_id} className={`p-6 ${item.status === 'pending' ? '' : 'opacity-60'}`}>
-                  <div className="flex items-start gap-4">
-                    <Link to={`/items/${item.item_id}`}>
+                <Card key={item.promotion_id} className={`p-4 sm:p-6 ${item.status === 'pending' ? '' : 'opacity-60'}`}>
+                  <div className="flex flex-col sm:flex-row items-start gap-3 sm:gap-4">
+                    <Link to={`/items/${item.item_id}`} className="w-full sm:w-auto flex-shrink-0">
                       <img
                         src={item.images[0]}
                         alt={item.title}
-                        className="w-20 h-20 object-cover rounded-lg"
+                        className="w-full h-48 sm:w-20 sm:h-20 object-cover rounded-lg"
                       />
                     </Link>
 
-                    <div className="flex-1 space-y-2">
-                      <div className="flex items-start justify-between">
-                        <div>
+                    <div className="flex-1 w-full space-y-2">
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                        <div className="flex-1">
                           <Link to={`/items/${item.item_id}`}>
-                            <h3 className="font-semibold hover:text-primary">{item.title}</h3>
+                            <h3 className="font-semibold hover:text-primary" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden'}}>{item.title}</h3>
                           </Link>
-                          <p className="text-muted-foreground">
+                          <p className="text-muted-foreground text-sm sm:text-base">
                             {formatPrice(item.price, item.currency)}
                           </p>
                         </div>
@@ -685,7 +692,7 @@ const PromotedItems = () => {
                         </Badge>
                       </div>
 
-                      <div className="grid grid-cols-4 gap-4 text-sm text-muted-foreground">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 text-sm text-muted-foreground">
                         <div>
                           <span className="block font-medium">{t('duration')}</span>
                           <span>
@@ -709,10 +716,11 @@ const PromotedItems = () => {
 
                       {/* Action buttons for pending promotions */}
                       {item.status === 'pending' && (
-                        <div className="flex items-center gap-2 pt-2">
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-2">
                           <Button
                             variant="outline"
                             size="sm"
+                            className="flex-1 sm:flex-none"
                             onClick={() => retryPaymentMutation.mutate({
                               promotionId: item.promotion_id,
                               itemId: item.item_id,
@@ -726,6 +734,7 @@ const PromotedItems = () => {
                           <Button
                             variant="outline"
                             size="sm"
+                            className="flex-1 sm:flex-none"
                             onClick={() => cancelMutation.mutate(item.promotion_id)}
                             disabled={cancelMutation.isPending}
                           >

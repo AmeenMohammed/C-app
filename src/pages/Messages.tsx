@@ -100,74 +100,83 @@ const Messages = () => {
   const [locationStateProcessed, setLocationStateProcessed] = useState(false);
   const { width: windowWidth, height: windowHeight } = useWindowSize();
 
-  // Enhanced scroll functions
-  const scrollToBottom = useCallback((smooth: boolean = true) => {
-    const container = messagesContainerRef.current;
-    if (container) {
-      if (smooth) {
-        container.scrollTo({
-          top: container.scrollHeight,
-          behavior: "smooth"
+  // Simplified scroll function that always works
+  const scrollToBottom = useCallback((behavior: 'smooth' | 'instant' = 'smooth') => {
+    // Use a small delay to ensure DOM is updated
+    setTimeout(() => {
+      if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({
+          behavior: behavior === 'instant' ? 'auto' : 'smooth',
+          block: 'end'
         });
-      } else {
-        // Instant scroll for immediate navigation
-        container.scrollTop = container.scrollHeight;
       }
-    }
+    }, 50);
   }, []);
 
+  // Simplified function to scroll to first unread message
   const scrollToFirstUnreadMessage = useCallback(() => {
-    if (!selectedUserId || !user) return;
+    if (!selectedUserId || !user || !messagesContainerRef.current) {
+      scrollToBottom('instant');
+      return;
+    }
 
     const lastVisitKey = `conversation_${selectedUserId}_last_visit_${user.id}`;
     const lastVisit = localStorage.getItem(lastVisitKey);
 
     if (!lastVisit) {
       // No previous visit, scroll to bottom
-      scrollToBottom(false);
+      scrollToBottom('instant');
       return;
     }
 
     const lastVisitTime = new Date(lastVisit);
-    const container = messagesContainerRef.current;
 
-    if (!container) {
-      scrollToBottom(false);
-      return;
-    }
-
-    // Find first unread message
-    const messageElements = container.querySelectorAll('[data-message-timestamp]');
-    let firstUnreadElement = null;
-
-    for (const element of messageElements) {
-      const timestamp = element.getAttribute('data-message-timestamp');
-      if (timestamp && new Date(timestamp) > lastVisitTime) {
-        firstUnreadElement = element;
-        break;
+    // Use a small delay to ensure DOM is rendered
+    setTimeout(() => {
+      const container = messagesContainerRef.current;
+      if (!container) {
+        scrollToBottom('instant');
+        return;
       }
-    }
 
-    if (firstUnreadElement) {
-      firstUnreadElement.scrollIntoView({
-        behavior: "smooth",
-        block: "start"
-      });
-    } else {
-      // No unread messages, scroll to bottom
-      scrollToBottom(false);
-    }
+      const messageElements = container.querySelectorAll('[data-message-timestamp]');
+      let firstUnreadElement = null;
+
+      for (const element of messageElements) {
+        const timestamp = element.getAttribute('data-message-timestamp');
+        if (timestamp && new Date(timestamp) > lastVisitTime) {
+          firstUnreadElement = element;
+          break;
+        }
+      }
+
+      if (firstUnreadElement) {
+        firstUnreadElement.scrollIntoView({
+          behavior: "smooth",
+          block: "center"
+        });
+      } else {
+        scrollToBottom('instant');
+      }
+    }, 100);
   }, [selectedUserId, user, scrollToBottom]);
 
-  // Scroll when messages change or conversation is selected
-  useLayoutEffect(() => {
+  // Single effect to handle scrolling when messages change
+  useEffect(() => {
     if (messages.length > 0 && selectedUserId) {
-      // Use requestAnimationFrame to ensure DOM is fully rendered
-      requestAnimationFrame(() => {
+      // Check if this is a new conversation or returning to existing one
+      const lastVisitKey = `conversation_${selectedUserId}_last_visit_${user?.id}`;
+      const lastVisit = localStorage.getItem(lastVisitKey);
+
+      if (lastVisit) {
+        // Returning to conversation - scroll to first unread
         scrollToFirstUnreadMessage();
-      });
+      } else {
+        // New conversation - scroll to bottom
+        scrollToBottom('instant');
+      }
     }
-  }, [messages, selectedUserId, scrollToFirstUnreadMessage]);
+  }, [messages.length, selectedUserId, user?.id, scrollToFirstUnreadMessage, scrollToBottom]);
 
         // Auto-show mobile chat when there's a selectedUserId (from external links/buttons)
   useEffect(() => {
@@ -192,14 +201,7 @@ const Messages = () => {
     }
   }, [selectedUserId, conversations.length, user]);
 
-  // Scroll when opening a conversation directly
-  useLayoutEffect(() => {
-    if (selectedUserId && showMobileChat) {
-      requestAnimationFrame(() => {
-        scrollToFirstUnreadMessage();
-      });
-    }
-  }, [selectedUserId, showMobileChat, scrollToFirstUnreadMessage]);
+
 
   // Optimized conversation fetching with better queries
   const fetchConversations = useCallback(async () => {
@@ -647,9 +649,7 @@ const Messages = () => {
       ));
 
       // Scroll to bottom after sending default message
-      requestAnimationFrame(() => {
-        scrollToBottom(true);
-      });
+      scrollToBottom('smooth');
 
     } catch (error) {
       console.error('Error sending default message:', error);
@@ -799,9 +799,7 @@ const Messages = () => {
       }
 
       // Scroll to bottom after sending message
-      requestAnimationFrame(() => {
-        scrollToBottom(true);
-      });
+      scrollToBottom('smooth');
 
     } catch (error) {
       console.error('Error saving message:', error);

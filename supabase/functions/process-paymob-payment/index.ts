@@ -37,11 +37,14 @@ serve(async (req) => {
     })
 
     // Step 1: Get Paymob auth token
+    console.log('🔑 Authenticating with Paymob API...')
     const authResponse = await fetch('https://accept.paymob.com/api/auth/tokens', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ api_key: PAYMOB_API_KEY })
     })
+
+    console.log('📡 Auth response status:', authResponse.status)
 
     if (!authResponse.ok) {
       throw new Error('Failed to authenticate with Paymob')
@@ -119,6 +122,14 @@ serve(async (req) => {
       : `https://accept.paymob.com/api/acceptance/post_pay?payment_token=${paymentToken}`
 
     console.log('✅ Secure Paymob payment session created successfully')
+    console.log('🔗 Checkout URL:', checkoutUrl)
+    console.log('🏷️ Using iframe ID:', PAYMOB_IFRAME_ID || 'None (using direct post_pay)')
+
+    // Check if this might be a test environment
+    if (paymentToken && paymentToken.includes('test')) {
+      console.log('⚠️ WARNING: This appears to be a TEST payment token - you may see ACE Emulator')
+      console.log('💡 Solution: Use PRODUCTION credentials from your Paymob dashboard')
+    }
 
     return new Response(
       JSON.stringify({

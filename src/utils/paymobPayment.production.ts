@@ -14,11 +14,12 @@ const getPaymobConfig = () => {
     // TODO: Replace these with your actual Paymob credentials from dashboard
     apiKey = 'YOUR_PRODUCTION_PAYMOB_API_KEY';
     integrationId = 'YOUR_PRODUCTION_INTEGRATION_ID';
-    iframeId = 'YOUR_PRODUCTION_IFRAME_ID'; // Optional
+    iframeId = 'YOUR_PRODUCTION_IFRAME_ID'; // Important: Use iframe to avoid ACS emulator
     hmacSecret = 'YOUR_PRODUCTION_HMAC_SECRET'; // Optional
   }
 
   const baseUrl = import.meta.env.VITE_PAYMOB_BASE_URL || 'https://accept.paymob.com/api';
+  const useIframe = import.meta.env.VITE_PAYMOB_USE_IFRAME === 'true' || !!iframeId;
 
   if (!apiKey || !integrationId) {
     throw new Error('Paymob credentials missing. Please configure your Paymob API key and integration ID');
@@ -29,7 +30,8 @@ const getPaymobConfig = () => {
     integrationId,
     iframeId,
     hmacSecret,
-    baseUrl
+    baseUrl,
+    useIframe
   };
 };
 
@@ -247,12 +249,18 @@ export const processRealPromotionPayment = async (
         // Step 3: Get payment key
         const paymentKey = await getPaymobPaymentKey(authToken, order.id, paymentData);
 
-        // Build checkout URL
+        // Build checkout URL - prefer iframe to avoid ACS emulator
         const checkoutUrl = config.iframeId
           ? `https://accept.paymob.com/api/acceptance/iframes/${config.iframeId}?payment_token=${paymentKey.token}`
           : `https://accept.paymob.com/api/acceptance/post_pay?payment_token=${paymentKey.token}`;
 
         console.log('✅ Paymob payment session created:', checkoutUrl);
+
+        if (config.iframeId) {
+          console.log('🎯 Using iframe integration - no ACS emulator');
+        } else {
+          console.warn('⚠️ Using redirect integration - may show ACS emulator. Consider setting up iframe.');
+        }
 
         // Redirect user to Paymob checkout
         if (checkoutUrl) {
@@ -275,8 +283,22 @@ export const processRealPromotionPayment = async (
         if (result.success) {
           console.log('✅ Paymob payment session created:', result.checkoutUrl);
 
-          // Redirect user to Paymob checkout page
-          if (result.checkoutUrl) {
+          // Try to use iframe URL to avoid ACS emulator if possible
+          if (result.checkoutUrl && config.iframeId) {
+            // Extract payment token from URL and build iframe URL
+            const urlParams = new URLSearchParams(result.checkoutUrl.split('?')[1]);
+            const paymentToken = urlParams.get('payment_token');
+
+            if (paymentToken) {
+              const iframeUrl = `https://accept.paymob.com/api/acceptance/iframes/${config.iframeId}?payment_token=${paymentToken}`;
+              console.log('🎯 Using iframe URL to avoid ACS emulator:', iframeUrl);
+              window.location.href = iframeUrl;
+            } else {
+              console.warn('⚠️ Could not extract payment token, using original URL');
+              window.location.href = result.checkoutUrl;
+            }
+          } else if (result.checkoutUrl) {
+            console.warn('⚠️ No iframe ID configured - may show ACS emulator');
             window.location.href = result.checkoutUrl;
           }
 

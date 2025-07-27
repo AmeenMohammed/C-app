@@ -1,0 +1,281 @@
+
+import { useState } from "react";
+import { TopBar } from "@/components/TopBar";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { CreditCard, Plus, MoreHorizontal, Edit2, Trash2, Star, Shield, Loader2 } from "lucide-react";
+import { BottomNav } from "@/components/BottomNav";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { AddPaymentMethodDialog } from "@/components/AddPaymentMethodDialog";
+import { usePaymentMethods } from "@/hooks/usePaymentMethods";
+import { PaymentMethod } from "@/types/payment";
+
+const PaymentMethods = () => {
+  const { t } = useLanguage();
+  const {
+    paymentMethods,
+    hasPaymentMethods,
+    isLoading,
+    setDefault,
+    isSettingDefault,
+    deletePaymentMethod,
+    isDeleting,
+    updateNickname,
+    isUpdatingNickname
+  } = usePaymentMethods();
+
+  const [editingNickname, setEditingNickname] = useState<string | null>(null);
+  const [newNickname, setNewNickname] = useState("");
+
+  const handleEditNickname = (paymentMethod: PaymentMethod) => {
+    setEditingNickname(paymentMethod.id);
+    setNewNickname(paymentMethod.nickname || "");
+  };
+
+  const handleSaveNickname = (paymentMethodId: string) => {
+    updateNickname({ paymentMethodId, nickname: newNickname });
+    setEditingNickname(null);
+    setNewNickname("");
+  };
+
+  const handleCancelEdit = () => {
+    setEditingNickname(null);
+    setNewNickname("");
+  };
+
+  const getPaymentMethodIcon = (type: string) => {
+    switch (type) {
+      case 'card':
+        return <CreditCard className="h-5 w-5" />;
+      case 'paypal':
+        return <div className="h-5 w-5 bg-blue-600 rounded flex items-center justify-center text-white text-xs font-bold">P</div>;
+      case 'apple_pay':
+        return <div className="h-5 w-5 bg-black rounded flex items-center justify-center text-white text-xs">🍎</div>;
+      case 'google_pay':
+        return <div className="h-5 w-5 bg-green-600 rounded flex items-center justify-center text-white text-xs font-bold">G</div>;
+      default:
+        return <CreditCard className="h-5 w-5" />;
+    }
+  };
+
+  const getCardBrandColor = (brand?: string) => {
+    switch (brand?.toLowerCase()) {
+      case 'visa':
+        return 'from-blue-500 to-blue-600';
+      case 'mastercard':
+        return 'from-red-500 to-orange-500';
+      case 'amex':
+        return 'from-green-600 to-teal-600';
+      default:
+        return 'from-gray-500 to-gray-600';
+    }
+  };
+
+  const formatCardDisplay = (paymentMethod: PaymentMethod) => {
+    if (paymentMethod.payment_type === 'card') {
+      return `•••• ${paymentMethod.card_last_four}`;
+    }
+    if (paymentMethod.payment_type === 'paypal') {
+      return paymentMethod.paypal_email;
+    }
+    return paymentMethod.nickname || 'Payment Method';
+  };
+
+  const formatExpiryDate = (month?: number, year?: number) => {
+    if (!month || !year) return null;
+    return `${month.toString().padStart(2, '0')}/${year.toString().slice(-2)}`;
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background pb-16">
+        <TopBar title={t('paymentMethods')} showBackButton={true} />
+        <main className="container mx-auto px-4 py-6">
+          <div className="flex items-center justify-center h-64">
+            <Loader2 className="h-8 w-8 animate-spin" />
+          </div>
+        </main>
+        <BottomNav />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background pb-16">
+      <TopBar title={t('paymentMethods')} showBackButton={true} />
+      <main className="container mx-auto px-4 py-6 space-y-6">
+        {/* Header */}
+        <div className="flex justify-between items-center">
+          <div>
+            <h2 className="text-lg font-medium">{t('yourPaymentMethods')}</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Manage your payment methods for promotions and purchases
+            </p>
+          </div>
+          <AddPaymentMethodDialog>
+            <Button size="sm">
+              <Plus className="h-4 w-4 mr-2" />
+              {t('addNew')}
+            </Button>
+          </AddPaymentMethodDialog>
+        </div>
+
+        {/* Payment Methods List */}
+        {hasPaymentMethods ? (
+          <div className="space-y-4">
+            {paymentMethods.map((paymentMethod) => (
+              <Card key={paymentMethod.id} className="p-6">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start gap-4 flex-1">
+                    {/* Payment Method Icon/Visual */}
+                    <div className={`w-16 h-10 rounded-lg bg-gradient-to-r ${getCardBrandColor(paymentMethod.card_brand)} flex items-center justify-center text-white`}>
+                      {paymentMethod.payment_type === 'card' ? (
+                        <div className="text-xs font-bold">
+                          {paymentMethod.card_brand?.toUpperCase() || 'CARD'}
+                        </div>
+                      ) : (
+                        getPaymentMethodIcon(paymentMethod.payment_type)
+                      )}
+                    </div>
+
+                    {/* Payment Method Details */}
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        {editingNickname === paymentMethod.id ? (
+                          <div className="flex items-center gap-2">
+                            <Input
+                              value={newNickname}
+                              onChange={(e) => setNewNickname(e.target.value)}
+                              className="h-8 w-48"
+                              placeholder="Enter nickname"
+                            />
+                            <Button
+                              size="sm"
+                              onClick={() => handleSaveNickname(paymentMethod.id)}
+                              disabled={isUpdatingNickname}
+                            >
+                              Save
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={handleCancelEdit}
+                              disabled={isUpdatingNickname}
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        ) : (
+                          <>
+                            <h3 className="font-medium">
+                              {paymentMethod.nickname || formatCardDisplay(paymentMethod)}
+                            </h3>
+                            {paymentMethod.is_default && (
+                              <Badge variant="secondary" className="flex items-center gap-1">
+                                <Star className="h-3 w-3" />
+                                Default
+                              </Badge>
+                            )}
+                          </>
+                        )}
+                      </div>
+
+                      <div className="text-sm text-muted-foreground space-y-1">
+                        <div className="flex items-center gap-4">
+                          <span>{formatCardDisplay(paymentMethod)}</span>
+                          {paymentMethod.payment_type === 'card' && formatExpiryDate(paymentMethod.card_exp_month, paymentMethod.card_exp_year) && (
+                            <span>Expires {formatExpiryDate(paymentMethod.card_exp_month, paymentMethod.card_exp_year)}</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Shield className="h-3 w-3" />
+                          <span className="capitalize">{paymentMethod.provider}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Action Menu */}
+                  {editingNickname !== paymentMethod.id && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        {!paymentMethod.is_default && (
+                          <DropdownMenuItem
+                            onClick={() => setDefault(paymentMethod.id)}
+                            disabled={isSettingDefault}
+                          >
+                            <Star className="h-4 w-4 mr-2" />
+                            Set as Default
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuItem
+                          onClick={() => handleEditNickname(paymentMethod)}
+                        >
+                          <Edit2 className="h-4 w-4 mr-2" />
+                          Edit Nickname
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => deletePaymentMethod(paymentMethod.id)}
+                          disabled={isDeleting}
+                          className="text-red-600"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Remove
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                </div>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          /* Empty State */
+          <Card className="p-12">
+            <div className="text-center">
+              <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                <CreditCard className="h-8 w-8 text-gray-400" />
+              </div>
+              <h3 className="text-lg font-medium mb-2">No Payment Methods</h3>
+              <p className="text-muted-foreground mb-6">
+                Add a payment method to promote your items and make purchases
+              </p>
+              <AddPaymentMethodDialog>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Your First Payment Method
+                </Button>
+              </AddPaymentMethodDialog>
+            </div>
+          </Card>
+        )}
+
+        {/* Security Information */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <Shield className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+            <div>
+              <h4 className="font-medium text-blue-900 mb-1">Your Payment Security</h4>
+              <p className="text-sm text-blue-800">
+                All payment information is encrypted and processed securely by our certified payment partners.
+                We never store your complete card details on our servers.
+              </p>
+            </div>
+          </div>
+        </div>
+      </main>
+      <BottomNav />
+    </div>
+  );
+};
+
+export default PaymentMethods;

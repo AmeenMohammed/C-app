@@ -1,0 +1,164 @@
+import { useState } from "react";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { CreditCard, Plus, Star, Shield } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { PaymentMethod } from "@/types/payment";
+import { AddPaymentMethodDialog } from "./AddPaymentMethodDialog";
+
+interface PaymentMethodSelectorProps {
+  paymentMethods: PaymentMethod[];
+  selectedPaymentMethodId?: string;
+  onPaymentMethodSelect: (paymentMethodId?: string) => void;
+  isLoading?: boolean;
+}
+
+
+
+export const PaymentMethodSelector = ({
+  paymentMethods,
+  selectedPaymentMethodId,
+  onPaymentMethodSelect,
+  isLoading = false
+}: PaymentMethodSelectorProps) => {
+  const { t } = useLanguage();
+
+  const getPaymentMethodIcon = (type: string) => {
+    switch (type) {
+      case 'card':
+        return <CreditCard className="h-4 w-4" />;
+      case 'paypal':
+        return <div className="h-4 w-4 bg-blue-600 rounded flex items-center justify-center text-white text-xs font-bold">P</div>;
+      case 'apple_pay':
+        return <div className="h-4 w-4 bg-black rounded flex items-center justify-center text-white text-xs">🍎</div>;
+      case 'google_pay':
+        return <div className="h-4 w-4 bg-green-600 rounded flex items-center justify-center text-white text-xs font-bold">G</div>;
+      default:
+        return <CreditCard className="h-4 w-4" />;
+    }
+  };
+
+  const getCardBrandColor = (brand?: string) => {
+    switch (brand?.toLowerCase()) {
+      case 'visa':
+        return 'from-blue-500 to-blue-600';
+      case 'mastercard':
+        return 'from-red-500 to-orange-500';
+      case 'amex':
+        return 'from-green-600 to-teal-600';
+      default:
+        return 'from-gray-500 to-gray-600';
+    }
+  };
+
+  const formatCardDisplay = (paymentMethod: PaymentMethod) => {
+    if (paymentMethod.payment_type === 'card') {
+      return `•••• ${paymentMethod.card_last_four}`;
+    }
+    if (paymentMethod.payment_type === 'paypal') {
+      return paymentMethod.paypal_email;
+    }
+    return paymentMethod.nickname || 'Payment Method';
+  };
+
+  const formatExpiryDate = (month?: number, year?: number) => {
+    if (!month || !year) return null;
+    return `${month.toString().padStart(2, '0')}/${year.toString().slice(-2)}`;
+  };
+
+  if (paymentMethods.length === 0) {
+    return (
+      <Card className="p-6">
+        <div className="text-center">
+          <CreditCard className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+          <h3 className="font-medium mb-2">No Payment Methods</h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            Add a payment method to proceed with promotion
+          </p>
+          <AddPaymentMethodDialog>
+            <Button variant="outline">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Payment Method
+            </Button>
+          </AddPaymentMethodDialog>
+        </div>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="font-medium">Select Payment Method</h3>
+        <AddPaymentMethodDialog>
+          <Button variant="outline" size="sm">
+            <Plus className="h-4 w-4 mr-2" />
+            Add New
+          </Button>
+        </AddPaymentMethodDialog>
+      </div>
+
+      <RadioGroup
+        value={selectedPaymentMethodId}
+        onValueChange={onPaymentMethodSelect}
+        disabled={isLoading}
+        className="space-y-3"
+      >
+        {paymentMethods.map((paymentMethod) => (
+          <div key={paymentMethod.id} className="flex items-center space-x-2">
+            <RadioGroupItem value={paymentMethod.id} id={paymentMethod.id} />
+            <Label
+              htmlFor={paymentMethod.id}
+              className="flex-1 cursor-pointer"
+            >
+              <Card className="p-4 hover:bg-gray-50 transition-colors">
+                <div className="flex items-center gap-3">
+                  {/* Payment Method Visual */}
+                  <div className={`w-12 h-8 rounded bg-gradient-to-r ${getCardBrandColor(paymentMethod.card_brand)} flex items-center justify-center text-white`}>
+                    {paymentMethod.payment_type === 'card' ? (
+                      <div className="text-xs font-bold">
+                        {paymentMethod.card_brand?.substring(0, 4).toUpperCase() || 'CARD'}
+                      </div>
+                    ) : (
+                      getPaymentMethodIcon(paymentMethod.payment_type)
+                    )}
+                  </div>
+
+                  {/* Payment Method Details */}
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-medium">
+                        {paymentMethod.nickname || formatCardDisplay(paymentMethod)}
+                      </span>
+                      {paymentMethod.is_default && (
+                        <Badge variant="secondary" className="flex items-center gap-1">
+                          <Star className="h-3 w-3" />
+                          Default
+                        </Badge>
+                      )}
+                    </div>
+
+                    <div className="text-sm text-muted-foreground flex items-center gap-4">
+                      <span>{formatCardDisplay(paymentMethod)}</span>
+                      {paymentMethod.payment_type === 'card' && formatExpiryDate(paymentMethod.card_exp_month, paymentMethod.card_exp_year) && (
+                        <span>Expires {formatExpiryDate(paymentMethod.card_exp_month, paymentMethod.card_exp_year)}</span>
+                      )}
+                      <div className="flex items-center gap-1">
+                        <Shield className="h-3 w-3" />
+                        <span className="capitalize">{paymentMethod.provider}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            </Label>
+          </div>
+        ))}
+
+               </RadioGroup>
+    </div>
+  );
+};

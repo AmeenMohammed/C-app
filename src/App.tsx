@@ -24,12 +24,13 @@ import Messages from "./pages/Messages";
 import Notifications from "./pages/Notifications";
 import SavedItems from "./pages/SavedItems";
 import Settings from "./pages/Settings";
-import PaymentMethods from "./pages/PaymentMethods";
+// Removed PaymentMethods import - using direct Paymob integration instead
 import PromotedItems from "./pages/PromotedItems";
 import HelpSupport from "./pages/HelpSupport";
 import Channels from "./pages/Channels";
 import CreateChannel from "./pages/CreateChannel";
 import LocationMap from "./pages/LocationMap";
+import PaymentSuccess from "./pages/PaymentSuccess";
 
 const queryClient = new QueryClient();
 
@@ -134,19 +135,20 @@ const App = () => (
                         </ProtectedRoute>
                       }
                     />
-                    <Route
-                      path="/payment-methods"
-                      element={
-                        <ProtectedRoute>
-                          <PaymentMethods />
-                        </ProtectedRoute>
-                      }
-                    />
+                    {/* Removed payment-methods route - using direct Paymob integration instead */}
                     <Route
                       path="/promoted-items"
                       element={
                         <ProtectedRoute>
                           <PromotedItems />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/payment-success"
+                      element={
+                        <ProtectedRoute>
+                          <PaymentSuccess />
                         </ProtectedRoute>
                       }
                     />

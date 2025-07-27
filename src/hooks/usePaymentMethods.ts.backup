@@ -1,0 +1,126 @@
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { PaymentMethod } from "@/types/payment";
+import { toast } from "sonner";
+
+export const usePaymentMethods = () => {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  // Fetch user's payment methods
+  const {
+    data: paymentMethods = [],
+    isLoading,
+    error,
+    refetch
+  } = useQuery({
+    queryKey: ['paymentMethods', user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+
+      const { data, error } = await supabase.rpc('get_user_payment_methods', {
+        user_uuid: user.id
+      });
+
+      if (error) {
+        console.error('Error fetching payment methods:', error);
+        throw error;
+      }
+
+      return data as PaymentMethod[];
+    },
+    enabled: !!user,
+  });
+
+  // Set default payment method
+  const setDefaultMutation = useMutation({
+    mutationFn: async (paymentMethodId: string) => {
+      if (!user) throw new Error("Not authenticated");
+
+      const { error } = await supabase
+        .from('payment_methods')
+        .update({ is_default: true })
+        .eq('id', paymentMethodId)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Default payment method updated');
+      queryClient.invalidateQueries({ queryKey: ['paymentMethods'] });
+    },
+    onError: (error) => {
+      console.error('Error setting default payment method:', error);
+      toast.error('Failed to update default payment method');
+    },
+  });
+
+  // Delete payment method
+  const deleteMutation = useMutation({
+    mutationFn: async (paymentMethodId: string) => {
+      if (!user) throw new Error("Not authenticated");
+
+      // Soft delete by setting is_active to false
+      const { error } = await supabase
+        .from('payment_methods')
+        .update({ is_active: false })
+        .eq('id', paymentMethodId)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      // In a real implementation, also remove from payment provider
+      // await removeFromStripe(paymentMethodId);
+    },
+    onSuccess: () => {
+      toast.success('Payment method removed');
+      queryClient.invalidateQueries({ queryKey: ['paymentMethods'] });
+    },
+    onError: (error) => {
+      console.error('Error deleting payment method:', error);
+      toast.error('Failed to remove payment method');
+    },
+  });
+
+  // Update payment method nickname
+  const updateNicknameMutation = useMutation({
+    mutationFn: async ({ paymentMethodId, nickname }: { paymentMethodId: string; nickname: string }) => {
+      if (!user) throw new Error("Not authenticated");
+
+      const { error } = await supabase
+        .from('payment_methods')
+        .update({ nickname, updated_at: new Date().toISOString() })
+        .eq('id', paymentMethodId)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Payment method updated');
+      queryClient.invalidateQueries({ queryKey: ['paymentMethods'] });
+    },
+    onError: (error) => {
+      console.error('Error updating payment method:', error);
+      toast.error('Failed to update payment method');
+    },
+  });
+
+  const defaultPaymentMethod = paymentMethods.find(pm => pm.is_default);
+  const hasPaymentMethods = paymentMethods.length > 0;
+
+  return {
+    paymentMethods,
+    defaultPaymentMethod,
+    hasPaymentMethods,
+    isLoading,
+    error,
+    refetch,
+    setDefault: setDefaultMutation.mutate,
+    isSettingDefault: setDefaultMutation.isPending,
+    deletePaymentMethod: deleteMutation.mutate,
+    isDeleting: deleteMutation.isPending,
+    updateNickname: updateNicknameMutation.mutate,
+    isUpdatingNickname: updateNicknameMutation.isPending,
+  };
+};

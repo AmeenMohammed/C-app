@@ -31,3 +31,5 @@ dist-ssr
 *.sw?
 DATABASE_SCHEMA.md
 scripts/pull-schema.js
+scripts/check-database-state.js
+STRIPE_SETUP_GUIDE.md

@@ -384,16 +384,37 @@ export function ItemGrid({ userId, isProfile = false, locationRange = 10, select
 
   // Track promotion analytics
   const trackPromotionAnalytics = async (item: Item, eventType: 'view' | 'click' | 'contact' | 'share') => {
+    console.log('🎯 Tracking promotion analytics:', {
+      hasPromotionId: !!item.promotion_id,
+      promotionId: item.promotion_id,
+      hasUser: !!user,
+      userId: user?.id,
+      eventType,
+      itemTitle: item.title
+    });
+
     if (item.promotion_id && user) {
       try {
-        await supabase.rpc('track_promotion_event', {
+        const { data, error } = await supabase.rpc('track_promotion_event', {
           promotion_uuid: item.promotion_id,
           event_type_param: eventType,
           user_uuid: user.id
         });
+
+        console.log('✅ Promotion analytics tracked successfully:', { eventType, promotionId: item.promotion_id });
+
+        if (error) {
+          console.error('❌ Promotion tracking error:', error);
+        }
       } catch (error) {
-        console.warn('Failed to track promotion analytics:', error);
+        console.error('❌ Failed to track promotion analytics:', error);
       }
+    } else {
+      console.warn('⚠️ Skipping promotion tracking:', {
+        reason: !item.promotion_id ? 'No promotion_id' : 'No user',
+        promotionId: item.promotion_id,
+        hasUser: !!user
+      });
     }
   };
 

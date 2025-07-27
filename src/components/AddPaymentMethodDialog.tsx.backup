@@ -1,0 +1,394 @@
+import { useState } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Card } from "@/components/ui/card";
+import { Loader2, CreditCard, Plus, Check, AlertCircle } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { supabase } from "@/integrations/supabase/client";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { AddPaymentMethodData } from "@/types/payment";
+
+interface AddPaymentMethodDialogProps {
+  children: React.ReactNode;
+}
+
+interface CardForm {
+  cardNumber: string;
+  expiryMonth: string;
+  expiryYear: string;
+  cvc: string;
+  nickname: string;
+  isDefault: boolean;
+}
+
+interface PayPalForm {
+  email: string;
+  nickname: string;
+  isDefault: boolean;
+}
+
+export const AddPaymentMethodDialog = ({ children }: AddPaymentMethodDialogProps) => {
+  const { user } = useAuth();
+  const { t } = useLanguage();
+  const queryClient = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [paymentType, setPaymentType] = useState<'card' | 'paypal'>('card');
+  const [cardForm, setCardForm] = useState<CardForm>({
+    cardNumber: '',
+    expiryMonth: '',
+    expiryYear: '',
+    cvc: '',
+    nickname: '',
+    isDefault: false,
+  });
+  const [paypalForm, setPaypalForm] = useState<PayPalForm>({
+    email: '',
+    nickname: '',
+    isDefault: false,
+  });
+
+  // Simulate adding payment method (in real app, integrate with Stripe/PayPal)
+  const addPaymentMethodMutation = useMutation({
+    mutationFn: async (data: AddPaymentMethodData) => {
+      if (!user) throw new Error("Not authenticated");
+
+      // Simulate API call to payment provider
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      // In a real implementation:
+      // 1. Create payment method with Stripe/PayPal
+      // 2. Get the provider payment method ID
+      // 3. Store in database with provider ID
+
+      const { data: result, error } = await supabase
+        .from('payment_methods')
+        .insert({
+          user_id: user.id,
+          ...data,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return result;
+    },
+    onSuccess: () => {
+      toast.success(t('paymentMethodAdded') || 'Payment method added successfully');
+      setOpen(false);
+      resetForms();
+      queryClient.invalidateQueries({ queryKey: ['paymentMethods'] });
+    },
+    onError: (error) => {
+      console.error('Error adding payment method:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to add payment method');
+    },
+  });
+
+  const resetForms = () => {
+    setCardForm({
+      cardNumber: '',
+      expiryMonth: '',
+      expiryYear: '',
+      cvc: '',
+      nickname: '',
+      isDefault: false,
+    });
+    setPaypalForm({
+      email: '',
+      nickname: '',
+      isDefault: false,
+    });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (paymentType === 'card') {
+      // Basic card validation
+      if (!cardForm.cardNumber || cardForm.cardNumber.length < 16) {
+        toast.error('Please enter a valid card number');
+        return;
+      }
+      if (!cardForm.expiryMonth || !cardForm.expiryYear) {
+        toast.error('Please enter card expiry date');
+        return;
+      }
+      if (!cardForm.cvc || cardForm.cvc.length < 3) {
+        toast.error('Please enter CVC');
+        return;
+      }
+
+      // Simulate card processing
+      const cardBrand = getCardBrand(cardForm.cardNumber);
+      const data: AddPaymentMethodData = {
+        payment_type: 'card',
+        provider: 'stripe',
+        provider_payment_method_id: `pm_sim_${Date.now()}`,
+        card_brand: cardBrand,
+        card_last_four: cardForm.cardNumber.slice(-4),
+        card_exp_month: parseInt(cardForm.expiryMonth),
+        card_exp_year: parseInt(cardForm.expiryYear),
+        card_fingerprint: `fp_${cardForm.cardNumber.slice(-8)}`,
+        nickname: cardForm.nickname || `${cardBrand} •••• ${cardForm.cardNumber.slice(-4)}`,
+        is_default: cardForm.isDefault,
+      };
+
+      addPaymentMethodMutation.mutate(data);
+    } else {
+      // PayPal validation
+      if (!paypalForm.email || !paypalForm.email.includes('@')) {
+        toast.error('Please enter a valid PayPal email');
+        return;
+      }
+
+      const data: AddPaymentMethodData = {
+        payment_type: 'paypal',
+        provider: 'paypal',
+        provider_payment_method_id: `pp_sim_${Date.now()}`,
+        paypal_email: paypalForm.email,
+        nickname: paypalForm.nickname || `PayPal (${paypalForm.email})`,
+        is_default: paypalForm.isDefault,
+      };
+
+      addPaymentMethodMutation.mutate(data);
+    }
+  };
+
+  const getCardBrand = (cardNumber: string): string => {
+    const number = cardNumber.replace(/\D/g, '');
+    if (number.startsWith('4')) return 'visa';
+    if (number.startsWith('5') || number.startsWith('2')) return 'mastercard';
+    if (number.startsWith('34') || number.startsWith('37')) return 'amex';
+    return 'card';
+  };
+
+  const formatCardNumber = (value: string) => {
+    const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
+    const matches = v.match(/\d{4,16}/g);
+    const match = matches && matches[0] || '';
+    const parts = [];
+    for (let i = 0, len = match.length; i < len; i += 4) {
+      parts.push(match.substring(i, i + 4));
+    }
+    if (parts.length) {
+      return parts.join(' ');
+    } else {
+      return v;
+    }
+  };
+
+  const years = Array.from({ length: 20 }, (_, i) => {
+    const year = new Date().getFullYear() + i;
+    return year.toString();
+  });
+
+  const months = Array.from({ length: 12 }, (_, i) => {
+    const month = (i + 1).toString().padStart(2, '0');
+    return month;
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        {children}
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Plus className="h-5 w-5" />
+            {t('addPaymentMethod') || 'Add Payment Method'}
+          </DialogTitle>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Payment Type Selection */}
+          <div className="space-y-2">
+            <Label>{t('paymentType') || 'Payment Type'}</Label>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                variant={paymentType === 'card' ? 'default' : 'outline'}
+                className="h-12"
+                onClick={() => setPaymentType('card')}
+              >
+                <CreditCard className="h-4 w-4 mr-2" />
+                Card
+              </Button>
+              <Button
+                type="button"
+                variant={paymentType === 'paypal' ? 'default' : 'outline'}
+                className="h-12"
+                onClick={() => setPaymentType('paypal')}
+              >
+                PayPal
+              </Button>
+            </div>
+          </div>
+
+          {/* Card Form */}
+          {paymentType === 'card' && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="cardNumber">Card Number</Label>
+                <Input
+                  id="cardNumber"
+                  placeholder="1234 5678 9012 3456"
+                  value={cardForm.cardNumber}
+                  onChange={(e) => setCardForm(prev => ({
+                    ...prev,
+                    cardNumber: formatCardNumber(e.target.value)
+                  }))}
+                  maxLength={19}
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                <div className="space-y-2">
+                  <Label htmlFor="expiryMonth">Month</Label>
+                  <Select value={cardForm.expiryMonth} onValueChange={(value) => setCardForm(prev => ({ ...prev, expiryMonth: value }))}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="MM" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {months.map(month => (
+                        <SelectItem key={month} value={month}>{month}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="expiryYear">Year</Label>
+                  <Select value={cardForm.expiryYear} onValueChange={(value) => setCardForm(prev => ({ ...prev, expiryYear: value }))}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="YYYY" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {years.map(year => (
+                        <SelectItem key={year} value={year}>{year}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="cvc">CVC</Label>
+                  <Input
+                    id="cvc"
+                    placeholder="123"
+                    value={cardForm.cvc}
+                    onChange={(e) => setCardForm(prev => ({
+                      ...prev,
+                      cvc: e.target.value.replace(/\D/g, '').slice(0, 4)
+                    }))}
+                    maxLength={4}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="cardNickname">Nickname (Optional)</Label>
+                <Input
+                  id="cardNickname"
+                  placeholder="Main Card, Business Card, etc."
+                  value={cardForm.nickname}
+                  onChange={(e) => setCardForm(prev => ({ ...prev, nickname: e.target.value }))}
+                />
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="cardDefault"
+                  checked={cardForm.isDefault}
+                  onCheckedChange={(checked) => setCardForm(prev => ({ ...prev, isDefault: checked as boolean }))}
+                />
+                <Label htmlFor="cardDefault">Set as default payment method</Label>
+              </div>
+            </div>
+          )}
+
+          {/* PayPal Form */}
+          {paymentType === 'paypal' && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="paypalEmail">PayPal Email</Label>
+                <Input
+                  id="paypalEmail"
+                  type="email"
+                  placeholder="your-email@example.com"
+                  value={paypalForm.email}
+                  onChange={(e) => setPaypalForm(prev => ({ ...prev, email: e.target.value }))}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="paypalNickname">Nickname (Optional)</Label>
+                <Input
+                  id="paypalNickname"
+                  placeholder="Personal PayPal, Business PayPal, etc."
+                  value={paypalForm.nickname}
+                  onChange={(e) => setPaypalForm(prev => ({ ...prev, nickname: e.target.value }))}
+                />
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="paypalDefault"
+                  checked={paypalForm.isDefault}
+                  onCheckedChange={(checked) => setPaypalForm(prev => ({ ...prev, isDefault: checked as boolean }))}
+                />
+                <Label htmlFor="paypalDefault">Set as default payment method</Label>
+              </div>
+            </div>
+          )}
+
+          {/* Submit Button */}
+          <div className="flex gap-2 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1"
+              onClick={() => setOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              className="flex-1"
+              disabled={addPaymentMethodMutation.isPending}
+            >
+              {addPaymentMethodMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Adding...
+                </>
+              ) : (
+                <>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Method
+                </>
+              )}
+            </Button>
+          </div>
+        </form>
+
+        {/* Security Notice */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-4">
+          <div className="flex items-start gap-2">
+            <AlertCircle className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+            <div className="text-sm text-blue-800">
+              <p className="font-medium">Secure Payment Processing</p>
+              <p className="mt-1">Your payment information is encrypted and securely processed by our payment partners. We never store your full card details on our servers.</p>
+            </div>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};

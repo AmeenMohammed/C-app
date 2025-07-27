@@ -1,48 +1,85 @@
-// Simple Stripe payment integration for promotions
-// In a production environment, you would need to install @stripe/stripe-js
-// and handle server-side payment processing
+// Enhanced Paymob integration for promotions with saved payment methods
+// CURRENT: Simulation mode - perfect for development and testing
+// TOGGLE: Set VITE_ENABLE_REAL_PAYMENTS=true to use real Paymob payments
+// In a production environment, you'll use Paymob credentials from your dashboard
+// and handle server-side payment processing with Paymob APIs
 
-interface PaymentData {
-  amount: number;
-  currency: string;
-  description: string;
-  promotionType: 'basic' | 'standard' | 'premium';
-}
+import { PaymentData, PaymentResult } from "@/types/payment";
 
-interface PaymentResult {
-  success: boolean;
-  paymentId?: string;
-  error?: string;
-}
+// Toggle between simulation and real payments
+const USE_REAL_PAYMENTS = import.meta.env.VITE_ENABLE_REAL_PAYMENTS === 'true';
 
-// Simulated Stripe payment processing
+console.log('💳 Payment System Status:', {
+  mode: USE_REAL_PAYMENTS ? 'REAL_PAYMOB_PAYMENTS' : 'SIMULATION_MODE',
+  provider: USE_REAL_PAYMENTS ? 'Paymob Egypt' : 'Simulation',
+  toggle: 'Set VITE_ENABLE_REAL_PAYMENTS=true for real payments',
+  status: USE_REAL_PAYMENTS ? '🇪🇬 Paymob Egypt payments enabled - real payments!' : '✅ Safe simulation mode',
+  features: USE_REAL_PAYMENTS ? ['Cards', 'Wallets', 'Installments', 'Egyptian-built', 'Developer-friendly'] : ['Full payment flow simulation']
+});
+
 export const processPromotionPayment = async (
   paymentData: PaymentData
 ): Promise<PaymentResult> => {
+  // Route to real payment implementation if enabled
+  if (USE_REAL_PAYMENTS) {
+    console.log('🔄 Routing to REAL payment processing...');
+    try {
+      // Using Paymob - Egyptian-built payment platform perfect for local market
+      const { processRealPromotionPayment } = await import('./paymobPayment.production');
+      return processRealPromotionPayment(paymentData);
+    } catch (error) {
+      console.error('❌ Paymob payment system failed to load:', error);
+      return {
+        success: false,
+        error: 'Paymob payment system unavailable. Please check configuration or contact support.',
+      };
+    }
+  }
+
+  // Continue with simulation
+  console.log('🎮 Using payment simulation mode');
+
   try {
-    // Simulate payment processing delay
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    // Simulate realistic payment processing delay
+    const processingTime = paymentData.paymentMethodId ? 1000 : 2000; // Faster for saved methods
+    await new Promise(resolve => setTimeout(resolve, processingTime));
 
     // In a real implementation, you would:
-    // 1. Create a Stripe payment intent on your backend
-    // 2. Confirm the payment with Stripe
-    // 3. Handle webhooks for payment confirmation
-    // 4. Store payment records in your database
+    // 1. If paymentMethodId is provided, use saved payment method
+    // 2. Create a Stripe payment intent on your backend
+    // 3. Confirm the payment with Stripe (using saved PM or collecting new payment info)
+    // 4. Handle webhooks for payment confirmation
+    // 5. Store payment records in your database
 
-    // For now, we'll simulate a successful payment
-    const paymentId = `pi_sim_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    // Simulate payment processing
+    let paymentId: string;
+    let paymentIntentId: string;
 
-    // Simulate occasional failures (5% chance)
-    if (Math.random() < 0.05) {
-      throw new Error('Payment processing failed. Please try again.');
+    if (paymentData.paymentMethodId) {
+      // Using saved payment method
+      paymentId = `pi_saved_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      paymentIntentId = `pi_${paymentData.paymentMethodId}_${Date.now()}`;
+
+      console.log('💳 Simulating saved payment method:', paymentData.paymentMethodId);
+
+      // Simulate lower failure rate for saved payment methods (2% chance)
+      if (Math.random() < 0.02) {
+        throw new Error('Payment failed. Your payment method may have expired or been declined.');
+      }
+    } else {
+      // Fallback for when no payment method is properly selected
+      throw new Error('No payment method provided. Please select a payment method.');
     }
+
+    console.log('✅ Simulated payment successful:', paymentId);
 
     return {
       success: true,
-      paymentId: paymentId,
+      paymentId,
+      paymentIntentId,
     };
   } catch (error) {
-    console.error('Payment processing error:', error);
+    console.error('❌ Simulated payment processing error:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown payment error',
@@ -52,13 +89,18 @@ export const processPromotionPayment = async (
 
 // Get payment amount based on promotion type (in EGP)
 export const getPromotionPrice = (promotionType: 'basic' | 'standard' | 'premium'): number => {
+  // Check for environment variable pricing first
+  const basicPrice = import.meta.env.VITE_BASIC_PROMOTION_PRICE;
+  const standardPrice = import.meta.env.VITE_STANDARD_PROMOTION_PRICE;
+  const premiumPrice = import.meta.env.VITE_PREMIUM_PROMOTION_PRICE;
+
   switch (promotionType) {
     case 'basic':
-      return 10; // 24 hours - 10 EGP
+      return basicPrice ? parseInt(basicPrice) : 10; // 24 hours - 10 EGP
     case 'standard':
-      return 15; // 48 hours - 15 EGP
+      return standardPrice ? parseInt(standardPrice) : 15; // 48 hours - 15 EGP
     case 'premium':
-      return 20; // 72 hours - 20 EGP
+      return premiumPrice ? parseInt(premiumPrice) : 20; // 72 hours - 20 EGP
     default:
       return 10;
   }
@@ -86,56 +128,17 @@ export const formatPromotionPrice = (amount: number): string => {
   }).format(amount);
 };
 
-// Instructions for implementing real Stripe integration:
-/*
-1. Install Stripe dependencies:
-   npm install @stripe/stripe-js @stripe/react-stripe-js
-
-2. Create a backend endpoint for creating payment intents:
-   POST /api/create-payment-intent
-   - Validate user authentication
-   - Create Stripe payment intent
-   - Return client_secret
-
-3. Add Stripe public key to environment variables:
-   VITE_STRIPE_PUBLIC_KEY=pk_test_...
-
-4. Implement proper payment confirmation:
-   - Use Stripe Elements for secure card input
-   - Confirm payment on frontend
-   - Handle webhooks on backend for payment confirmation
-   - Update promotion status in database
-
-5. Handle payment failures and refunds:
-   - Implement retry logic
-   - Handle declined cards
-   - Implement refund functionality for cancelled promotions
-
-Example real implementation:
-
-import { loadStripe } from '@stripe/stripe-js';
-
-const stripePromise = loadStripe(process.env.VITE_STRIPE_PUBLIC_KEY!);
-
-export const processRealPromotionPayment = async (paymentData: PaymentData) => {
-  const stripe = await stripePromise;
-
-  // Create payment intent on your backend
-  const response = await fetch('/api/create-payment-intent', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(paymentData),
-  });
-
-  const { client_secret } = await response.json();
-
-  // Confirm payment with Stripe
-  const result = await stripe.confirmCardPayment(client_secret, {
-    payment_method: {
-      card: cardElement, // Stripe card element
+// Payment system status for debugging
+export const getPaymentSystemStatus = () => {
+  return {
+    mode: USE_REAL_PAYMENTS ? 'REAL_PAYMENTS' : 'SIMULATION',
+    realPaymentsEnabled: USE_REAL_PAYMENTS,
+    stripePublicKey: USE_REAL_PAYMENTS ? !!import.meta.env.VITE_STRIPE_PUBLIC_KEY : 'not_required',
+    apiUrl: import.meta.env.VITE_API_URL || '/api',
+    pricing: {
+      basic: getPromotionPrice('basic'),
+      standard: getPromotionPrice('standard'),
+      premium: getPromotionPrice('premium'),
     }
-  });
-
-  return result;
+  };
 };
-*/

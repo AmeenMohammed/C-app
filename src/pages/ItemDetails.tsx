@@ -27,6 +27,7 @@ interface Item {
   listing_type?: string;
   status?: string[];
   created_at?: string;
+  promotion_id?: string; // For tracking promoted item contacts
 }
 
 interface Seller {
@@ -124,33 +125,56 @@ const ItemDetails = () => {
         setIsLoading(true);
         setError(null);
 
-        // Fetch item from database
+        // Fetch item from database with promotion info
         const { data, error } = await supabase
           .from('items')
-          .select('*')
+          .select(`
+            *,
+            promotions!inner(id)
+          `)
           .eq('id', itemId)
-          .single();
+          .eq('promotions.status', 'active')
+          .maybeSingle();
+
+        // If no promoted version found, try regular item
+        let itemData = data;
+        if (!itemData) {
+          const { data: regularData, error: regularError } = await supabase
+            .from('items')
+            .select('*')
+            .eq('id', itemId)
+            .single();
+
+          if (regularError) throw regularError;
+          itemData = regularData;
+        }
 
         if (error) {
           throw error;
         }
 
-        if (data) {
-          setItem(data as Item);
+        if (itemData) {
+          // Process item data with promotion info
+          const processedItem = {
+            ...itemData,
+            promotion_id: itemData.promotions?.[0]?.id || null
+          } as Item;
+
+          setItem(processedItem);
 
           // Fetch seller information
           const { data: sellerData, error: sellerError } = await supabase
             .from('user_profiles')
             .select('*')
-            .eq('user_id', data.seller_id)
+            .eq('user_id', itemData.seller_id)
             .maybeSingle(); // Use maybeSingle() instead of single() to avoid PGRST116
 
           if (sellerError) {
             console.error('Error fetching seller:', sellerError);
             // Set default seller if there's an actual error
             setSeller({
-              id: data.seller_id,
-              user_id: data.seller_id,
+              id: itemData.seller_id,
+              user_id: itemData.seller_id,
               full_name: t('unknownUser'),
               avatar_url: null,
               location: t('locationNotSet')
@@ -158,8 +182,8 @@ const ItemDetails = () => {
           } else if (!sellerData) {
             // No profile found, create fallback
             setSeller({
-              id: data.seller_id,
-              user_id: data.seller_id,
+              id: itemData.seller_id,
+              user_id: itemData.seller_id,
               full_name: t('unknownUser'),
               avatar_url: null,
               location: t('locationNotSet')
@@ -342,6 +366,25 @@ const ItemDetails = () => {
 
         if (error) throw error;
         conversationId = newConversation.id;
+      }
+
+      // Track promotion contact if this is a promoted item
+      if (item.promotion_id && user) {
+        try {
+          await supabase.rpc('track_promotion_event', {
+            promotion_uuid: item.promotion_id,
+            event_type_param: 'contact',
+            user_uuid: user.id,
+            metadata_param: {
+              contact_type: 'seller_contact',
+              item_id: item.id,
+              seller_id: sellerId
+            }
+          });
+          console.log('✅ Promotion contact tracked successfully:', { promotionId: item.promotion_id });
+        } catch (error) {
+          console.error('❌ Failed to track promotion contact:', error);
+        }
       }
 
       // Navigate to messages with proper seller information and item details

@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, Menu, Bell, Heart, Settings, CreditCard, ArrowUp, LogOut, ShoppingCart, TrendingUp } from "lucide-react";
+import { ArrowLeft, ArrowRight, Menu, Bell, Heart, Settings, ArrowUp, LogOut, ShoppingCart, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import {
@@ -89,10 +89,6 @@ export function TopBar({ title, showBackButton = true, onBackClick }: TopBarProp
             <DropdownMenuItem onClick={() => navigate('/settings')} className={`${isRTL ? 'flex-row-reverse' : ''}`}>
               <Settings className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
               {t('settings')}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate('/payment-methods')} className={`${isRTL ? 'flex-row-reverse' : ''}`}>
-              <CreditCard className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
-              {t('paymentMethods')}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout} className={`${isRTL ? 'flex-row-reverse' : ''}`}>

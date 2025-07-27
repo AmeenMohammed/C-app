@@ -16,6 +16,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { formatPrice } from "@/utils/currency";
 import { processPromotionPayment, getPromotionPrice, getPromotionDuration } from "@/utils/stripePayment";
+// Removed PaymentMethodSelector and usePaymentMethods since direct Paymob integration doesn't use saved payment methods
+
 import { Link } from "react-router-dom";
 
 interface PromotedItem {
@@ -51,8 +53,12 @@ const PromotedItems = () => {
   const queryClient = useQueryClient();
   const [selectedItemId, setSelectedItemId] = useState<string>("");
   const [promotionType, setPromotionType] = useState<"basic" | "standard" | "premium">("basic");
+  // Removed selectedPaymentMethodId - direct Paymob integration doesn't use saved payment methods
+
   const [isPromoting, setIsPromoting] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
+
+  // Removed payment methods - direct Paymob integration handles payment collection
 
   // Fetch user's promoted items with analytics
   const { data: promotedItems, isLoading: loadingPromoted, refetch: refetchPromoted } = useQuery({
@@ -92,34 +98,31 @@ const PromotedItems = () => {
         return [];
       }
 
-      // Filter out already promoted items
-      const promotedItemIds = new Set(promotedItems?.map(p => p.item_id) || []);
-      return (data as UserItem[]).filter(item => !promotedItemIds.has(item.id));
+      // Filter out items with ACTIVE promotions only (cancelled/expired items can be promoted again)
+      const activePromotedItemIds = new Set(promotedItems?.filter(p => p.status === 'active').map(p => p.item_id) || []);
+      return (data as UserItem[]).filter(item => !activePromotedItemIds.has(item.id));
     },
     enabled: !!user && promotedItems !== undefined,
   });
 
-  // Promotion mutation with Stripe payment
+  // Promotion mutation with saved payment methods only
   const promoteMutation = useMutation({
-    mutationFn: async ({ itemId, type }: { itemId: string, type: "basic" | "standard" | "premium" }) => {
+    mutationFn: async ({
+      itemId,
+      type,
+      paymentMethodId
+    }: {
+      itemId: string;
+      type: "basic" | "standard" | "premium";
+      paymentMethodId?: string; // Optional for direct Paymob integration
+    }) => {
       if (!user) throw new Error("Not authenticated");
 
       const amount = getPromotionPrice(type);
       const duration = getPromotionDuration(type);
 
-      // Process payment with Stripe
-      const paymentResult = await processPromotionPayment({
-        amount,
-        currency: 'EGP',
-        description: `${type} promotion for item`,
-        promotionType: type,
-      });
-
-      if (!paymentResult.success) {
-        throw new Error(paymentResult.error || 'Payment failed');
-      }
-
-      const { data, error } = await supabase
+      // First, create promotion as 'pending'
+      const { data: promotionData, error: promotionError } = await supabase
         .from('promotions')
         .insert({
           item_id: itemId,
@@ -128,18 +131,76 @@ const PromotedItems = () => {
           start_date: new Date().toISOString(),
           end_date: new Date(Date.now() + duration * 60 * 60 * 1000).toISOString(),
           amount_paid: amount,
-          payment_method: 'stripe',
-          payment_id: paymentResult.paymentId,
-          status: 'active'
+          payment_method: paymentMethodId ? 'saved_method' : 'direct_paymob',
+          payment_method_id: paymentMethodId || null, // null for direct integration
+          payment_id: `pending_${Date.now()}`, // Temporary ID
+          status: 'pending' // Wait for payment confirmation
         })
         .select()
         .single();
 
+      if (promotionError) throw promotionError;
+
+      // Store promotion ID for payment callback
+      localStorage.setItem('pendingPromotionId', promotionData.id);
+
+      // Process payment with saved payment method
+      const paymentResult = await processPromotionPayment({
+        amount,
+        currency: 'EGP',
+        description: `${type} promotion for item`,
+        promotionType: type,
+        paymentMethodId, // null for direct integration, or saved payment method ID
+      });
+
+      if (!paymentResult.success) {
+        // Cancel the pending promotion if payment fails immediately
+        await supabase
+          .from('promotions')
+          .update({ status: 'cancelled' })
+          .eq('id', promotionData.id);
+
+        throw new Error(paymentResult.error || 'Payment failed');
+      }
+
+      // Update promotion with real payment ID
+      const { data, error } = await supabase
+        .from('promotions')
+        .update({
+          payment_id: paymentResult.paymentId || paymentResult.paymentIntentId
+        })
+        .eq('id', promotionData.id)
+        .select()
+        .single();
+
       if (error) throw error;
-      return data;
+
+      // If payment requires action (redirect), don't activate yet
+      if (paymentResult.requiresAction || paymentResult.redirectUrl) {
+        console.log('💳 Payment requires action - promotion will be activated after payment confirmation');
+        return { ...data, pendingPayment: true };
+      }
+
+      // For immediate payments (simulation), activate right away
+      const { data: activatedData, error: activateError } = await supabase
+        .from('promotions')
+        .update({ status: 'active' })
+        .eq('id', promotionData.id)
+        .select()
+        .single();
+
+      if (activateError) throw activateError;
+      return activatedData;
     },
-    onSuccess: () => {
-      toast.success(t('promotionSuccessful'));
+    onSuccess: (data) => {
+      // Only show success message for immediate payments (simulation)
+      // For redirect payments, success will be shown on the payment success page
+      if (!data?.pendingPayment) {
+        toast.success(t('promotionSuccessful'));
+      } else {
+        toast.info('Redirecting to payment...');
+      }
+
       setSelectedItemId("");
       setShowDialog(false);
       queryClient.invalidateQueries({ queryKey: ['promotedItems'] });
@@ -148,6 +209,71 @@ const PromotedItems = () => {
     onError: (error) => {
       console.error('Promotion error:', error);
       toast.error(error instanceof Error ? error.message : t('promotionFailed'));
+    },
+  });
+
+  // Retry payment mutation for pending promotions
+  const retryPaymentMutation = useMutation({
+    mutationFn: async (promotionData: { promotionId: string; itemId: string; promotionType: string; amount: number }) => {
+      if (!user) throw new Error("Not authenticated");
+
+      // Store promotion ID for payment callback
+      localStorage.setItem('pendingPromotionId', promotionData.promotionId);
+
+      // Process payment again
+      const paymentResult = await processPromotionPayment({
+        amount: promotionData.amount,
+        currency: 'EGP',
+        description: `${promotionData.promotionType} promotion for item`,
+        promotionType: promotionData.promotionType as "basic" | "standard" | "premium",
+        paymentMethodId: undefined, // Direct integration
+      });
+
+      if (!paymentResult.success) {
+        throw new Error(paymentResult.error || 'Payment failed');
+      }
+
+      // Update promotion with real payment ID
+      const { data, error } = await supabase
+        .from('promotions')
+        .update({
+          payment_id: paymentResult.paymentId || paymentResult.paymentIntentId
+        })
+        .eq('id', promotionData.promotionId)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // If payment requires action (redirect), return pending status
+      if (paymentResult.requiresAction || paymentResult.redirectUrl) {
+        console.log('💳 Payment requires action - promotion will be activated after payment confirmation');
+        return { ...data, pendingPayment: true };
+      }
+
+      // For immediate payments (simulation), activate right away
+      const { data: activatedData, error: activateError } = await supabase
+        .from('promotions')
+        .update({ status: 'active' })
+        .eq('id', promotionData.promotionId)
+        .select()
+        .single();
+
+      if (activateError) throw activateError;
+      return activatedData;
+    },
+    onSuccess: (data) => {
+      if (!data?.pendingPayment) {
+        toast.success('Payment completed! Promotion is now active.');
+      } else {
+        toast.info('Redirecting to payment...');
+      }
+      queryClient.invalidateQueries({ queryKey: ['promotedItems'] });
+      queryClient.invalidateQueries({ queryKey: ['availableItems'] });
+    },
+    onError: (error) => {
+      console.error('Retry payment error:', error);
+      toast.error(error instanceof Error ? error.message : 'Payment retry failed');
     },
   });
 
@@ -162,13 +288,13 @@ const PromotedItems = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success(t('promotionCancelled'));
+      toast.success('Promotion cancelled successfully');
       queryClient.invalidateQueries({ queryKey: ['promotedItems'] });
       queryClient.invalidateQueries({ queryKey: ['availableItems'] });
     },
     onError: (error) => {
       console.error('Cancel error:', error);
-      toast.error(t('cancellationFailed'));
+      toast.error('Failed to cancel promotion');
     },
   });
 
@@ -178,20 +304,30 @@ const PromotedItems = () => {
       return;
     }
 
+    // Note: No payment method validation needed for direct Paymob integration
+    // User will be redirected to Paymob's payment page to enter payment details
+
     setIsPromoting(true);
     try {
-      await promoteMutation.mutateAsync({ itemId: selectedItemId, type: promotionType });
+      await promoteMutation.mutateAsync({
+        itemId: selectedItemId,
+        type: promotionType,
+        paymentMethodId: undefined // No saved payment method for direct Paymob integration
+      });
     } finally {
       setIsPromoting(false);
     }
   };
 
+  // Removed auto-select logic - direct Paymob integration doesn't use saved payment methods
+
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active': return 'bg-green-100 text-green-800';
-      case 'expired': return 'bg-red-100 text-red-800';
-      case 'cancelled': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'active': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+      case 'pending': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
+      case 'expired': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+      case 'cancelled': return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
+      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
     }
   };
 
@@ -236,6 +372,7 @@ const PromotedItems = () => {
 
   const activePromotions = promotedItems?.filter(item => item.status === 'active') || [];
   const expiredPromotions = promotedItems?.filter(item => item.status !== 'active') || [];
+  const pendingCount = promotedItems?.filter(item => item.status === 'pending').length || 0;
 
   return (
     <div className="min-h-screen bg-background pb-16">
@@ -306,7 +443,7 @@ const PromotedItems = () => {
 
             <div className="space-y-4">
               <div>
-                <label className="text-sm font-medium mb-2 block">{t('selectItem')}</label>
+                <label className="text-sm font-medium mb-2 block text-foreground">{t('selectItem')}</label>
                 <Select value={selectedItemId} onValueChange={setSelectedItemId}>
                   <SelectTrigger>
                     <SelectValue placeholder={t('chooseItemToPromote')} />
@@ -334,7 +471,7 @@ const PromotedItems = () => {
               </div>
 
               <div>
-                <label className="text-sm font-medium mb-2 block">{t('promotionType')}</label>
+                <label className="text-sm font-medium mb-2 block text-foreground">{t('promotionType')}</label>
                 <Select value={promotionType} onValueChange={(value: "basic" | "standard" | "premium") => setPromotionType(value)}>
                   <SelectTrigger>
                     <SelectValue />
@@ -342,19 +479,19 @@ const PromotedItems = () => {
                   <SelectContent>
                     <SelectItem value="basic">
                       <div>
-                        <p className="font-medium">{t('basic')} - {getPromotionPrice('basic')} EGP</p>
+                        <p className="font-medium text-foreground">{t('basic')} - {getPromotionPrice('basic')} EGP</p>
                         <p className="text-sm text-muted-foreground">{t('24HoursPromotion')}</p>
                       </div>
                     </SelectItem>
                     <SelectItem value="standard">
                       <div>
-                        <p className="font-medium">{t('standard')} - {getPromotionPrice('standard')} EGP</p>
+                        <p className="font-medium text-foreground">{t('standard')} - {getPromotionPrice('standard')} EGP</p>
                         <p className="text-sm text-muted-foreground">{t('48HoursPromotion')}</p>
                       </div>
                     </SelectItem>
                     <SelectItem value="premium">
                       <div>
-                        <p className="font-medium">{t('premium')} - {getPromotionPrice('premium')} EGP</p>
+                        <p className="font-medium text-foreground">{t('premium')} - {getPromotionPrice('premium')} EGP</p>
                         <p className="text-sm text-muted-foreground">{t('72HoursPromotionPriority')}</p>
                       </div>
                     </SelectItem>
@@ -362,14 +499,42 @@ const PromotedItems = () => {
                 </Select>
               </div>
 
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <h4 className="font-medium mb-2">{t('promotionBenefits')}</h4>
-                <ul className="text-sm text-muted-foreground space-y-1">
+              {/* Payment Information */}
+              <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-4 rounded-lg">
+                <h4 className="font-medium mb-2 text-foreground">💳 Payment Method</h4>
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  You'll be redirected to Paymob's secure payment page where you can pay with:
+                </p>
+                <ul className="text-sm text-blue-600 dark:text-blue-400 mt-2 space-y-1">
+                  <li>• Credit/Debit Cards (Visa, Mastercard, Meeza)</li>
+                  <li>• Mobile Wallets (Fawry, Vodafone Cash, etc.)</li>
+                  <li>• Installment Plans</li>
+                </ul>
+              </div>
+
+              <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 p-4 rounded-lg">
+                <h4 className="font-medium mb-2 text-foreground">{t('promotionBenefits')}</h4>
+                <ul className="text-sm text-green-700 dark:text-green-300 space-y-1">
                   <li>• {t('appearAtTopOfFeed')}</li>
                   <li>• {t('highlightedWithPromotedBadge')}</li>
                   <li>• {t('higherVisibilityInSearchResults')}</li>
                   <li>• {t('detailedAnalytics')}</li>
                 </ul>
+              </div>
+
+              {/* Pricing Summary */}
+              <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 p-4 rounded-lg">
+                <div className="flex justify-between items-center">
+                  <span className="font-medium text-foreground">Total Cost:</span>
+                  <span className="text-lg font-bold text-primary">
+                    {getPromotionPrice(promotionType)} EGP
+                  </span>
+                </div>
+                <div className="text-sm text-muted-foreground mt-1">
+                  {promotionType === 'basic' && '24 hours promotion'}
+                  {promotionType === 'standard' && '48 hours promotion'}
+                  {promotionType === 'premium' && '72 hours premium promotion'}
+                </div>
               </div>
 
               <Button
@@ -384,10 +549,13 @@ const PromotedItems = () => {
         </Dialog>
 
         {/* Promoted Items List */}
-        <Tabs defaultValue="active" className="space-y-4">
+        <Tabs key={`tabs-${activePromotions.length}-${expiredPromotions.length}`} defaultValue="active" className="space-y-4">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="active">{t('activePromotions')} ({activePromotions.length})</TabsTrigger>
-            <TabsTrigger value="history">{t('promotionHistory')} ({expiredPromotions.length})</TabsTrigger>
+            <TabsTrigger value="history">
+              {t('promotionHistory')} ({expiredPromotions.length})
+              {pendingCount > 0 && <span className="ml-1 text-yellow-600">• {pendingCount} pending</span>}
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="active" className="space-y-4">
@@ -488,18 +656,22 @@ const PromotedItems = () => {
               </Card>
             ) : (
               expiredPromotions.map((item) => (
-                <Card key={item.promotion_id} className="p-6 opacity-60">
+                <Card key={item.promotion_id} className={`p-6 ${item.status === 'pending' ? '' : 'opacity-60'}`}>
                   <div className="flex items-start gap-4">
-                    <img
-                      src={item.images[0]}
-                      alt={item.title}
-                      className="w-20 h-20 object-cover rounded-lg"
-                    />
+                    <Link to={`/items/${item.item_id}`}>
+                      <img
+                        src={item.images[0]}
+                        alt={item.title}
+                        className="w-20 h-20 object-cover rounded-lg"
+                      />
+                    </Link>
 
                     <div className="flex-1 space-y-2">
                       <div className="flex items-start justify-between">
                         <div>
-                          <h3 className="font-semibold">{item.title}</h3>
+                          <Link to={`/items/${item.item_id}`}>
+                            <h3 className="font-semibold hover:text-primary">{item.title}</h3>
+                          </Link>
                           <p className="text-muted-foreground">
                             {formatPrice(item.price, item.currency)}
                           </p>
@@ -530,12 +702,41 @@ const PromotedItems = () => {
                           <span>${item.amount_paid}</span>
                         </div>
                       </div>
+
+                      {/* Action buttons for pending promotions */}
+                      {item.status === 'pending' && (
+                        <div className="flex items-center gap-2 pt-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => retryPaymentMutation.mutate({
+                              promotionId: item.promotion_id,
+                              itemId: item.item_id,
+                              promotionType: item.promotion_type,
+                              amount: item.amount_paid
+                            })}
+                            disabled={retryPaymentMutation.isPending}
+                          >
+                            {retryPaymentMutation.isPending ? t('processing') : 'Retry Payment'}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => cancelMutation.mutate(item.promotion_id)}
+                            disabled={cancelMutation.isPending}
+                          >
+                            {cancelMutation.isPending ? t('processing') : t('cancelPromotion')}
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </Card>
               ))
             )}
           </TabsContent>
+
+
         </Tabs>
       </div>
 

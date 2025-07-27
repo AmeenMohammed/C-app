@@ -436,12 +436,12 @@ const PromotedItems = () => {
               {t('promoteNewItem')}
             </Button>
           </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
+          <DialogContent className="max-h-[90vh] overflow-hidden flex flex-col">
+            <DialogHeader className="flex-shrink-0">
               <DialogTitle>{t('promoteItem')}</DialogTitle>
             </DialogHeader>
 
-            <div className="space-y-4">
+            <div className="space-y-4 overflow-y-auto flex-1 pr-1 max-h-[60vh] scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 dark:scrollbar-thumb-gray-600 dark:scrollbar-track-gray-800">
               <div>
                 <label className="text-sm font-medium mb-2 block text-foreground">{t('selectItem')}</label>
                 <Select value={selectedItemId} onValueChange={setSelectedItemId}>
@@ -537,6 +537,10 @@ const PromotedItems = () => {
                 </div>
               </div>
 
+            </div>
+
+            {/* Fixed footer with promote button */}
+            <div className="flex-shrink-0 pt-4 border-t border-border bg-background">
               <Button
                 onClick={handlePromote}
                 disabled={!selectedItemId || isPromoting}

@@ -5,16 +5,19 @@
 // and handle server-side payment processing with Paymob APIs
 
 import { PaymentData, PaymentResult } from "@/types/payment";
+import { supabase } from "@/integrations/supabase/client";
 
 // Toggle between simulation and real payments
-const USE_REAL_PAYMENTS = import.meta.env.VITE_ENABLE_REAL_PAYMENTS === 'true';
+// Auto-enable real payments in production, or when explicitly enabled
+const USE_REAL_PAYMENTS = import.meta.env.VITE_ENABLE_REAL_PAYMENTS === 'true' ||
+  (import.meta.env.PROD && !import.meta.env.VITE_ENABLE_REAL_PAYMENTS);
 
 console.log('💳 Payment System Status:', {
-  mode: USE_REAL_PAYMENTS ? 'REAL_PAYMOB_PAYMENTS' : 'SIMULATION_MODE',
-  provider: USE_REAL_PAYMENTS ? 'Paymob Egypt' : 'Simulation',
-  toggle: 'Set VITE_ENABLE_REAL_PAYMENTS=true for real payments',
-  status: USE_REAL_PAYMENTS ? '🇪🇬 Paymob Egypt payments enabled - real payments!' : '✅ Safe simulation mode',
-  features: USE_REAL_PAYMENTS ? ['Cards', 'Wallets', 'Installments', 'Egyptian-built', 'Developer-friendly'] : ['Full payment flow simulation']
+  mode: USE_REAL_PAYMENTS ? 'SECURE_PAYMOB_EDGE_FUNCTION' : 'SIMULATION_MODE',
+  provider: USE_REAL_PAYMENTS ? 'Paymob Egypt (Secure)' : 'Simulation',
+  architecture: USE_REAL_PAYMENTS ? 'Edge Function - API keys secured on backend' : 'Local simulation',
+  status: USE_REAL_PAYMENTS ? '🔒 Secure Paymob Egypt payments via Edge Functions!' : '✅ Safe simulation mode',
+  features: USE_REAL_PAYMENTS ? ['Cards', 'Wallets', 'Installments', 'Backend-secured', 'Production-ready'] : ['Full payment flow simulation']
 });
 
 export const processPromotionPayment = async (
@@ -33,18 +36,61 @@ export const processPromotionPayment = async (
 
   // Route to real payment implementation if enabled
   if (USE_REAL_PAYMENTS) {
-    console.log('🔄 Routing to REAL payment processing...');
+    console.log('🔄 Processing real Paymob payment via secure Edge Function...');
     try {
-      // Using Paymob - Egyptian-built payment platform perfect for local market
-      const { processRealPromotionPayment } = await import('./paymobPayment.production');
-      const result = await processRealPromotionPayment(paymentData);
-      console.log('✅ Real payment result:', result);
-      return result;
+      // Get current user for authentication
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
+        throw new Error('User authentication required');
+      }
+
+      // Call secure Supabase Edge Function for payment processing
+      const { data, error } = await supabase.functions.invoke('process-paymob-payment', {
+        body: {
+          amount: paymentData.amount,
+          currency: paymentData.currency || 'EGP',
+          description: paymentData.description || `${paymentData.promotionType} promotion`,
+          promotionType: paymentData.promotionType,
+          userId: user.id
+        }
+      });
+
+      if (error) {
+        console.error('❌ Edge Function error:', error);
+        throw new Error(error.message || 'Payment processing failed');
+      }
+
+      if (!data.success) {
+        throw new Error(data.error || 'Payment failed');
+      }
+
+      console.log('✅ Payment session created via Edge Function:', data);
+
+      // For redirect-based payments, redirect to Paymob checkout
+      if (data.checkoutUrl) {
+        console.log('🔄 Redirecting to Paymob checkout:', data.checkoutUrl);
+        window.location.href = data.checkoutUrl;
+
+        // Return a pending result since we're redirecting
+        return {
+          success: true,
+          paymentId: data.paymentId,
+          paymentIntentId: data.paymentToken,
+          requiresAction: true,
+          redirectUrl: data.checkoutUrl
+        };
+      }
+
+      return {
+        success: true,
+        paymentId: data.paymentId,
+        paymentIntentId: data.paymentToken
+      };
     } catch (error) {
-      console.error('❌ Paymob payment system failed to load:', error);
+      console.error('❌ Secure payment processing failed:', error);
       return {
         success: false,
-        error: 'Paymob payment system unavailable. Please check configuration or contact support.',
+        error: error instanceof Error ? error.message : 'Payment system unavailable. Please try again.',
       };
     }
   }
@@ -147,10 +193,10 @@ export const formatPromotionPrice = (amount: number): string => {
 // Payment system status for debugging
 export const getPaymentSystemStatus = () => {
   return {
-    mode: USE_REAL_PAYMENTS ? 'REAL_PAYMENTS' : 'SIMULATION',
+    mode: USE_REAL_PAYMENTS ? 'SECURE_EDGE_FUNCTION' : 'SIMULATION',
     realPaymentsEnabled: USE_REAL_PAYMENTS,
-    stripePublicKey: USE_REAL_PAYMENTS ? !!import.meta.env.VITE_STRIPE_PUBLIC_KEY : 'not_required',
-    apiUrl: import.meta.env.VITE_API_URL || '/api',
+    architecture: USE_REAL_PAYMENTS ? 'Supabase Edge Function' : 'Local simulation',
+    security: USE_REAL_PAYMENTS ? 'API keys secured on backend' : 'No real credentials needed',
     pricing: {
       basic: getPromotionPrice('basic'),
       standard: getPromotionPrice('standard'),

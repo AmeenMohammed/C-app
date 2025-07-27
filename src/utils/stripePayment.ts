@@ -20,13 +20,26 @@ console.log('💳 Payment System Status:', {
 export const processPromotionPayment = async (
   paymentData: PaymentData
 ): Promise<PaymentResult> => {
+  console.log('🔍 Payment processing debug:', {
+    USE_REAL_PAYMENTS,
+    envVar: import.meta.env.VITE_ENABLE_REAL_PAYMENTS,
+    paymentData: {
+      amount: paymentData.amount,
+      currency: paymentData.currency,
+      hasPaymentMethodId: !!paymentData.paymentMethodId,
+      paymentMethodId: paymentData.paymentMethodId
+    }
+  });
+
   // Route to real payment implementation if enabled
   if (USE_REAL_PAYMENTS) {
     console.log('🔄 Routing to REAL payment processing...');
     try {
       // Using Paymob - Egyptian-built payment platform perfect for local market
       const { processRealPromotionPayment } = await import('./paymobPayment.production');
-      return processRealPromotionPayment(paymentData);
+      const result = await processRealPromotionPayment(paymentData);
+      console.log('✅ Real payment result:', result);
+      return result;
     } catch (error) {
       console.error('❌ Paymob payment system failed to load:', error);
       return {
@@ -67,16 +80,11 @@ export const processPromotionPayment = async (
         throw new Error('Payment failed. Your payment method may have expired or been declined.');
       }
     } else {
-      // Direct payment integration (no saved payment method)
-      paymentId = `pi_direct_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      paymentIntentId = `pi_direct_${Date.now()}`;
-
-      console.log('💳 Simulating direct payment integration (Paymob-style)');
-
-      // Simulate slightly higher failure rate for new payments (5% chance)
-      if (Math.random() < 0.05) {
-        throw new Error('Payment failed. Please try again or use a different payment method.');
-      }
+      // This should only happen in development/testing when no payment method is provided
+      // In real Paymob integration, this path shouldn't be reached
+      console.error('⚠️ SIMULATION MODE: No payment method provided');
+      console.error('⚠️ If you see this with VITE_ENABLE_REAL_PAYMENTS=true, check Paymob integration');
+      throw new Error('No payment method provided. Please select a payment method or check payment configuration.');
     }
 
     console.log('✅ Simulated payment successful:', paymentId);

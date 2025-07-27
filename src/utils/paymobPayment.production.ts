@@ -191,7 +191,9 @@ export const processRealPromotionPayment = async (
       amount: paymentData.amount,
       currency: paymentData.currency,
       promotionType: paymentData.promotionType,
-      hasPaymentMethod: !!paymentData.paymentMethodId
+      hasPaymentMethod: !!paymentData.paymentMethodId,
+      paymentMethodId: paymentData.paymentMethodId,
+      directIntegration: import.meta.env.VITE_PAYMOB_DIRECT_INTEGRATION
     });
 
     const config = getPaymobConfig();

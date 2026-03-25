@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { toast } from 'sonner';
 import { getAuthCallbackUrl } from '@/lib/auth-redirect';
+import { isHashRouterMode } from '@/lib/router-mode';
 
 const AuthCallback = () => {
   const navigate = useNavigate();
@@ -15,9 +16,12 @@ const AuthCallback = () => {
 
     const getCallbackParams = () => {
       const searchParams = new URLSearchParams(window.location.search);
+      const fragment = isHashRouterMode()
+        ? window.location.hash.split('#').slice(2).join('#')
+        : window.location.hash.slice(1);
 
       return {
-        fragmentParams: new URLSearchParams(window.location.hash.slice(1)),
+        fragmentParams: new URLSearchParams(fragment),
         searchParams,
       };
     };

@@ -3,13 +3,14 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, HashRouter, Routes, Route } from "react-router-dom";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ThemeProvider } from "next-themes";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
+import { isHashRouterMode } from "@/lib/router-mode";
 import Index from "./pages/Index";
 import Home from "./pages/Home";
 import ItemDetails from "./pages/ItemDetails";
@@ -33,6 +34,7 @@ import LocationMap from "./pages/LocationMap";
 import PaymentSuccess from "./pages/PaymentSuccess";
 
 const queryClient = new QueryClient();
+const Router = isHashRouterMode() ? HashRouter : BrowserRouter;
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -45,7 +47,7 @@ const App = () => (
       <LanguageProvider>
         <AuthProvider>
           <NotificationProvider>
-            <BrowserRouter>
+            <Router>
               <TooltipProvider>
                 <SidebarProvider>
                   <div className="min-h-screen flex w-full">
@@ -163,7 +165,7 @@ const App = () => (
                 <Toaster />
                 <Sonner />
               </TooltipProvider>
-            </BrowserRouter>
+            </Router>
           </NotificationProvider>
         </AuthProvider>
       </LanguageProvider>

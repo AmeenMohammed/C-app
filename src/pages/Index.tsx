@@ -57,7 +57,7 @@ const Index = () => {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: `${window.location.origin}${window.location.pathname}#/auth/callback`,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
@@ -86,7 +86,7 @@ const Index = () => {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'apple',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: `${window.location.origin}${window.location.pathname}#/auth/callback`,
         }
       });
 

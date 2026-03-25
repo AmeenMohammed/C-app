@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, Menu, Bell, Heart, Settings, ArrowUp, LogOut, ShoppingCart, TrendingUp } from "lucide-react";
+import { ArrowLeft, ArrowRight, Menu, Bell, Heart, Settings, LogOut, LogIn, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import {
@@ -20,7 +20,7 @@ interface TopBarProps {
 
 export function TopBar({ title, showBackButton = true, onBackClick }: TopBarProps) {
   const navigate = useNavigate();
-  const { signOut } = useAuth();
+  const { user, signOut } = useAuth();
   const { t, isRTL } = useLanguage();
 
   const handleBack = () => {
@@ -43,7 +43,7 @@ export function TopBar({ title, showBackButton = true, onBackClick }: TopBarProp
     try {
       await signOut();
       toast.success(t('logout'));
-      navigate("/");
+      navigate("/", { replace: true });
     } catch (error) {
       toast.error(t('errorLoggingOut'));
     }
@@ -91,10 +91,17 @@ export function TopBar({ title, showBackButton = true, onBackClick }: TopBarProp
               {t('settings')}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleLogout} className={`${isRTL ? 'flex-row-reverse' : ''}`}>
-              <LogOut className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
-              {t('logout')}
-            </DropdownMenuItem>
+            {user ? (
+              <DropdownMenuItem onClick={handleLogout} className={`${isRTL ? 'flex-row-reverse' : ''}`}>
+                <LogOut className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
+                {t('logout')}
+              </DropdownMenuItem>
+            ) : (
+              <DropdownMenuItem onClick={() => navigate('/')} className={`${isRTL ? 'flex-row-reverse' : ''}`}>
+                <LogIn className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
+                {t('signIn')}
+              </DropdownMenuItem>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

@@ -3,30 +3,103 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { toast } from 'sonner';
+import { getAuthCallbackUrl } from '@/lib/auth-redirect';
 
 const AuthCallback = () => {
   const navigate = useNavigate();
   const hasProcessed = useRef(false);
+  const timeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
+    let isMounted = true;
+
+    const getCallbackParams = () => {
+      const searchParams = new URLSearchParams(window.location.search);
+
+      return {
+        fragmentParams: new URLSearchParams(window.location.hash.slice(1)),
+        searchParams,
+      };
+    };
+
+    const clearAuthTimeout = () => {
+      if (timeoutRef.current) {
+        window.clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    };
+
+    const ensureUserProfile = async (user: Awaited<ReturnType<typeof supabase.auth.getUser>>['data']['user']) => {
+      if (!user) return;
+
+      try {
+        const { data: profile, error: profileError } = await supabase
+          .from('user_profiles')
+          .select('user_id')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (profile) return;
+
+        if (profileError && profileError.code !== 'PGRST116') {
+          console.error('Profile check error:', profileError);
+          return;
+        }
+
+        const { error: insertError } = await supabase
+          .from('user_profiles')
+          .insert({
+            user_id: user.id,
+            full_name:
+              user.user_metadata?.full_name ||
+              user.user_metadata?.name ||
+              user.email?.split('@')[0] ||
+              'User',
+            avatar_url:
+              user.user_metadata?.avatar_url ||
+              user.user_metadata?.picture ||
+              null,
+            bio: "Hello! I'm new to this platform.",
+            phone: user.phone || '',
+            location: 'Location not set'
+          });
+
+        if (insertError && insertError.code !== '23505') {
+          console.error('Manual profile creation failed:', insertError);
+          toast.error('Account created but profile setup failed. Please complete your profile in settings.');
+        }
+      } catch (error) {
+        console.error('Profile setup error:', error);
+      }
+    };
+
+    const finishAuthSuccess = async (user: Awaited<ReturnType<typeof supabase.auth.getUser>>['data']['user']) => {
+      if (!isMounted) return;
+
+      clearAuthTimeout();
+      await ensureUserProfile(user);
+
+      if (isMounted) {
+        navigate('/home', { replace: true });
+      }
+    };
+
     const handleAuthCallback = async () => {
       // Prevent multiple processing
       if (hasProcessed.current) return;
       hasProcessed.current = true;
 
       try {
-        // Handle OAuth tokens/errors from both normal redirects and HashRouter double-hash redirects
-        const rawHash = window.location.hash.slice(1);
-        const [, tokenFragment = ''] = rawHash.split('#');
-        const routeHash = tokenFragment ? tokenFragment : rawHash;
-        const hashParams = new URLSearchParams(routeHash.startsWith('/') ? '' : routeHash);
-        const tokenParams = new URLSearchParams(tokenFragment || (rawHash.startsWith('/') ? '' : rawHash));
-        const urlParams = new URLSearchParams(window.location.search);
+        const { fragmentParams, searchParams } = getCallbackParams();
 
         // Check for error parameters first
-        const error = tokenParams.get('error') || hashParams.get('error') || urlParams.get('error');
-        const errorDescription = tokenParams.get('error_description') || hashParams.get('error_description') || urlParams.get('error_description');
-        const errorCode = tokenParams.get('error_code') || hashParams.get('error_code') || urlParams.get('error_code');
+        const error = fragmentParams.get('error') || searchParams.get('error');
+        const errorDescription =
+          fragmentParams.get('error_description') ||
+          searchParams.get('error_description');
+        const errorCode =
+          fragmentParams.get('error_code') ||
+          searchParams.get('error_code');
 
         if (error) {
           console.error('OAuth error:', error, errorDescription, errorCode);
@@ -43,8 +116,12 @@ const AuthCallback = () => {
           return;
         }
 
-        const accessToken = tokenParams.get('access_token') || urlParams.get('access_token');
-        const refreshToken = tokenParams.get('refresh_token') || urlParams.get('refresh_token');
+        const accessToken =
+          fragmentParams.get('access_token') ||
+          searchParams.get('access_token');
+        const refreshToken =
+          fragmentParams.get('refresh_token') ||
+          searchParams.get('refresh_token');
 
         if (accessToken && refreshToken) {
           const { error: setSessionError } = await supabase.auth.setSession({
@@ -58,6 +135,12 @@ const AuthCallback = () => {
             navigate('/', { replace: true });
             return;
           }
+
+          window.history.replaceState(
+            null,
+            '',
+            getAuthCallbackUrl()
+          );
         }
 
         // Let Supabase handle the OAuth callback automatically
@@ -78,110 +161,34 @@ const AuthCallback = () => {
           return;
         }
 
-        // If no immediate session, wait for auth state change
-        if (!data.session) {
-          // Set up a one-time listener for auth state changes
-          const { data: { subscription } } = supabase.auth.onAuthStateChange(
-            async (event, session) => {
-              if (event === 'SIGNED_IN' && session) {
-                subscription.unsubscribe();
+        if (data.session?.user) {
+          await finishAuthSuccess(data.session.user);
+          return;
+        }
 
-                // Check if user profile was created successfully
-                try {
-                  const { data: profile, error: profileError } = await supabase
-                    .from('user_profiles')
-                    .select('*')
-                    .eq('user_id', session.user.id)
-                    .single();
-
-                  if (profileError && profileError.code === 'PGRST116') {
-                    // No profile found, try to create one manually
-                    console.log('No profile found, attempting to create manually...');
-
-                    const { error: insertError } = await supabase
-                      .from('user_profiles')
-                      .insert({
-                        user_id: session.user.id,
-                        full_name: session.user.user_metadata?.full_name ||
-                                  session.user.user_metadata?.name ||
-                                  session.user.email?.split('@')[0] ||
-                                  'User',
-                        avatar_url: session.user.user_metadata?.avatar_url ||
-                                   session.user.user_metadata?.picture ||
-                                   null,
-                        bio: 'Hello! I\'m new to this platform.',
-                        phone: session.user.phone || '',
-                        location: 'Location not set'
-                      });
-
-                    if (insertError) {
-                      console.error('Manual profile creation failed:', insertError);
-                      toast.error('Account created but profile setup failed. Please complete your profile in settings.');
-                    }
-                  }
-                } catch (profileError) {
-                  console.error('Profile check error:', profileError);
-                }
-
-                navigate('/home', { replace: true });
-              } else if (event === 'SIGNED_OUT' || (event === 'TOKEN_REFRESHED' && !session)) {
-                subscription.unsubscribe();
-                toast.error('Authentication failed. Please try again.');
-                navigate('/', { replace: true });
-              }
-            }
-          );
-
-          // Set a timeout to prevent infinite waiting
-          setTimeout(() => {
-            subscription.unsubscribe();
-            const currentUser = supabase.auth.getUser();
-            if (!currentUser) {
-              toast.error('Authentication timeout. Please try again.');
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(
+          async (event, session) => {
+            if (event === 'SIGNED_IN' && session?.user) {
+              subscription.unsubscribe();
+              await finishAuthSuccess(session.user);
+            } else if (event === 'SIGNED_OUT' || (event === 'TOKEN_REFRESHED' && !session)) {
+              subscription.unsubscribe();
+              clearAuthTimeout();
+              toast.error('Authentication failed. Please try again.');
               navigate('/', { replace: true });
             }
-          }, 15000); // 15 second timeout
-        } else {
-          // Session is immediately available
-          // Check if user profile exists
-          try {
-            const { data: profile, error: profileError } = await supabase
-              .from('user_profiles')
-              .select('*')
-              .eq('user_id', data.session.user.id)
-              .single();
-
-            if (profileError && profileError.code === 'PGRST116') {
-              // No profile found, try to create one manually
-              console.log('No profile found, attempting to create manually...');
-
-              const { error: insertError } = await supabase
-                .from('user_profiles')
-                .insert({
-                  user_id: data.session.user.id,
-                  full_name: data.session.user.user_metadata?.full_name ||
-                            data.session.user.user_metadata?.name ||
-                            data.session.user.email?.split('@')[0] ||
-                            'User',
-                  avatar_url: data.session.user.user_metadata?.avatar_url ||
-                             data.session.user.user_metadata?.picture ||
-                             null,
-                  bio: 'Hello! I\'m new to this platform.',
-                  phone: data.session.user.phone || '',
-                  location: 'Location not set'
-                });
-
-              if (insertError) {
-                console.error('Manual profile creation failed:', insertError);
-                toast.error('Account created but profile setup failed. Please complete your profile in settings.');
-              }
-            }
-          } catch (profileError) {
-            console.error('Profile check error:', profileError);
           }
+        );
 
-          navigate('/home', { replace: true });
-        }
+        timeoutRef.current = window.setTimeout(async () => {
+          subscription.unsubscribe();
+          const { data: userData } = await supabase.auth.getUser();
+
+          if (!userData.user) {
+            toast.error('Authentication timeout. Please try again.');
+            navigate('/', { replace: true });
+          }
+        }, 15000);
       } catch (error) {
         console.error('Unexpected error in auth callback:', error);
         toast.error('An unexpected error occurred. Please try again.');
@@ -190,6 +197,11 @@ const AuthCallback = () => {
     };
 
     handleAuthCallback();
+
+    return () => {
+      isMounted = false;
+      clearAuthTimeout();
+    };
   }, [navigate]);
 
   return (

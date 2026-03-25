@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import defaultImage from "../assets/default_item_image.png";
+import { getAuthCallbackUrl } from "@/lib/auth-redirect";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -54,10 +55,10 @@ const Index = () => {
   const handleGoogleSignIn = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}${window.location.pathname}#/auth/callback`,
+          redirectTo: getAuthCallbackUrl(),
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
@@ -83,10 +84,10 @@ const Index = () => {
   const handleAppleSignIn = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: 'apple',
         options: {
-          redirectTo: `${window.location.origin}${window.location.pathname}#/auth/callback`,
+          redirectTo: getAuthCallbackUrl(),
         }
       });
 
@@ -176,6 +177,7 @@ const Index = () => {
               <Input
                 type="email"
                 placeholder="Email"
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full"
@@ -187,6 +189,7 @@ const Index = () => {
               <Input
                 type="password"
                 placeholder="Password"
+                autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full"

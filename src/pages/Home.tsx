@@ -64,10 +64,12 @@ const Home = () => {
             localStorage.setItem('userLocation', JSON.stringify(location));
           },
           (error) => {
-            console.error("Error getting location:", error);
+            if (error.code === error.PERMISSION_DENIED) {
+              localStorage.setItem('locationPermission', 'denied');
+              return;
+            }
 
-            // Save that user denied permission
-            localStorage.setItem('locationPermission', 'denied');
+            console.warn("Unable to get location:", error.message);
           }
         );
       }
@@ -96,7 +98,7 @@ const Home = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-screen bg-background pb-36">
       <TopBar title={t('home')} showBackButton={false} />
 
       {/* Categories Bar */}

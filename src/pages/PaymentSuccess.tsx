@@ -2,19 +2,28 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { useLanguage } from '@/contexts/LanguageContext';
 import { toast } from 'sonner';
 import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
+interface PromotionDetails {
+  id: string;
+  promotion_type: string;
+  amount_paid: number | null;
+  items: {
+    title: string;
+    price: number | null;
+    currency: string | null;
+  } | null;
+}
+
 const PaymentSuccess = () => {
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
-  const { t } = useLanguage();
   const navigate = useNavigate();
   const [status, setStatus] = useState<'checking' | 'success' | 'failed'>('checking');
-  const [promotionDetails, setPromotionDetails] = useState<any>(null);
+  const [promotionDetails, setPromotionDetails] = useState<PromotionDetails | null>(null);
 
   useEffect(() => {
     const handlePaymentCallback = async () => {

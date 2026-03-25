@@ -3,17 +3,16 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { toast } from "sonner";
+import { getAuthCallbackUrl } from "@/lib/auth-redirect";
 
 const SignUp = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const { toast: toastHook } = useToast();
   const { user } = useAuth();
   const { t } = useLanguage();
   const navigate = useNavigate();
@@ -45,6 +44,11 @@ const SignUp = () => {
       }
 
       if (data.user) {
+        const requiresEmailConfirmation =
+          !data.session &&
+          Array.isArray(data.user.identities) &&
+          data.user.identities.length === 0;
+
         // For email signups, try to create a profile immediately
         // This is a fallback in case the database trigger doesn't work
         try {
@@ -72,6 +76,20 @@ const SignUp = () => {
           console.log('Profile creation fallback error:', profileError);
           // Don't show error to user as the trigger might have created it
         }
+
+        if (data.session) {
+          toast.success(t('accountCreatedSuccess'));
+          navigate('/home', { replace: true });
+          return;
+        }
+
+        if (requiresEmailConfirmation) {
+          toast.success(t('checkYourEmailToCompleteSignUp'));
+        } else {
+          toast.success(t('accountCreatedSuccess'));
+        }
+
+        navigate('/', { replace: true });
       }
     } catch (error) {
       toast.error(t('errorDuringSignUp'));
@@ -83,10 +101,10 @@ const SignUp = () => {
   const handleGoogleSignUp = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}${window.location.pathname}#/auth/callback`,
+          redirectTo: getAuthCallbackUrl(),
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
@@ -113,10 +131,10 @@ const SignUp = () => {
   const handleAppleSignUp = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: 'apple',
         options: {
-          redirectTo: `${window.location.origin}${window.location.pathname}#/auth/callback`,
+          redirectTo: getAuthCallbackUrl(),
         }
       });
 
@@ -199,6 +217,7 @@ const SignUp = () => {
               <Input
                 type="email"
                 placeholder={t('email')}
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -209,6 +228,7 @@ const SignUp = () => {
               <Input
                 type="password"
                 placeholder={t('password')}
+                autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required

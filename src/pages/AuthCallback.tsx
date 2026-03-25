@@ -15,14 +15,18 @@ const AuthCallback = () => {
       hasProcessed.current = true;
 
       try {
-        // First, check if there's a session in the URL hash (from OAuth redirect)
-        const hashParams = new URLSearchParams(window.location.hash.slice(1));
+        // Handle OAuth tokens/errors from both normal redirects and HashRouter double-hash redirects
+        const rawHash = window.location.hash.slice(1);
+        const [, tokenFragment = ''] = rawHash.split('#');
+        const routeHash = tokenFragment ? tokenFragment : rawHash;
+        const hashParams = new URLSearchParams(routeHash.startsWith('/') ? '' : routeHash);
+        const tokenParams = new URLSearchParams(tokenFragment || (rawHash.startsWith('/') ? '' : rawHash));
         const urlParams = new URLSearchParams(window.location.search);
 
         // Check for error parameters first
-        const error = hashParams.get('error') || urlParams.get('error');
-        const errorDescription = hashParams.get('error_description') || urlParams.get('error_description');
-        const errorCode = hashParams.get('error_code') || urlParams.get('error_code');
+        const error = tokenParams.get('error') || hashParams.get('error') || urlParams.get('error');
+        const errorDescription = tokenParams.get('error_description') || hashParams.get('error_description') || urlParams.get('error_description');
+        const errorCode = tokenParams.get('error_code') || hashParams.get('error_code') || urlParams.get('error_code');
 
         if (error) {
           console.error('OAuth error:', error, errorDescription, errorCode);
@@ -37,6 +41,23 @@ const AuthCallback = () => {
 
           navigate('/', { replace: true });
           return;
+        }
+
+        const accessToken = tokenParams.get('access_token') || urlParams.get('access_token');
+        const refreshToken = tokenParams.get('refresh_token') || urlParams.get('refresh_token');
+
+        if (accessToken && refreshToken) {
+          const { error: setSessionError } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+
+          if (setSessionError) {
+            console.error('Set session error:', setSessionError);
+            toast.error('Authentication failed. Please try again.');
+            navigate('/', { replace: true });
+            return;
+          }
         }
 
         // Let Supabase handle the OAuth callback automatically
